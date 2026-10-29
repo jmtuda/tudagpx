@@ -12,13 +12,14 @@ La implementación anterior de Supabase sigue en src/App.jsx, src/components y s
 - components/WorkspaceMap.jsx: capas de rutas/segmentos/borrador, límites de vista, selección y arrastre de punto activo.
 - utils/workspace.js: geometría, métricas, parser GPX, serialización GPX, revisión y validación de copias.
 - utils/localStore.js: IndexedDB y descargas.
+- utils/gpxFiles.js: lectura de codificación XML y conservación de bytes originales en base64, incluidos BOM y UTF-16.
 - workspace.css: interfaz adaptativa. index.css conserva estilos anteriores.
 
 ## Datos e invariantes
 
 Una base IndexedDB, tudagpx-local-v1, almacena un documento schema=1 mediante transacciones atómicas. Contiene rutas con trazados separados, segmentos, borrador, nombre y snapshots de proyectos. El guardado de revisiones se encola para evitar escrituras fuera de orden. La interfaz muestra fallos; si la lectura o validación inicial falla, no reemplaza los datos por demostraciones.
 
-Cada ruta importada conserva el XML original como texto, nombre del archivo y fecha. Los puntos usados por biblioteca y editor se copian: no se comparten como objetos mutables. Los puntos sin elevación usan null, no cero. Los tracks y rutas GPX mantienen sus límites; las métricas no suman saltos entre tramos. No se hacen llamadas de geocodificación ni se envían GPX a servidores.
+Cada ruta importada conserva los bytes originales en base64 (también en las copias JSON), el XML interpretado como texto, nombre del archivo y fecha. Los puntos usados por biblioteca y editor se copian: no se comparten como objetos mutables. Los puntos sin elevación usan null, no cero. Los tracks y rutas GPX mantienen sus límites; las métricas no suman saltos entre tramos. No se hacen llamadas de geocodificación ni se envían GPX a servidores.
 
 Guardar versión añade un snapshot independiente, incluso incompleto. Abrir un proyecto conserva el borrador anterior en otro snapshot. Importar una copia añade sus contenidos con identificadores nuevos; no reemplaza el trabajo existente. Descargar copia completa incluye los GPX originales. No hay operaciones de borrado de originales ni de versiones en esta entrega.
 

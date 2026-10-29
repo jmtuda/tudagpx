@@ -274,6 +274,15 @@ export function validateWorkspace(data) {
     check(r, r.tracks);
     if (r.original !== undefined && typeof r.original !== "string")
       throw new Error("Original GPX inválido.");
+    if (r.originalBase64 !== undefined) {
+      if (typeof r.originalBase64 !== "string")
+        throw new Error("Bytes originales inválidos.");
+      try {
+        atob(r.originalBase64);
+      } catch {
+        throw new Error("Bytes originales dañados.");
+      }
+    }
   });
   data.segments.forEach((s) => check(s, [s.points]));
   data.draft.forEach((e) => check(e, [e.points], true));

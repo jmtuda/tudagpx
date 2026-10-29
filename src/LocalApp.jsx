@@ -12,6 +12,7 @@ import {
   validateWorkspace,
 } from "./utils/workspace";
 import { loadWorkspace, saveWorkspace, download } from "./utils/localStore";
+import { readGPXFile, originalContent } from "./utils/gpxFiles";
 import "./workspace.css";
 const clone = (value) => structuredClone(value);
 const toggle = (items, id) =>
@@ -179,7 +180,7 @@ export default function LocalApp() {
       try {
         if (file.size > 25 * 1024 * 1024)
           throw new Error("El límite por archivo es 25 MB.");
-        routes.push(parseGPX(await file.text(), file.name));
+        routes.push(await readGPXFile(file));
       } catch (e) {
         errors.push(`${file.name}: ${e.message}`);
       }
@@ -605,7 +606,9 @@ export default function LocalApp() {
                         </button>
                         {r.original && (
                           <button
-                            onClick={() => download(r.original, r.filename)}
+                            onClick={() =>
+                              download(originalContent(r), r.filename)
+                            }
                           >
                             Original GPX ↓
                           </button>

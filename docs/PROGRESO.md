@@ -18,9 +18,11 @@ Implementado:
 
 Verificación inicial:
 - Compilación de producción correcta; bundle local menor que el anterior y sin cargar Supabase.
-- Siete pruebas Playwright pasaron en Chrome real: carga de las cuatro cartografías desde internet, selección, importación multitramos, original descargado idéntico, superposición, arrastre, operaciones de edición, versiones, exportación parseable, dibujo, copia recuperable, geometría, rechazo de entradas inválidas y pantalla móvil.
+- Diez pruebas Playwright pasaron en Chrome real: carga de las cuatro cartografías desde internet, selección, importación multitramos, original descargado idéntico, superposición, arrastre, operaciones de edición, versiones, exportación parseable, dibujo, copia recuperable, geometría, rechazo de entradas inválidas y pantalla móvil. También se verificaron el cambio geográfico con selección fuera de vista, la recuperación de borradores vacíos y el bloqueo de exportación incompleta.
 - Se encontró y corrigió un aviso que tapaba el botón de exportación.
 - Revisión visual de la interfaz y mapa IGN realizada en navegador.
+- Conservación byte a byte comprobada también para originales UTF-8 con BOM y UTF-16. Se guarda base64 junto al texto interpretado para que las copias JSON conserven esos bytes.
+- Verificación final: npm run lint sin avisos; npm run build correcto; npm test, 10/10; npm audit --omit=dev, cero vulnerabilidades detectadas. El arranque de doble clic se ejecutó contra el servidor activo y abrió el navegador.
 
 Pendiente tras esta entrega:
 1. Completar editor: insertar puntos en trazados existentes, unión explícita, variantes y herramientas más cómodas de selección.
