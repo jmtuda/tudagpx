@@ -114,7 +114,7 @@ test("editor: copias, arrastre, invertir, dividir, deshacer, versión y GPX", as
   await expect(
     page.getByRole("heading", { name: "Tu borrador libre" }),
   ).toBeVisible();
-  const handle = page.locator(".point-handle");
+  const handle = page.getByTitle("Editar punto 1", { exact: true });
   await expect(handle).toBeVisible();
   const box = await handle.boundingBox();
   await page.mouse.move(box.x + 9, box.y + 9);
@@ -129,7 +129,8 @@ test("editor: copias, arrastre, invertir, dividir, deshacer, versión y GPX", as
   await page.getByRole("button", { name: "Invertir", exact: true }).click();
   await page.getByRole("button", { name: "↶ Deshacer" }).click();
   await page.getByRole("button", { name: "↷ Rehacer" }).click();
-  await page.getByLabel("Índice del punto").fill("2");
+  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+  await page.getByTitle("Editar punto 2", { exact: true }).click();
   await page.getByRole("button", { name: "Dividir aquí" }).click();
   await expect(page.locator(".draft-card")).toHaveCount(2);
   await page
@@ -166,18 +167,26 @@ test("dibujo libre, recorte, eliminación, nuevo segmento y copia recuperable", 
   await ready(page);
   await page.getByRole("button", { name: /^Borrador/ }).click();
   await page.getByRole("button", { name: "+ Dibujar", exact: true }).click();
+  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
   const map = page.locator(".workspace-map");
   await map.click({ position: { x: 250, y: 200 } });
   await map.click({ position: { x: 300, y: 220 } });
   await map.click({ position: { x: 350, y: 240 } });
   await map.click({ position: { x: 400, y: 260 } });
+  await page.getByRole("button", { name: "Mostrar herramientas" }).click();
   await page.getByRole("button", { name: "Terminar dibujo" }).click();
   await persisted(page);
   expect((await state(page)).draft[0].points).toHaveLength(4);
-  await page.getByLabel("Índice del punto").fill("2");
   await page
-    .getByRole("button", { name: "Recortar antes", exact: true })
+    .getByRole("button", { name: "Recortar trazado", exact: true })
     .click();
+  await page.getByLabel("Inicio del recorte").focus();
+  await page.getByLabel("Inicio del recorte").press("ArrowRight");
+  await page
+    .getByRole("button", { name: "Aplicar recorte al borrador" })
+    .click();
+  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+  await page.getByTitle("Editar punto 1", { exact: true }).click();
   await page
     .getByRole("button", { name: "Eliminar punto", exact: true })
     .click();
@@ -345,6 +354,7 @@ test("borrador vacío recuperable y exportación incompleta bloqueada", async ({
     .getByRole("button", { name: "Guardar versión", exact: true })
     .click();
   await persisted(page);
+  expect((await state(page)).projects).toHaveLength(1);
   await page.reload();
   await page.getByRole("button", { name: /^Borrador/ }).click();
   await expect(page.locator(".draft-card")).toHaveCount(1);

@@ -1,30 +1,33 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
   Polyline,
   CircleMarker,
-  Marker,
   Tooltip,
-  useMap,
   useMapEvents,
 } from "react-leaflet";
-import L from "leaflet";
+
 import "leaflet/dist/leaflet.css";
 import { SelectorMapaBase } from "./MapaBase";
 import { colors, inBounds } from "../utils/workspace";
+import { DirectTrace } from "./DirectTrace";
+import { EditorTools } from "./EditorTools";
 const positions = (points) => points.map((p) => [p.lat, p.lon]);
-const handleIcon = L.divIcon({
-  className: "point-handle",
-  iconSize: [18, 18],
-  iconAnchor: [9, 9],
-});
+
 function Events({ onBounds, drawing, onDraw, focus }) {
+  const ignoreClickUntil = useRef(0);
   const map = useMapEvents({
+    "editor:drag": () => {
+      ignoreClickUntil.current = performance.now() + 500;
+    },
     moveend() {
       report();
     },
     click(e) {
-      if (drawing) onDraw({ lat: e.latlng.lat, lon: e.latlng.lng, ele: null });
+      if (drawing && performance.now() > ignoreClickUntil.current) {
+        const p = e.latlng.wrap();
+        onDraw({ lat: p.lat, lon: p.lng, ele: null });
+      }
     },
   });
   function report() {
@@ -55,6 +58,7 @@ function Events({ onBounds, drawing, onDraw, focus }) {
   useEffect(() => {
     if (focus?.points.length)
       map.fitBounds(positions(focus.points), {
+        animate: false,
         padding: [55, 55],
         maxZoom: 15,
       });
@@ -64,40 +68,7 @@ function Events({ onBounds, drawing, onDraw, focus }) {
   }, [drawing, map]);
   return null;
 }
-function DraftLine({ element, index, active, onSelect }) {
-  const map = useMap();
-  return (
-    <Polyline
-      positions={positions(element.points)}
-      pathOptions={{
-        color: active ? "#e05d23" : "#e79962",
-        weight: active ? 6 : 4,
-        dashArray: "10 7",
-      }}
-      eventHandlers={{
-        click: (e) => {
-          L.DomEvent.stopPropagation(e);
-          let closest = 0,
-            min = Infinity;
-          element.points.forEach((p, i) => {
-            const d = map
-              .latLngToLayerPoint([p.lat, p.lon])
-              .distanceTo(map.latLngToLayerPoint(e.latlng));
-            if (d < min) {
-              min = d;
-              closest = i;
-            }
-          });
-          onSelect(element.id, closest);
-        },
-      }}
-    >
-      <Tooltip>
-        {index + 1}. {element.name} · pulsa para editar un punto
-      </Tooltip>
-    </Polyline>
-  );
-}
+
 export function WorkspaceMap({
   data,
   visibleRoutes,
@@ -115,11 +86,17 @@ export function WorkspaceMap({
   pointIndex,
   onSelect,
   onMove,
+  editing,
+  mode,
+  crop,
+  onInsert,
+  onPointAction,
+  onSplit,
+  tools,
   issues,
 }) {
   const [tileError, setTileError] = useState(false);
-  const element = data.draft.find((e) => e.id === active);
-  const point = element?.points[pointIndex];
+
   const shown = useMemo(
     () =>
       data.segments.filter(
@@ -135,12 +112,12 @@ export function WorkspaceMap({
         center={[40.752, -3.984]}
         zoom={13}
         className="workspace-map"
-        doubleClickZoom={!drawing}
+        doubleClickZoom={!editing && !drawing}
       >
         <SelectorMapaBase onTileError={setTileError} />
         <Events
           onBounds={onBounds}
-          drawing={drawing}
+          drawing={editing && mode === "edit"}
           onDraw={onDraw}
           focus={focus}
         />
@@ -149,6 +126,7 @@ export function WorkspaceMap({
           .map((r, i) => (
             <Polyline
               key={r.id}
+              bubblingMouseEvents={false}
               positions={r.tracks.map(positions)}
               pathOptions={{
                 color: colors[i % colors.length],
@@ -162,6 +140,7 @@ export function WorkspaceMap({
         {shown.map((s) => (
           <Polyline
             key={s.id}
+            bubblingMouseEvents={false}
             positions={positions(s.points)}
             pathOptions={{
               color: selected.includes(s.id)
@@ -173,8 +152,7 @@ export function WorkspaceMap({
             eventHandlers={{
               mouseover: () => onHover(s.id),
               mouseout: () => onHover(null),
-              click: (e) => {
-                L.DomEvent.stopPropagation(e);
+              click: () => {
                 if (!drawing) onToggle(s.id);
               },
             }}
@@ -182,30 +160,22 @@ export function WorkspaceMap({
             <Tooltip>{s.name}</Tooltip>
           </Polyline>
         ))}
-        {data.draft.map((e, i) => (
-          <DraftLine
+        {data.draft.map((e) => (
+          <DirectTrace
             key={e.id}
             element={e}
-            index={i}
             active={e.id === active}
+            editing={editing}
+            mode={mode}
+            pointIndex={e.id === active ? pointIndex : 0}
+            crop={e.id === active ? crop : null}
             onSelect={onSelect}
+            onMove={onMove}
+            onInsert={onInsert}
+            onAction={onPointAction}
+            onSplit={onSplit}
           />
         ))}
-        {point && !drawing && (
-          <Marker
-            position={[point.lat, point.lon]}
-            icon={handleIcon}
-            draggable
-            eventHandlers={{
-              dragend: (e) => {
-                const p = e.target.getLatLng();
-                onMove({ lat: p.lat, lon: p.lng, ele: null });
-              },
-            }}
-          >
-            <Tooltip permanent>Arrastra el punto {pointIndex + 1}</Tooltip>
-          </Marker>
-        )}
         {issues
           ?.filter((i) => i.point)
           .map((issue, i) => (
@@ -219,6 +189,7 @@ export function WorkspaceMap({
             </CircleMarker>
           ))}
       </MapContainer>
+      <EditorTools {...tools} editing={editing} mode={mode} range={crop} />
       <div className="map-caption">
         <span className="dot gray" /> Biblioteca <span className="dot teal" />{" "}
         Selección <span className="dash" /> Borrador
@@ -227,12 +198,6 @@ export function WorkspaceMap({
         <div role="status" className="tile-warning">
           No se han podido cargar algunas teselas. Comprueba internet o cambia
           de mapa.
-        </div>
-      )}
-      {drawing && (
-        <div className="drawing-hint">
-          Pulsa en el mapa para añadir puntos. El trazado es libre, sin ajuste a
-          caminos.
         </div>
       )}
     </div>

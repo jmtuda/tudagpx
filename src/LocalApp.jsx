@@ -13,7 +13,9 @@ import {
 } from "./utils/workspace";
 import { loadWorkspace, saveWorkspace, download } from "./utils/localStore";
 import { readGPXFile, originalContent } from "./utils/gpxFiles";
+import { splitTrace } from "./utils/editorGeometry";
 import "./workspace.css";
+import "./editor.css";
 const clone = (value) => structuredClone(value);
 const toggle = (items, id) =>
   items.includes(id) ? items.filter((x) => x !== id) : [...items, id];
@@ -61,6 +63,8 @@ function Profile({ tracks, color }) {
 }
 export default function LocalApp() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [editorMode, setEditorMode] = useState("edit"),
+    [crop, setCrop] = useState(null);
   const [data, setData] = useState(null),
     [fatal, setFatal] = useState(""),
     [saved, setSaved] = useState("Cargando…");
@@ -122,6 +126,8 @@ export default function LocalApp() {
       });
   }, [data]);
   function update(fn) {
+    revision.current++;
+    setSaved("Guardando…");
     setData((d) => fn(d));
   }
   function edit(next) {
@@ -132,6 +138,7 @@ export default function LocalApp() {
       draft: typeof next === "function" ? next(d.draft) : next,
     }));
     setIssues(null);
+    setCrop(null);
   }
   function undo() {
     if (!past.length) return;
@@ -140,6 +147,7 @@ export default function LocalApp() {
     setPast((p) => p.slice(0, -1));
     setDrawing(false);
     setIssues(null);
+    setCrop(null);
   }
   function redo() {
     if (!future.length) return;
@@ -148,6 +156,7 @@ export default function LocalApp() {
     setFuture((f) => f.slice(1));
     setDrawing(false);
     setIssues(null);
+    setCrop(null);
   }
   function addSegments(ids) {
     const additions = data.segments
@@ -163,6 +172,8 @@ export default function LocalApp() {
     setActive(additions[0].id);
     setPointIndex(0);
     setTab("draft");
+    setEditorMode("edit");
+    focusPoints(additions.flatMap((s) => s.points));
     setNotice(
       "Copias añadidas al borrador. Los segmentos originales no cambian.",
     );
@@ -239,10 +250,136 @@ export default function LocalApp() {
     setActive(e.id);
     setPointIndex(0);
     setDrawing(true);
+    setEditorMode("edit");
     setTab("draft");
   }
   function changeElement(fn) {
     edit(data.draft.map((e) => (e.id === active ? fn(clone(e)) : e)));
+  }
+  function selectElement(id, index = 0) {
+    setActive(id);
+    setPointIndex(index);
+    setTab("draft");
+  }
+  function setTool(mode) {
+    setEditorMode(mode);
+    setDrawing(false);
+    setCrop(null);
+  }
+  function editRoute(route) {
+    const copies = route.tracks.map((points, i) => ({
+      id: uid(),
+      name: route.name + (route.tracks.length > 1 ? ` · tramo ${i + 1}` : ""),
+      points: clone(points),
+      sourceRouteId: route.id,
+    }));
+    edit([...data.draft, ...copies]);
+    selectElement(copies[0].id);
+    setTool("edit");
+    focusPoints(copies.flatMap((e) => e.points));
+    setNotice("Editas una copia. El GPX original permanece intacto.");
+  }
+  function movePoint(id, index, point) {
+    edit(
+      data.draft.map((e) =>
+        e.id === id
+          ? { ...e, points: e.points.map((p, i) => (i === index ? point : p)) }
+          : e,
+      ),
+    );
+    selectElement(id, index);
+  }
+  function insertPoint(id, index, point) {
+    edit(
+      data.draft.map((e) =>
+        e.id === id
+          ? {
+              ...e,
+              points: [
+                ...e.points.slice(0, index),
+                point,
+                ...e.points.slice(index),
+              ],
+            }
+          : e,
+      ),
+    );
+    selectElement(id, index);
+  }
+  function splitElement(id, index, point = null) {
+    const position = data.draft.findIndex((e) => e.id === id),
+      element = data.draft[position];
+    if (!element) return;
+    const parts = splitTrace(element.points, index, point);
+    if (!parts) {
+      setNotice("Elige un lugar intermedio del trazado para dividirlo.");
+      return;
+    }
+    edit([
+      ...data.draft.slice(0, position),
+      { ...clone(element), points: parts[0] },
+      {
+        ...clone(element),
+        id: uid(),
+        name: element.name + " · parte 2",
+        points: parts[1],
+      },
+      ...data.draft.slice(position + 1),
+    ]);
+    selectElement(id, Math.max(0, index - 1));
+    setEditorMode("edit");
+    setDrawing(false);
+    setNotice(
+      "Trazado dividido en dos partes. Puedes deshacer; el original no cambia.",
+    );
+  }
+  function pointAction(action, id, index) {
+    const element = data.draft.find((e) => e.id === id);
+    if (!element) return;
+    selectElement(id, index);
+    if (action === "delete") {
+      if (element.points.length < 2) return;
+      edit(
+        data.draft.map((e) =>
+          e.id === id
+            ? { ...e, points: e.points.filter((_, i) => i !== index) }
+            : e,
+        ),
+      );
+      setPointIndex(Math.max(0, index - 1));
+    } else {
+      const previous =
+        crop?.id === id ? crop : { start: 0, end: element.points.length - 1 };
+      const range =
+        action === "crop-start"
+          ? {
+              start: Math.min(index, element.points.length - 2),
+              end: Math.max(previous.end, index + 1),
+            }
+          : {
+              start: Math.min(previous.start, index - 1),
+              end: Math.max(1, index),
+            };
+      setCrop({ id, ...range });
+      setEditorMode("crop");
+      setDrawing(false);
+    }
+  }
+  function saveSegment(points, name) {
+    if (points.length < 2) return;
+    const element = data.draft.find((e) => e.id === active);
+    const segment = {
+      id: uid(),
+      name,
+      points: clone(points),
+      sourceId: element?.sourceId,
+      sourceRouteId: element?.sourceRouteId,
+      createdAt: new Date().toISOString(),
+    };
+    update((d) => ({ ...d, segments: [...d.segments, segment] }));
+    setNotice(
+      "Nuevo segmento guardado en la biblioteca. Los originales y el borrador no se modifican.",
+    );
   }
   function saveProject() {
     const p = {
@@ -324,6 +461,13 @@ export default function LocalApp() {
       setNotice(`No se ha importado la copia: ${e.message}`);
     }
   }
+  useEffect(() => {
+    if (tab !== "draft" || !data) return;
+    if (!data.draft.some((e) => e.id === active)) {
+      setActive(data.draft[0]?.id || null);
+      setPointIndex(0);
+    }
+  }, [data, tab, active]);
   if (fatal)
     return (
       <main className="startup">
@@ -346,11 +490,10 @@ export default function LocalApp() {
       r.name.toLowerCase().includes(query.toLowerCase()) &&
       (sport === "Todos" || r.sport === sport),
   );
-  const patchPoint = (point) =>
-    changeElement((e) => ({
-      ...e,
-      points: e.points.map((p, i) => (i === pointIndex ? point : p)),
-    }));
+  const cropRange =
+    crop?.id === active
+      ? crop
+      : { start: 0, end: Math.max(0, (activeElement?.points.length || 1) - 1) };
   const exportDraft = () => {
     try {
       const xml = exportGPX(data.draft, data.draftName);
@@ -369,11 +512,15 @@ export default function LocalApp() {
       <header className="topbar">
         <button
           className="sidebar-toggle"
-          aria-label={sidebarOpen ? "Ocultar panel de rutas" : "Mostrar panel de rutas"}
-          title={sidebarOpen ? "Ocultar panel de rutas" : "Mostrar panel de rutas"}
+          aria-label={
+            sidebarOpen ? "Ocultar panel de rutas" : "Mostrar panel de rutas"
+          }
+          title={
+            sidebarOpen ? "Ocultar panel de rutas" : "Mostrar panel de rutas"
+          }
           aria-expanded={sidebarOpen}
           aria-controls="library-panel"
-          onClick={() => setSidebarOpen(open => !open)}
+          onClick={() => setSidebarOpen((open) => !open)}
         >
           <span aria-hidden="true">☰</span>
         </button>
@@ -615,6 +762,9 @@ export default function LocalApp() {
                         <button onClick={() => routeSegments(r)}>
                           Crear segmentos
                         </button>
+                        <button onClick={() => editRoute(r)}>
+                          Editar copia
+                        </button>
                         {r.original && (
                           <button
                             onClick={() =>
@@ -653,22 +803,11 @@ export default function LocalApp() {
                   }
                 />
                 <p className="hint">
-                  No es necesario conectar los tramos mientras editas. Pulsa
-                  sobre una línea naranja para elegir un punto y arrástralo.
+                  Edita directamente en el mapa con el lápiz y las tijeras. Los
+                  puntos blancos se arrastran; los puntos «+» insertan nuevos
+                  puntos. No es necesario conectar los tramos mientras editas.
                 </p>
                 <div className="tools">
-                  <button onClick={undo} disabled={!past.length}>
-                    ↶ Deshacer
-                  </button>
-                  <button onClick={redo} disabled={!future.length}>
-                    ↷ Rehacer
-                  </button>
-                  <button
-                    className={drawing ? "primary" : ""}
-                    onClick={() => (drawing ? setDrawing(false) : startDraw())}
-                  >
-                    {drawing ? "Terminar dibujo" : "+ Dibujar"}
-                  </button>
                   <button disabled={!data.draft.length} onClick={saveProject}>
                     Guardar versión
                   </button>
@@ -756,7 +895,7 @@ export default function LocalApp() {
                 ))}
                 {activeElement && (
                   <section className="point-editor">
-                    <h3>Editar tramo activo</h3>
+                    <h3>Nombre del tramo activo</h3>
                     <input
                       aria-label="Nombre del tramo"
                       value={activeElement.name}
@@ -764,117 +903,12 @@ export default function LocalApp() {
                         changeElement((s) => ({ ...s, name: e.target.value }))
                       }
                     />
-                    <label>
-                      Punto{" "}
-                      <input
-                        aria-label="Índice del punto"
-                        type="number"
-                        min="1"
-                        max={activeElement.points.length || 1}
-                        value={
-                          Math.min(
-                            pointIndex + 1,
-                            activeElement.points.length,
-                          ) || 1
-                        }
-                        onChange={(e) =>
-                          setPointIndex(
-                            Math.max(
-                              0,
-                              Math.min(
-                                activeElement.points.length - 1,
-                                Number(e.target.value) - 1,
-                              ),
-                            ),
-                          )
-                        }
-                      />
-                    </label>
                     <div className="tools">
                       <button
                         disabled={activeElement.points.length < 2}
-                        onClick={() => {
-                          changeElement((e) => ({
-                            ...e,
-                            points: e.points.filter((_, i) => i !== pointIndex),
-                          }));
-                          setPointIndex(Math.max(0, pointIndex - 1));
-                        }}
-                      >
-                        Eliminar punto
-                      </button>
-                      <button
-                        disabled={
-                          pointIndex <= 0 ||
-                          pointIndex >= activeElement.points.length - 1
-                        }
-                        onClick={() => {
-                          const i = data.draft.findIndex(
-                            (e) => e.id === active,
-                          );
-                          edit([
-                            ...data.draft.slice(0, i),
-                            {
-                              ...clone(activeElement),
-                              points: clone(
-                                activeElement.points.slice(0, pointIndex + 1),
-                              ),
-                            },
-                            {
-                              ...clone(activeElement),
-                              id: uid(),
-                              name: activeElement.name + " · parte 2",
-                              points: clone(
-                                activeElement.points.slice(pointIndex),
-                              ),
-                            },
-                            ...data.draft.slice(i + 1),
-                          ]);
-                        }}
-                      >
-                        Dividir aquí
-                      </button>
-                      <button
-                        disabled={pointIndex <= 0}
-                        onClick={() => {
-                          changeElement((e) => ({
-                            ...e,
-                            points: e.points.slice(pointIndex),
-                          }));
-                          setPointIndex(0);
-                        }}
-                      >
-                        Recortar antes
-                      </button>
-                      <button
-                        disabled={pointIndex >= activeElement.points.length - 1}
                         onClick={() =>
-                          changeElement((e) => ({
-                            ...e,
-                            points: e.points.slice(0, pointIndex + 1),
-                          }))
+                          saveSegment(activeElement.points, activeElement.name)
                         }
-                      >
-                        Recortar después
-                      </button>
-                      <button
-                        disabled={activeElement.points.length < 2}
-                        onClick={() => {
-                          const segment = {
-                            id: uid(),
-                            name: activeElement.name,
-                            points: clone(activeElement.points),
-                            sourceId: activeElement.sourceId,
-                            createdAt: new Date().toISOString(),
-                          };
-                          update((d) => ({
-                            ...d,
-                            segments: [...d.segments, segment],
-                          }));
-                          setNotice(
-                            "Nuevo segmento guardado. La referencia original permanece intacta.",
-                          );
-                        }}
                       >
                         Guardar como nuevo segmento
                       </button>
@@ -964,6 +998,16 @@ export default function LocalApp() {
             bounds={bounds}
             drawing={drawing}
             onDraw={(p) => {
+              if (!activeElement) {
+                const e = {
+                  id: uid(),
+                  name: `Trazado libre ${data.draft.length + 1}`,
+                  points: [p],
+                };
+                edit([...data.draft, e]);
+                selectElement(e.id);
+                return;
+              }
               edit(
                 data.draft.map((e) =>
                   e.id === active ? { ...e, points: [...e.points, p] } : e,
@@ -977,14 +1021,66 @@ export default function LocalApp() {
               pointIndex,
               Math.max(0, (activeElement?.points.length || 1) - 1),
             )}
-            onSelect={(id, index) => {
-              if (!drawing) {
-                setActive(id);
-                setPointIndex(index);
+            onSelect={selectElement}
+            onMove={movePoint}
+            editing={tab === "draft" && issues === null}
+            mode={editorMode}
+            crop={cropRange}
+            onInsert={insertPoint}
+            onPointAction={pointAction}
+            onSplit={splitElement}
+            tools={{
+              elements: data.draft,
+              active,
+              drawing,
+              onOpen: () => {
                 setTab("draft");
-              }
+                setTool("edit");
+                focusPoints(data.draft.flatMap((e) => e.points));
+              },
+              onMode: setTool,
+              onActive: (id) => {
+                selectElement(id);
+                setDrawing(false);
+                focusPoints(data.draft.find((e) => e.id === id)?.points || []);
+              },
+              onNew: startDraw,
+              onFinish: () => setDrawing(false),
+              onExit: () => {
+                setTab("segments");
+                setDrawing(false);
+              },
+              onUndo: undo,
+              onRedo: redo,
+              canUndo: !!past.length,
+              canRedo: !!future.length,
+              onRange: (range) => setCrop({ id: active, ...range }),
+              onCrop: () => {
+                changeElement((e) => ({
+                  ...e,
+                  points: e.points.slice(cropRange.start, cropRange.end + 1),
+                }));
+                setEditorMode("edit");
+                setPointIndex(0);
+              },
+              onSaveSelection: (name) =>
+                saveSegment(
+                  activeElement.points.slice(
+                    cropRange.start,
+                    cropRange.end + 1,
+                  ),
+                  name,
+                ),
+              onSaveSegment: () =>
+                activeElement &&
+                saveSegment(activeElement.points, activeElement.name),
+              onReverse: () =>
+                changeElement((e) => ({
+                  ...e,
+                  points: [...e.points].reverse(),
+                })),
+              onCenter: () => focusPoints(activeElement?.points || []),
             }}
-            onMove={patchPoint}
             issues={issues}
           />
           <div className="bottom-bar">

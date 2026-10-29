@@ -1,0 +1,270 @@
+import { test, expect } from "@playwright/test";
+const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
+async function saved(page) {
+  await expect(page.locator(".local-status > span")).toHaveText(
+    "Guardado en este navegador",
+  );
+}
+async function state(page) {
+  await saved(page);
+  return page.evaluate(async () => {
+    const m = await import("/src/utils/localStore.js");
+    return m.loadWorkspace();
+  });
+}
+async function demo(page) {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "+ Borrador", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("toolbar", { name: "Herramientas del mapa" }),
+  ).toBeVisible();
+}
+async function drag(page, locator, dx, dy) {
+  const b = await locator.boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2 + dx, b.y + b.height / 2 + dy, {
+    steps: 10,
+  });
+  await page.mouse.up();
+}
+
+test("edición de una copia GPX, inserción por arrastre y un solo paso de deshacer", async ({
+  page,
+}) => {
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/");
+  await page.locator("input[type=file]").first().setInputFiles(fixture);
+  await page
+    .getByRole("button", { name: "Editar copia", exact: true })
+    .last()
+    .click();
+  await expect(page.getByLabel("Índice del punto")).toHaveCount(0);
+  await expect(page.locator(".anchor-handle")).toHaveCount(4);
+  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+  const before = await state(page),
+    middle = page.getByTitle("Insertar punto entre 1 y 2", { exact: true });
+  const b = await middle.boundingBox(),
+    line = page.locator("path.draft-line").first();
+  const path = await line.getAttribute("d");
+  await page.mouse.move(b.x + 7, b.y + 7);
+  await page.mouse.down();
+  await page.mouse.move(b.x + 50, b.y + 30, { steps: 8 });
+  await expect(line).not.toHaveAttribute("d", path);
+  await page.mouse.up();
+  let d = await state(page);
+  expect(d.draft[0].points).toHaveLength(5);
+  expect(d.routes.at(-1).tracks).toEqual(before.routes.at(-1).tracks);
+  expect(d.routes.at(-1).originalBase64).toBe(
+    before.routes.at(-1).originalBase64,
+  );
+  expect(d.draft[0].points[1].ele).toBe(null);
+  await page.getByRole("button", { name: "↶ Deshacer" }).click();
+  expect((await state(page)).draft[0].points).toEqual(before.draft[0].points);
+  await page.getByRole("button", { name: "↷ Rehacer" }).click();
+  expect((await state(page)).draft[0].points).toHaveLength(5);
+  expect(errors).toEqual([]);
+});
+
+test("puntos arrastrables y menú contextual sin añadir puntos accidentales", async ({
+  page,
+}) => {
+  await demo(page);
+  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+  const original = (await state(page)).draft[0].points;
+  await drag(page, page.getByTitle("Editar punto 2", { exact: true }), 35, -15);
+  let d = await state(page);
+  expect(d.draft[0].points).toHaveLength(4);
+  expect(d.draft[0].points[1].lat).not.toBe(original[1].lat);
+  expect(d.segments[0].points).toEqual(original);
+  await page
+    .getByTitle("Editar punto 2", { exact: true })
+    .click({ button: "right" });
+  await page
+    .getByRole("button", { name: "Eliminar punto", exact: true })
+    .click();
+  d = await state(page);
+  expect(d.draft[0].points).toHaveLength(3);
+  await page.getByRole("button", { name: "↶ Deshacer" }).click();
+  expect((await state(page)).draft[0].points).toHaveLength(4);
+});
+
+test("recorte visual reversible y creación directa de segmento sin cambiar borrador", async ({
+  page,
+}) => {
+  await demo(page);
+  const original = (await state(page)).draft[0].points;
+  await page
+    .getByRole("button", { name: "Recortar trazado", exact: true })
+    .click();
+  await page.getByLabel("Inicio del recorte").focus();
+  await page.getByLabel("Inicio del recorte").press("ArrowRight");
+  await page.getByLabel("Final del recorte").focus();
+  await page.getByLabel("Final del recorte").press("ArrowLeft");
+  expect((await state(page)).draft[0].points).toEqual(original);
+  await page
+    .getByLabel("Nombre del nuevo segmento")
+    .fill("Mi subida seleccionada");
+  await page
+    .getByRole("button", { name: "Guardar selección como segmento" })
+    .click();
+  let d = await state(page);
+  expect(d.segments.at(-1).name).toBe("Mi subida seleccionada");
+  expect(d.segments.at(-1).points).toEqual(original.slice(1, 3));
+  expect(d.draft[0].points).toEqual(original);
+  await page
+    .getByRole("button", { name: "Aplicar recorte al borrador" })
+    .click();
+  expect((await state(page)).draft[0].points).toEqual(original.slice(1, 3));
+  await page.keyboard.press("Control+z");
+  expect((await state(page)).draft[0].points).toEqual(original);
+  await page.keyboard.press("Control+Shift+z");
+  expect((await state(page)).draft[0].points).toEqual(original.slice(1, 3));
+  await page.reload();
+  await page.getByRole("button", { name: /^Borrador/ }).click();
+  expect((await state(page)).draft[0].points).toEqual(original.slice(1, 3));
+});
+
+test("selección arrastrada sobre perfil, extremos válidos y cancelación", async ({
+  page,
+}) => {
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await demo(page);
+  await page
+    .getByRole("button", { name: "Recortar trazado", exact: true })
+    .click();
+  const chart = page.getByRole("img", {
+      name: /Perfil para seleccionar el recorte/,
+    }),
+    box = await chart.boundingBox();
+  await page.mouse.move(box.x + box.width - 2, box.y + 30);
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect(page.getByLabel("Inicio del recorte")).toHaveValue("2");
+  await expect(page.getByLabel("Final del recorte")).toHaveValue("3");
+  await page.mouse.move(box.x + box.width * 0.95, box.y + 30);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.2, box.y + 30, { steps: 10 });
+  await page.mouse.up();
+  expect(
+    Number(await page.getByLabel("Inicio del recorte").inputValue()),
+  ).toBeLessThan(
+    Number(await page.getByLabel("Final del recorte").inputValue()),
+  );
+  await page.getByRole("button", { name: "Cancelar recorte" }).click();
+  expect((await state(page)).draft[0].points).toHaveLength(4);
+  expect(errors).toEqual([]);
+});
+
+test("tijeras dividen sobre la línea, deshacer conserva el trazado completo", async ({
+  page,
+}) => {
+  await demo(page);
+  const original = (await state(page)).draft[0].points;
+  const marker = await page
+    .getByTitle("Insertar punto entre 2 y 3", { exact: true })
+    .boundingBox();
+  await page
+    .getByRole("button", { name: "Dividir trazado", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+  await page.mouse.move(marker.x + 7, marker.y + 7);
+  await expect(page.getByTitle("Dividir en este lugar")).toBeVisible();
+  await page.getByTitle("Dividir en este lugar").click();
+  let d = await state(page);
+  expect(d.draft).toHaveLength(2);
+  expect(d.draft[0].points.at(-1)).toEqual(d.draft[1].points[0]);
+  expect(d.draft[0].points.length + d.draft[1].points.length).toBe(6);
+  await page.getByRole("button", { name: "↶ Deshacer" }).click();
+  d = await state(page);
+  expect(d.draft).toHaveLength(1);
+  expect(d.draft[0].points).toEqual(original);
+});
+
+test("edición táctil a pantalla completa sin perder panel ni selección", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  try {
+    await demo(page);
+    await page.getByRole("button", { name: "Ocultar panel de rutas" }).tap();
+    await page.getByRole("button", { name: "Minimizar herramientas" }).tap();
+    await expect(page.locator(".workspace-map")).toHaveCSS("width", "390px");
+    await page.getByTitle("Insertar punto entre 1 y 2", { exact: true }).tap();
+    expect((await state(page)).draft[0].points).toHaveLength(5);
+    await page.getByTitle("Editar punto 2", { exact: true }).tap();
+    await page
+      .getByRole("button", { name: "Eliminar punto", exact: true })
+      .tap();
+    expect((await state(page)).draft[0].points).toHaveLength(4);
+    await page
+      .getByRole("button", { name: "Recortar trazado", exact: true })
+      .tap();
+    await expect(page.getByLabel("Inicio del recorte")).toBeVisible();
+    await page.getByRole("button", { name: "Cancelar recorte" }).tap();
+    await page.getByRole("button", { name: "Mostrar panel de rutas" }).tap();
+    await expect(page.locator(".draft-card")).toHaveCount(1);
+    expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});
+
+test("muestreo de anclas no elimina GPS y división conserva los puntos", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async () => {
+    const m = await import("/src/utils/editorGeometry.js");
+    const points = Array.from({ length: 10000 }, (_, i) => ({
+      lat: i / 10000,
+      lon: i / 10000,
+      ele: i,
+    }));
+    const before = JSON.stringify(points);
+    const indices = m.anchorIndices(
+      points,
+      (p) => ({ x: p.lat * 200, y: p.lon * 200 }),
+      { x: 500, y: 500 },
+      5000,
+    );
+    const parts = m.splitTrace(points, 5000);
+    const coarse = m.anchorIndices(
+      points,
+      (p) => ({ x: p.lat * 200, y: p.lon * 200 }),
+      { x: 1000, y: 1000 },
+    );
+    const fine = m.anchorIndices(
+      points,
+      (p) => ({ x: p.lat * 800, y: p.lon * 800 }),
+      { x: 1000, y: 1000 },
+    );
+    return {
+      unchanged: JSON.stringify(points) === before,
+      selected: indices.includes(5000),
+      count: indices.length,
+      coarse: coarse.length,
+      fine: fine.length,
+      merged: [...parts[0], ...parts[1].slice(1)].length,
+      blocked: m.splitTrace(points, 0),
+    };
+  });
+  expect(result.unchanged).toBe(true);
+  expect(result.selected).toBe(true);
+  expect(result.count).toBeLessThan(350);
+  expect(result.fine).toBeGreaterThan(result.coarse);
+  expect(result.merged).toBe(10000);
+  expect(result.blocked).toBe(null);
+});
