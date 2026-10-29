@@ -39,3 +39,9 @@ Limitaciones y decisiones: docs/ARQUITECTURA.md. Uso: README.md. El guardado es 
 Cabecera reducida a 52 px (48 en móvil), eliminada la barra «Explora. Selecciona. Conecta.» y pie del borrador reducido a 46 px (44 en móvil). Se conserva el acceso al borrador en el panel izquierdo y el botón de revisión/exportación en el pie. Sin cambios en datos ni edición.
 
 Verificado con lint, compilación y tres pruebas de disposición en Chrome (1280×577, 1440×950 y 390×844), incluidos acceso al borrador y revisión. Revisión visual adicional en navegador: mapa de 479 px de altura en una ventana de 577 px.
+
+## Panel de biblioteca plegable
+
+Botón permanente «☰» en la cabecera para ocultar y volver a mostrar el panel. El mapa ocupa todo el ancho disponible; en móvil recupera además el espacio vertical del panel. La selección, pestaña activa y borrador se mantienen. ResizeObserver actualiza el tamaño de Leaflet sin remontar el mapa.
+
+Verificado: lint y compilación correctos; cinco pruebas de interfaz en Chrome, incluidas ocultación y reapertura en escritorio y móvil sin perder selección ni borrador. Revisión visual: mapa de 1280 px en ventana de 1280 px con panel oculto.

@@ -60,6 +60,7 @@ function Profile({ tracks, color }) {
   );
 }
 export default function LocalApp() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [data, setData] = useState(null),
     [fatal, setFatal] = useState(""),
     [saved, setSaved] = useState("Cargando…");
@@ -364,8 +365,18 @@ export default function LocalApp() {
     }
   };
   return (
-    <div className="local-app">
+    <div className={`local-app${sidebarOpen ? "" : " panel-hidden"}`}>
       <header className="topbar">
+        <button
+          className="sidebar-toggle"
+          aria-label={sidebarOpen ? "Ocultar panel de rutas" : "Mostrar panel de rutas"}
+          title={sidebarOpen ? "Ocultar panel de rutas" : "Mostrar panel de rutas"}
+          aria-expanded={sidebarOpen}
+          aria-controls="library-panel"
+          onClick={() => setSidebarOpen(open => !open)}
+        >
+          <span aria-hidden="true">☰</span>
+        </button>
         <div className="brand">
           <span className="brand-icon">⌁</span>
           <div>
@@ -402,7 +413,7 @@ export default function LocalApp() {
         onChange={importBackup}
       />
       <div className="workbench">
-        <aside className="sidebar">
+        <aside id="library-panel" className="sidebar" hidden={!sidebarOpen}>
           <div className="sidebar-top">
             <p className="eyebrow">TU ESPACIO DE RUTAS</p>
             <nav aria-label="Biblioteca">

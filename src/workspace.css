@@ -64,6 +64,22 @@ select:focus-visible {
   align-items: center;
   gap: 10px;
 }
+.sidebar-toggle {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 19px;
+}
+.topbar > .sidebar-toggle {
+  margin-right: -14px;
+}
+.sidebar[hidden] {
+  display: none;
+}
+.panel-hidden .notice {
+  left: 20px;
+}
 .brand-icon {
   display: grid;
   place-items: center;
@@ -596,6 +612,16 @@ h2 {
   }
 }
 @media (max-width: 650px) {
+  .topbar > .sidebar-toggle {
+    margin-right: 0;
+  }
+  .panel-hidden .map-area {
+    height: 100%;
+    flex: 1;
+  }
+  .panel-hidden .notice {
+    left: 12px;
+  }
   .topbar {
     height: 48px;
     gap: 10px;

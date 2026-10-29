@@ -46,6 +46,13 @@ function Events({ onBounds, drawing, onDraw, focus }) {
     });
   }, [map, onBounds]);
   useEffect(() => {
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize({ animate: false, debounceMoveend: true });
+    });
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
+  useEffect(() => {
     if (focus?.points.length)
       map.fitBounds(positions(focus.points), {
         padding: [55, 55],
