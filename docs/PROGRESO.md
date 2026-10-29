@@ -1,5 +1,13 @@
 # Progreso
 
+## Seguir caminos al crear y editar
+
+Implementado el nuevo requisito prioritario: seguir la red vial OSM por defecto, con modo libre opcional. Cliente BRouter sin claves ni dependencias nuevas; perfiles Gravel, Carretera, MTB y Cicloturismo comprobados con respuestas reales desde Chrome. Consentimiento explícito por sesión antes de enviar las coordenadas de las anclas, revocable. No se envían originales ni nombres.
+
+Crear/extender calcula desde el extremo; mover/insertar/eliminar anclas interiores recalcula la parte local entre vecinas, conservando la geometría exterior y el original. Indicador de cálculo y cancelación, límite de tiempo, validación de respuesta y rechazo si no hay camino a menos de 100 m. Fallos conservan el trazado; sin fallback automático a rectas. Deshacer revierte cada cálculo completo.
+
+Verificación: batería de 28 pruebas correcta, incluidas respuestas BRouter reales, dibujo con clics, arrastre de una copia importada, originales intactos, exportación GPX y recuperación tras recarga. Pruebas de error/cancelación con interceptación separadas de las reales. Revisión visual de los controles y consentimiento. El servicio público requiere internet; no hay motor offline y no garantiza transitabilidad. Se conserva la arquitectura local y no se publica nada.
+
 ## Entrega 1: aplicación local tangible
 
 Rama: desarrollo/primera-version-local. Base original: a25f6a7. main intacta.

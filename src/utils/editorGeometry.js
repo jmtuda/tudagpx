@@ -7,6 +7,7 @@ export function anchorIndices(points, project, viewport, selected = -1) {
   let last = project(points[0]);
   points.forEach((point, index) => {
     if (!index || index === points.length - 1) return;
+    if (point.routeSample) return;
     const pixel = project(point);
     if (
       pixel.x < -40 ||

@@ -160,6 +160,39 @@
   border-radius: 50%;
   cursor: grab;
 }
+.routing-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+  font-weight: 650;
+}
+.routing-toggle input {
+  width: auto;
+  accent-color: #007d77;
+}
+.routing-permission {
+  background: #eef6f3;
+  padding: 8px;
+  border-radius: 6px;
+  margin: 8px 0;
+}
+.routing-permission button {
+  margin: 3px 0;
+  font-size: 11px;
+}
+.routing-status {
+  position: absolute;
+  top: -40px;
+  left: 50px;
+  background: white;
+  padding: 7px;
+  border-radius: 5px;
+  width: 274px;
+  pointer-events: auto;
+  box-shadow: 0 2px 8px #173e3926;
+  font-size: 12px;
+}
 .anchor-handle:active,
 .insert-handle:active {
   cursor: grabbing;

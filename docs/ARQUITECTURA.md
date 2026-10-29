@@ -13,6 +13,7 @@ La implementación anterior de Supabase sigue en src/App.jsx, src/components y s
 - components/DirectTrace.jsx: anclas visibles según zoom, previsualización del arrastre, inserción y menú de puntos.
 - components/EditorTools.jsx: barra de herramientas, selección del trazado, recorte con sliders y perfil interactivo.
 - utils/editorGeometry.js: muestreo visual, proyección sobre aristas, división y distancias acumuladas del perfil de recorte.
+- utils/routing.js: cliente BRouter sin claves, perfiles comprobados en el servidor oficial y sustitución local de geometría entre anclas vecinas.
 - utils/workspace.js: geometría, métricas, parser GPX, serialización GPX, revisión y validación de copias.
 - utils/localStore.js: IndexedDB y descargas.
 - utils/gpxFiles.js: lectura de codificación XML y conservación de bytes originales en base64, incluidos BOM y UTF-16.
@@ -30,7 +31,9 @@ Guardar versión añade un snapshot independiente, incluso incompleto. Abrir un 
 
 La biblioteca encuentra líneas que cruzan el rectángulo visible incluso si no hay vértices dentro. La selección queda fuera del filtro de vista. Las referencias disponibles se dibujan grises; seleccionadas, de colores; borrador naranja, continuo cuando está en edición y discontinuo como referencia. Ocultar es independiente de seleccionar.
 
-El editor no exige continuidad. Dibujar genera rectas libres, sin servicio de enrutamiento. Mover un punto elimina su elevación anterior: no se inventa una nueva. No hay snapping, interpolación automática ni datos de elevación externos.
+El editor no exige continuidad entre elementos separados. Seguir caminos es el modo inicial; el modo libre opcional genera rectas y mover un punto elimina su elevación anterior. El cálculo BRouter se hace al confirmar el gesto, no en cada movimiento: extensión desde el extremo o recálculo local entre las anclas visibles vecinas al mover/insertar/eliminar un ancla interior. No se recalcula el GPX entero al abrirlo. Los puntos ajenos a la ventana editada se conservan, así como los originales. Los puntos de geometría calculada llevan routeSample para no convertir cada muestra en una ancla; las anclas de paso se conservan separadas de esas muestras. La elevación del servicio se usa solo si está disponible.
+
+Cada cálculo tiene AbortController, tiempo máximo por petición y comprobación de geometría y proximidad de extremos (100 m). Mientras calcula no se aceptan nuevos arrastres/clics de extensión. Cancelar, cambiar modo/perfil, retirar permiso o modificar datos invalida el trabajo pendiente; una respuesta tardía no sustituye el borrador. Un cálculo completado equivale a una operación de deshacer. Los errores conservan el trazado, sin fallback silencioso a rectas.
 
 La edición visual replica patrones documentados de gpx.studio con implementación propia: anclas arrastrables, puntos de inserción, menú contextual, tijeras y recorte con selección previa. El muestreo de anclas en pantalla no simplifica los puntos almacenados. Cada gesto de arrastre es una sola operación de historial; la vista previa es local al componente. Se suprime el clic residual al soltar para no añadir puntos accidentales. El recorte no escribe hasta confirmar; guardar su selección crea un segmento nuevo sin modificar el borrador. El perfil de recorte sí usa distancia acumulada; los perfiles comparativos anteriores siguen usando índice de puntos. Decisiones y referencias: docs/EDITOR_VISUAL.md.
 
@@ -44,7 +47,7 @@ No es todavía un validador exhaustivo: solapamientos parciales, saltos dentro d
 
 ## Privacidad y límites
 
-Solo se reciben mapas desde IGN/OSM, que conocen las teselas solicitadas como en cualquier mapa web. El servidor escucha exclusivamente en loopback, sin publicación. Los datos de biblioteca están en el perfil del navegador y origen http://127.0.0.1:5173; localhost o un puerto distinto tienen otro almacenamiento. Internet es necesario para cartografía, no para editar GPX.
+Los mapas IGN/OSM conocen las teselas solicitadas. El cálculo por caminos utiliza https://brouter.de/brouter con consentimiento explícito por sesión, revocable: envía solo coordenadas de las anclas de la edición y perfil, sin archivo GPX, nombres, cookies ni referrer. El modo libre no llama a BRouter y sigue disponible sin internet. El servidor local escucha exclusivamente en loopback, sin publicación. Los datos de biblioteca están en el perfil del navegador y origen http://127.0.0.1:5173; localhost o un puerto distinto tienen otro almacenamiento. La preferencia caminos/libre se conserva en localStorage; el permiso externo no se conserva al recargar.
 
 La importación admite varios archivos de hasta 25 MB cada uno; no se ha optimizado aún el rendimiento de trazados enormes. No hay autenticación porque es un usuario local. No debe publicarse esta modalidad como aplicación multiusuario.
 

@@ -14,6 +14,7 @@ import {
 import { loadWorkspace, saveWorkspace, download } from "./utils/localStore";
 import { readGPXFile, originalContent } from "./utils/gpxFiles";
 import { splitTrace } from "./utils/editorGeometry";
+import { routedEdit } from "./utils/routing";
 import "./workspace.css";
 import "./editor.css";
 const clone = (value) => structuredClone(value);
@@ -62,6 +63,23 @@ function Profile({ tracks, color }) {
   );
 }
 export default function LocalApp() {
+  const [routing, setRouting] = useState(
+    () => localStorage.getItem("tudagpx-routing-mode") !== "free",
+  );
+  const [routingConsent, setRoutingConsent] = useState(false);
+  const [routingProfile, setRoutingProfile] = useState("gravel");
+  const [routingBusy, setRoutingBusy] = useState(false);
+  const routingJob = useRef(null);
+  function cancelRouting() {
+    routingJob.current?.abort();
+    routingJob.current = null;
+    setRoutingBusy(false);
+  }
+  function changeRouting(value) {
+    cancelRouting();
+    setRouting(value);
+    localStorage.setItem("tudagpx-routing-mode", value ? "roads" : "free");
+  }
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [editorMode, setEditorMode] = useState("edit"),
     [crop, setCrop] = useState(null);
@@ -126,6 +144,7 @@ export default function LocalApp() {
       });
   }, [data]);
   function update(fn) {
+    cancelRouting();
     revision.current++;
     setSaved("Guardando…");
     setData((d) => fn(d));
@@ -257,11 +276,13 @@ export default function LocalApp() {
     edit(data.draft.map((e) => (e.id === active ? fn(clone(e)) : e)));
   }
   function selectElement(id, index = 0) {
+    cancelRouting();
     setActive(id);
     setPointIndex(index);
     setTab("draft");
   }
   function setTool(mode) {
+    cancelRouting();
     setEditorMode(mode);
     setDrawing(false);
     setCrop(null);
@@ -279,7 +300,63 @@ export default function LocalApp() {
     focusPoints(copies.flatMap((e) => e.points));
     setNotice("Editas una copia. El GPX original permanece intacto.");
   }
-  function movePoint(id, index, point) {
+  async function routeChange(id, index, point, action, neighbors) {
+    if (routingJob.current) return;
+    if (!routingConsent) {
+      setNotice(
+        "Antes de seguir caminos, permite el cálculo con BRouter en las opciones del lápiz, o elige modo libre. No se ha modificado el trazado.",
+      );
+      return;
+    }
+    const element = data.draft.find((e) => e.id === id);
+    if (!element) return;
+    const controller = new AbortController();
+    routingJob.current = controller;
+    setRoutingBusy(true);
+    try {
+      const points = await routedEdit(
+        element.points,
+        index,
+        point,
+        action,
+        neighbors,
+        routingProfile,
+        controller.signal,
+      );
+      if (controller.signal.aborted || routingJob.current !== controller)
+        return;
+      edit(data.draft.map((e) => (e.id === id ? { ...e, points } : e)));
+      const target = point || points[Math.min(index, points.length - 1)];
+      let selectedIndex = 0;
+      points.forEach((p, i) => {
+        if (
+          Math.hypot(p.lat - target.lat, p.lon - target.lon) <
+          Math.hypot(
+            points[selectedIndex].lat - target.lat,
+            points[selectedIndex].lon - target.lon,
+          )
+        )
+          selectedIndex = i;
+      });
+      selectElement(id, selectedIndex);
+      setNotice(
+        "Tramo calculado siguiendo caminos. Puedes deshacer; el original no cambia.",
+      );
+    } catch (error) {
+      if (!controller.signal.aborted)
+        setNotice(
+          `${error.name === "TimeoutError" ? "El cálculo ha tardado demasiado." : error.message} El trazado anterior se conserva; no se ha sustituido por una recta.`,
+        );
+    } finally {
+      if (routingJob.current === controller) {
+        routingJob.current = null;
+        setRoutingBusy(false);
+      }
+    }
+  }
+  function movePoint(id, index, point, neighbors) {
+    if (routing && data.draft.find((e) => e.id === id)?.points.length > 1)
+      return routeChange(id, index, point, "move", neighbors);
     edit(
       data.draft.map((e) =>
         e.id === id
@@ -289,7 +366,8 @@ export default function LocalApp() {
     );
     selectElement(id, index);
   }
-  function insertPoint(id, index, point) {
+  function insertPoint(id, index, point, neighbors) {
+    if (routing) return routeChange(id, index, point, "insert", neighbors);
     edit(
       data.draft.map((e) =>
         e.id === id
@@ -333,12 +411,14 @@ export default function LocalApp() {
       "Trazado dividido en dos partes. Puedes deshacer; el original no cambia.",
     );
   }
-  function pointAction(action, id, index) {
+  function pointAction(action, id, index, neighbors) {
     const element = data.draft.find((e) => e.id === id);
     if (!element) return;
     selectElement(id, index);
     if (action === "delete") {
       if (element.points.length < 2) return;
+      if (routing && index > 0 && index < element.points.length - 1)
+        return routeChange(id, index, null, "delete", neighbors);
       edit(
         data.draft.map((e) =>
           e.id === id
@@ -534,7 +614,11 @@ export default function LocalApp() {
           </div>
         </div>
         <div className="local-status">
-          <i /> Solo local · privado <span>{saved}</span>
+          <i />{" "}
+          {routing && routingConsent
+            ? "Datos locales · cálculo externo"
+            : "Solo local · privado"}{" "}
+          <span>{saved}</span>
         </div>
         <button
           className="primary"
@@ -1008,6 +1092,10 @@ export default function LocalApp() {
                 selectElement(e.id);
                 return;
               }
+              if (routing && activeElement.points.length) {
+                routeChange(active, activeElement.points.length, p, "append");
+                return;
+              }
               edit(
                 data.draft.map((e) =>
                   e.id === active ? { ...e, points: [...e.points, p] } : e,
@@ -1024,12 +1112,28 @@ export default function LocalApp() {
             onSelect={selectElement}
             onMove={movePoint}
             editing={tab === "draft" && issues === null}
+            routingBusy={routingBusy}
             mode={editorMode}
             crop={cropRange}
             onInsert={insertPoint}
             onPointAction={pointAction}
             onSplit={splitElement}
             tools={{
+              routing,
+              onRouting: changeRouting,
+              routingConsent,
+              onConsent: () => setRoutingConsent(true),
+              onRevokeConsent: () => {
+                cancelRouting();
+                setRoutingConsent(false);
+              },
+              routingProfile,
+              onRoutingProfile: (profile) => {
+                cancelRouting();
+                setRoutingProfile(profile);
+              },
+              routingBusy,
+              onCancelRouting: cancelRouting,
               elements: data.draft,
               active,
               drawing,
@@ -1050,6 +1154,7 @@ export default function LocalApp() {
               onNew: startDraw,
               onFinish: () => setTool("view"),
               onExit: () => {
+                cancelRouting();
                 setTab("segments");
                 setDrawing(false);
               },

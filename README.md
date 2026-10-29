@@ -17,7 +17,7 @@ Usa siempre la misma dirección y navegador: los datos se guardan ahí, no se si
 3. Mueve el mapa. La lista busca segmentos geográficamente y conserva los seleccionados fuera de la vista.
 4. Pulsa «Añadir seleccionados al borrador». Trabajas sobre copias, no sobre originales.
 5. En Borrador, edita directamente sobre el mapa: arrastra los puntos blancos para moverlos; arrastra los pequeños «+» para insertar nuevos puntos. Pulsa un punto (o haz clic derecho) para eliminarlo, dividir o marcar los límites de un recorte. La barra flotante contiene lápiz, recorte, tijeras, deshacer y rehacer.
-6. El botón «+» de la barra flotante inicia un trazado nuevo. En modo lápiz, pulsar el mapa prolonga el trazado activo. «Terminar dibujo» finaliza la sesión de dibujo y «Salir del editor» vuelve a la biblioteca. No se ajusta automáticamente a carreteras.
+6. El botón «+» de la barra flotante inicia un trazado nuevo. En modo lápiz, pulsar el mapa prolonga el trazado activo. «Seguir caminos» está activado inicialmente: elige Gravel, Carretera, MTB o Cicloturismo y pulsa «Permitir cálculo con BRouter». Calcula por la red de OpenStreetMap tanto al dibujar como al mover o insertar anclas. Desmarca «Seguir caminos» para dibujar libremente. «Terminar dibujo» finaliza la sesión y «Salir del editor» vuelve a la biblioteca.
 7. «Guardar versión» conserva una copia independiente del proyecto, aunque esté incompleto. El borrador se guarda además automáticamente.
 8. «Revisar y exportar» muestra avisos en el mapa. Los errores impiden descargar; las advertencias pueden aceptarse. Se exporta un tramo GPX por elemento, sin inventar conexiones.
 
@@ -36,10 +36,11 @@ Abrir una versión conserva el borrador que tenías en otro snapshot. Los datos 
 ## Límites de esta entrega
 
 - Almacenamiento local provisional; todavía no hay PostgreSQL/PostGIS ni sincronización.
-- Interacción visual inspirada en gpx.studio, no una réplica completa: faltan unión avanzada, variantes y enrutamiento automático por carreteras y caminos.
+- Interacción visual inspirada en gpx.studio, no una réplica completa: faltan unión avanzada y variantes.
 - Revisión básica: coordenadas, huecos entre elementos, elevación y aristas idénticas. No detecta todos los solapamientos ni garantiza el sentido correcto.
 - Comparación inicial por superposición, cifras y perfiles individuales; eje horizontal del perfil por puntos, todavía no por distancia.
-- No se calculan rutas por carreteras ni elevaciones nuevas. Mover un punto deja su elevación sin dato.
+- El cálculo por caminos requiere internet y permiso en cada sesión: envía las coordenadas de las anclas locales a BRouter, no el GPX completo. El modo libre no utiliza ese servicio. Las elevaciones calculadas proceden de BRouter si están disponibles; en modo libre, mover un punto elimina su elevación anterior.
+- BRouter sigue la red de OpenStreetMap, no las líneas dibujadas en las ortofotos PNOA. Puede no conocer un camino o sus restricciones actuales. Revisa siempre el resultado; no garantiza transitabilidad ni permiso de acceso. Si falla, se conserva el trazado anterior, sin sustituirlo automáticamente por rectas.
 - Importación de hasta 25 MB por archivo; grandes bibliotecas y trazados masivos aún sin optimizar.
 - No se ha publicado nada ni se ha conectado el Supabase anterior.
 

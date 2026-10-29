@@ -22,6 +22,7 @@ export function DirectTrace({
   active,
   editing,
   mode,
+  busy,
   pointIndex,
   crop,
   onSelect,
@@ -69,16 +70,24 @@ export function DirectTrace({
     to = crop?.end ?? element.points.length - 1;
   const act = (action, index) => {
     map.closePopup();
-    onAction(action, element.id, index);
+    onAction(action, element.id, index, neighbors(index));
   };
+  function neighbors(index, insert = false) {
+    return {
+      left: indices.filter((i) => i < index).at(-1) ?? 0,
+      right:
+        indices.find((i) => (insert ? i >= index : i > index)) ??
+        element.points.length - 1,
+    };
+  }
   function drag(e, index, insert = false, commit = false) {
     map.fire("editor:drag");
     const ll = e.target.getLatLng().wrap(),
       point = { lat: ll.lat, lon: ll.lng, ele: null };
     if (commit) {
       setPreview(null);
-      if (insert) onInsert(element.id, index, point);
-      else onMove(element.id, index, point);
+      if (insert) onInsert(element.id, index, point, neighbors(index, true));
+      else onMove(element.id, index, point, neighbors(index));
     } else setPreview({ index, point, insert });
   }
   return (
@@ -104,6 +113,7 @@ export function DirectTrace({
               setHover(null);
           },
           click: (e) => {
+            if (busy) return;
             if (!editing) {
               onSelect(element.id, 0);
               return;
@@ -116,7 +126,12 @@ export function DirectTrace({
               return;
             }
             if (active && mode === "edit" && hit.insert) {
-              onInsert(element.id, hit.index, hit.point);
+              onInsert(
+                element.id,
+                hit.index,
+                hit.point,
+                neighbors(hit.index, true),
+              );
               return;
             }
             onSelect(element.id, hit.index);
@@ -170,19 +185,21 @@ export function DirectTrace({
                       ? endIcon
                       : anchorIcon
               }
-              draggable
+              draggable={!busy}
               bubblingMouseEvents={false}
               title={`Editar punto ${index + 1}`}
               eventHandlers={{
                 drag: (e) => drag(e, index),
                 dragend: (e) => drag(e, index, false, true),
                 click: (e) => {
+                  if (busy) return;
                   if (e.originalEvent?.shiftKey) {
                     act("delete", index);
                     e.target.closePopup();
                   } else onSelect(element.id, index);
                 },
                 contextmenu: (e) => {
+                  if (busy) return;
                   L.DomEvent.preventDefault(e.originalEvent);
                   onSelect(element.id, index);
                   e.target.openPopup();
@@ -243,18 +260,24 @@ export function DirectTrace({
               key={`insert-${edge}`}
               position={[p.lat, p.lon]}
               icon={insertIcon}
-              draggable
+              draggable={!busy}
               bubblingMouseEvents={false}
               title={`Insertar punto entre ${edge} y ${edge + 1}`}
               eventHandlers={{
                 drag: (e) => drag(e, edge, true),
                 dragend: (e) => drag(e, edge, true, true),
                 click: () =>
-                  onInsert(element.id, edge, {
-                    lat: p.lat,
-                    lon: p.lon,
-                    ele: null,
-                  }),
+                  !busy &&
+                  onInsert(
+                    element.id,
+                    edge,
+                    {
+                      lat: p.lat,
+                      lon: p.lon,
+                      ele: null,
+                    },
+                    neighbors(edge, true),
+                  ),
               }}
             >
               <Tooltip>Arrastra para añadir un punto</Tooltip>

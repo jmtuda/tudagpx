@@ -1,4 +1,10 @@
 import { test, expect } from "@playwright/test";
+// Esta batería verifica la geometría libre; el cálculo real tiene su propia batería.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("tudagpx-routing-mode", "free"),
+  );
+});
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
 async function saved(page) {
   await expect(page.locator(".local-status > span")).toHaveText(
@@ -220,6 +226,9 @@ test("edición táctil a pantalla completa sin perder panel ni selección", asyn
     hasTouch: true,
   });
   const page = await context.newPage();
+  await page.addInitScript(() =>
+    localStorage.setItem("tudagpx-routing-mode", "free"),
+  );
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   try {

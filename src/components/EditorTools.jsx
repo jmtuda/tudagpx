@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cumulativeDistances } from "../utils/editorGeometry";
 import { stats } from "../utils/workspace";
+import { routingProfiles } from "../utils/routing";
 function CropProfile({ points, range, onRange }) {
   const distances = useMemo(() => cumulativeDistances(points), [points]);
   const total = distances.at(-1) || 1,
@@ -148,6 +149,15 @@ export function EditorTools({
   onSaveSegment,
   onReverse,
   onCenter,
+  routing,
+  onRouting,
+  routingConsent,
+  onConsent,
+  onRevokeConsent,
+  routingProfile,
+  onRoutingProfile,
+  routingBusy,
+  onCancelRouting,
 }) {
   const [minimized, setMinimized] = useState(false),
     [segmentName, setSegmentName] = useState("");
@@ -187,6 +197,12 @@ export function EditorTools({
     );
   return (
     <div className="map-editor" aria-label="Editor visual de rutas">
+      {routingBusy && (
+        <div className="routing-status" role="status">
+          Calculando por caminos…{" "}
+          <button onClick={onCancelRouting}>Cancelar cálculo</button>
+        </div>
+      )}
       <div
         className="editor-toolstrip"
         role="toolbar"
@@ -292,14 +308,64 @@ export function EditorTools({
           )}
           {mode === "edit" && (
             <>
+              <label className="routing-toggle">
+                <input
+                  type="checkbox"
+                  checked={routing}
+                  onChange={(e) => onRouting(e.target.checked)}
+                />
+                Seguir caminos
+              </label>
+              {routing ? (
+                <>
+                  <select
+                    aria-label="Actividad para seguir caminos"
+                    value={routingProfile}
+                    onChange={(e) => onRoutingProfile(e.target.value)}
+                  >
+                    {Object.entries(routingProfiles).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  {!routingConsent ? (
+                    <div className="routing-permission">
+                      <p>
+                        Para calcular por caminos se enviarán a BRouter las
+                        coordenadas de las anclas del tramo editado, no el
+                        archivo GPX completo. Requiere internet.
+                      </p>
+                      <button onClick={onConsent}>
+                        Permitir cálculo con BRouter
+                      </button>
+                      <button onClick={() => onRouting(false)}>
+                        Usar modo libre sin enviar coordenadas
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="editor-note">
+                      Cálculo: BRouter · datos © OpenStreetMap.{" "}
+                      <button onClick={onRevokeConsent}>Retirar permiso</button>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="editor-note">
+                  Modo libre: líneas rectas, sin enviar coordenadas al servicio
+                  de cálculo.
+                </p>
+              )}
               <p>
                 Arrastra los puntos blancos para modificar el trazado. Arrastra
                 los puntos «+» para insertar uno. Pulsa un punto para ver sus
                 acciones.
               </p>
               <p className="editor-note">
-                Pulsa el mapa para prolongar el trazado. Líneas rectas, sin
-                ajuste automático a caminos.
+                Pulsa el mapa para prolongar el trazado.{" "}
+                {routing
+                  ? "Al mover un ancla se recalcula solo entre sus anclas vecinas. Si falla, no se dibujan rectas automáticamente."
+                  : "Activa «Seguir caminos» para ajustar el recorrido."}
               </p>
               <div className="editor-actions">
                 <button onClick={onCenter} disabled={!element?.points.length}>

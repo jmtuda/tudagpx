@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("tudagpx-routing-mode", "free"),
+  );
+});
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
 const ready = async (page) => {
   await page.goto("/");

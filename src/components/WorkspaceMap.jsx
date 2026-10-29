@@ -87,6 +87,7 @@ export function WorkspaceMap({
   onSelect,
   onMove,
   editing,
+  routingBusy,
   mode,
   crop,
   onInsert,
@@ -117,7 +118,7 @@ export function WorkspaceMap({
         <SelectorMapaBase onTileError={setTileError} />
         <Events
           onBounds={onBounds}
-          drawing={editing && mode === "edit"}
+          drawing={editing && mode === "edit" && !routingBusy}
           onDraw={onDraw}
           focus={focus}
         />
@@ -166,6 +167,7 @@ export function WorkspaceMap({
             element={e}
             active={e.id === active}
             editing={editing}
+            busy={routingBusy}
             mode={mode}
             pointIndex={e.id === active ? pointIndex : 0}
             crop={e.id === active ? crop : null}

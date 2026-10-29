@@ -7,9 +7,15 @@ Se revisó la aplicación real https://gpx.studio/app y su documentación oficia
 - https://gpx.studio/help/toolbar/scissors — selección previa con sliders/perfil y división sobre la línea.
 - https://gpx.studio/help/toolbar/merge — conexión explícita frente a conservación de trazados separados, pendiente de implementar.
 
-Se replica el modelo de interacción, no la marca ni el código de gpx.studio. La implementación es propia en React y Leaflet. No se ha añadido un servicio de enrutamiento: el editor trabaja sobre geometría libre y lo indica expresamente.
+Se replica el modelo de interacción, no la marca ni el código de gpx.studio. La implementación es propia en React y Leaflet. Seguir caminos es el modo inicial, con BRouter y opción de modo libre.
 
 ## Flujo principal
+
+En las opciones del lápiz, «Seguir caminos» calcula el recorrido sobre OpenStreetMap. Perfiles disponibles comprobados en https://brouter.de/brouter/profiles2/: gravel, fastbike, mtb y trekking. Al empezar cada sesión, el usuario debe permitir expresamente enviar las coordenadas de las anclas a BRouter. Puede retirar el permiso o desmarcar el modo en cualquier momento. No se envían nombres ni archivos originales. El modo libre sigue funcionando sin ese servicio.
+
+Al prolongar el track calcula desde el último extremo; al arrastrar o insertar un punto recalcula solo entre anclas vecinas. No adapta todo un GPX importado por el simple hecho de abrirlo. La red procede de OSM, independientemente de la cartografía visible: no extrae caminos de la ortofoto. Se tolera un ajuste al camino de hasta 100 m; en una edición importada se conservan las coordenadas exactas de las anclas frontera para no desplazar la geometría exterior. Esas pequeñas transiciones requieren revisión visual. No garantiza acceso, seguridad ni transitabilidad.
+
+El indicador «Calculando por caminos…» permite cancelar. Una petición fallida o cancelada deja el recorrido intacto, sin fallback a rectas. Un resultado aceptado se puede deshacer como un único gesto. Cambiar la actividad afecta a las siguientes ediciones, no reescribe automáticamente lo ya dibujado.
 
 Importar GPX → Rutas → Editar copia. No hace falta crear antes segmentos intermedios. Alternativamente, añadir una referencia de la biblioteca al borrador o abrir «Editar rutas» sobre el mapa.
 
@@ -34,6 +40,6 @@ Importar GPX → Rutas → Editar copia. No hace falta crear antes segmentos int
 
 ## Límites
 
-No hay cálculo de caminos entre anclas ni rerouting por actividad. Al mover una ancla se mueve un punto GPS, no se recalculan los puntos vecinos mediante una red vial. No hay todavía unión avanzada, edición de puntos de interés ni el conjunto completo de herramientas de gpx.studio. Los GPX muy grandes no tienen aún optimización integral.
+El cálculo depende de la disponibilidad del servidor público BRouter y de los datos OSM. No hay todavía motor sin conexión, unión avanzada, edición de puntos de interés ni el conjunto completo de herramientas de gpx.studio. Los GPX muy grandes no tienen aún optimización integral.
 
-Pruebas de interacción y geometría: tests/editor.spec.js. Se mantienen además las pruebas de originales, persistencia, exportación, cartografías, panel plegable y disposición.
+Pruebas de interacción y geometría libre: tests/editor.spec.js. Pruebas BRouter: tests/routing.spec.js, con peticiones reales para los cuatro perfiles, dibujo por clics, edición de copia, GPX exportable y recarga. Los escenarios de fallo/cancelación sí interceptan la red de forma explícita, separados de las comprobaciones reales. Se mantienen las pruebas de originales, persistencia, exportación, cartografías, panel plegable y disposición.
