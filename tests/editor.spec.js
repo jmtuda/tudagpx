@@ -2,6 +2,9 @@ import { test, expect } from "@playwright/test";
 // Esta batería verifica la geometría libre; el cálculo real tiene su propia batería.
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
+    localStorage.setItem("tudagpx-workspace", "edit"),
+  );
+  await page.addInitScript(() =>
     localStorage.setItem("tudagpx-routing-mode", "free"),
   );
 });
@@ -226,6 +229,9 @@ test("edición táctil a pantalla completa sin perder panel ni selección", asyn
     hasTouch: true,
   });
   const page = await context.newPage();
+  await page.addInitScript(() =>
+    localStorage.setItem("tudagpx-workspace", "edit"),
+  );
   await page.addInitScript(() =>
     localStorage.setItem("tudagpx-routing-mode", "free"),
   );

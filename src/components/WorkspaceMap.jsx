@@ -71,6 +71,7 @@ function Events({ onBounds, drawing, onDraw, focus }) {
 
 export function WorkspaceMap({
   data,
+  viewing = false,
   visibleRoutes,
   selected,
   hidden,
@@ -138,46 +139,48 @@ export function WorkspaceMap({
               <Tooltip>{r.name}</Tooltip>
             </Polyline>
           ))}
-        {shown.map((s) => (
-          <Polyline
-            key={s.id}
-            bubblingMouseEvents={false}
-            positions={positions(s.points)}
-            pathOptions={{
-              color: selected.includes(s.id)
-                ? colors[data.segments.indexOf(s) % colors.length]
-                : "#7f8c8c",
-              weight: hover === s.id ? 8 : selected.includes(s.id) ? 6 : 3,
-              opacity: selected.includes(s.id) || hover === s.id ? 1 : 0.45,
-            }}
-            eventHandlers={{
-              mouseover: () => onHover(s.id),
-              mouseout: () => onHover(null),
-              click: () => {
-                if (!drawing) onToggle(s.id);
-              },
-            }}
-          >
-            <Tooltip>{s.name}</Tooltip>
-          </Polyline>
-        ))}
-        {data.draft.map((e) => (
-          <DirectTrace
-            key={e.id}
-            element={e}
-            active={e.id === active}
-            editing={editing}
-            busy={routingBusy}
-            mode={mode}
-            pointIndex={e.id === active ? pointIndex : 0}
-            crop={e.id === active ? crop : null}
-            onSelect={onSelect}
-            onMove={onMove}
-            onInsert={onInsert}
-            onAction={onPointAction}
-            onSplit={onSplit}
-          />
-        ))}
+        {!viewing &&
+          shown.map((s) => (
+            <Polyline
+              key={s.id}
+              bubblingMouseEvents={false}
+              positions={positions(s.points)}
+              pathOptions={{
+                color: selected.includes(s.id)
+                  ? colors[data.segments.indexOf(s) % colors.length]
+                  : "#7f8c8c",
+                weight: hover === s.id ? 8 : selected.includes(s.id) ? 6 : 3,
+                opacity: selected.includes(s.id) || hover === s.id ? 1 : 0.45,
+              }}
+              eventHandlers={{
+                mouseover: () => onHover(s.id),
+                mouseout: () => onHover(null),
+                click: () => {
+                  if (!drawing) onToggle(s.id);
+                },
+              }}
+            >
+              <Tooltip>{s.name}</Tooltip>
+            </Polyline>
+          ))}
+        {!viewing &&
+          data.draft.map((e) => (
+            <DirectTrace
+              key={e.id}
+              element={e}
+              active={e.id === active}
+              editing={editing}
+              busy={routingBusy}
+              mode={mode}
+              pointIndex={e.id === active ? pointIndex : 0}
+              crop={e.id === active ? crop : null}
+              onSelect={onSelect}
+              onMove={onMove}
+              onInsert={onInsert}
+              onAction={onPointAction}
+              onSplit={onSplit}
+            />
+          ))}
         {issues
           ?.filter((i) => i.point)
           .map((issue, i) => (
@@ -191,10 +194,19 @@ export function WorkspaceMap({
             </CircleMarker>
           ))}
       </MapContainer>
-      <EditorTools {...tools} editing={editing} mode={mode} range={crop} />
+      {!viewing && (
+        <EditorTools {...tools} editing={editing} mode={mode} range={crop} />
+      )}
       <div className="map-caption">
-        <span className="dot gray" /> Biblioteca <span className="dot teal" />{" "}
-        Selección <span className="dash" /> Borrador
+        {viewing ? (
+          "Rutas superpuestas · un color por ruta"
+        ) : (
+          <>
+            <span className="dot gray" /> Biblioteca{" "}
+            <span className="dot teal" /> Selección <span className="dash" />{" "}
+            Borrador
+          </>
+        )}
       </div>
       {tileError && (
         <div role="status" className="tile-warning">

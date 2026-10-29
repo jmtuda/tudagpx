@@ -1,5 +1,13 @@
 # Progreso
 
+## Separación entre visualizar y editar
+
+Dos pestañas principales en la cabecera compacta: «Ver rutas» y «Editar». El visor solo muestra rutas seleccionadas, sin segmentos, borrador, anclas, clasificación editable ni herramientas de edición/exportación. Filtros combinables por nombre, ciclismo, distancia mínima/máxima, desnivel mínimo/máximo y cruce con la zona visible; las superposiciones no dependen de esos filtros. Añadidos centrar superpuestas, ocultar todas, colores identificables y limpiar filtros.
+
+El editor conserva Rutas, Segmentos, Borrador y Proyectos para cargar copias y GPX, sin modificar originales. Cambiar de espacio cancela cálculos pendientes pero conserva geometría, historial, selección, filtros y mapa de la sesión. La pestaña principal se recuerda en localStorage; biblioteca/borrador siguen en IndexedDB. Filtros y superposiciones siguen siendo estado de sesión, no se promete restaurarlos tras recarga.
+
+Verificado: lint y build correctos, 31/31 pruebas Chrome. Nuevas pruebas de ambos espacios en escritorio y móvil, filtros, cruce de líneas sin vértices interiores, selección independiente, carga de rutas y segmentos, ocultación de panel y recuperación del borrador. Revisión visual de ambas pestañas; cabecera de 52 px y pie del visor de 46 px. No se publica ni se modifica main.
+
 ## Seguir caminos al crear y editar
 
 Implementado el nuevo requisito prioritario: seguir la red vial OSM por defecto, con modo libre opcional. Cliente BRouter sin claves ni dependencias nuevas; perfiles Gravel, Carretera, MTB y Cicloturismo comprobados con respuestas reales desde Chrome. Consentimiento explícito por sesión antes de enviar las coordenadas de las anclas, revocable. No se envían originales ni nombres.

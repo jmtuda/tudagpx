@@ -15,8 +15,11 @@ import { loadWorkspace, saveWorkspace, download } from "./utils/localStore";
 import { readGPXFile, originalContent } from "./utils/gpxFiles";
 import { splitTrace } from "./utils/editorGeometry";
 import { routedEdit } from "./utils/routing";
+import { RouteFilters } from "./components/RouteFilters";
+import { emptyRouteFilters, filterRoutes } from "./utils/routeFilters";
 import "./workspace.css";
 import "./editor.css";
+import "./workspaceNavigation.css";
 const clone = (value) => structuredClone(value);
 const toggle = (items, id) =>
   items.includes(id) ? items.filter((x) => x !== id) : [...items, id];
@@ -63,6 +66,17 @@ function Profile({ tracks, color }) {
   );
 }
 export default function LocalApp() {
+  const [workspace, setWorkspace] = useState(() =>
+    localStorage.getItem("tudagpx-workspace") === "edit" ? "edit" : "view",
+  );
+  const [routeFilters, setRouteFilters] = useState({ ...emptyRouteFilters });
+  function switchWorkspace(value) {
+    cancelRouting();
+    setDrawing(false);
+    setIssues(null);
+    setWorkspace(value);
+    localStorage.setItem("tudagpx-workspace", value);
+  }
   const [routing, setRouting] = useState(
     () => localStorage.getItem("tudagpx-routing-mode") !== "free",
   );
@@ -86,9 +100,10 @@ export default function LocalApp() {
   const [data, setData] = useState(null),
     [fatal, setFatal] = useState(""),
     [saved, setSaved] = useState("Cargando…");
-  const [tab, setTab] = useState("segments"),
+  const [editorTab, setTab] = useState("segments"),
     [query, setQuery] = useState(""),
     [sport, setSport] = useState("Todos");
+  const tab = workspace === "view" ? "routes" : editorTab;
   const [selected, setSelected] = useState([]),
     [hidden, setHidden] = useState([]),
     [visibleRoutes, setVisibleRoutes] = useState([]);
@@ -178,6 +193,7 @@ export default function LocalApp() {
     setCrop(null);
   }
   function addSegments(ids) {
+    switchWorkspace("edit");
     const additions = data.segments
       .filter((s) => ids.includes(s.id))
       .map((s) => ({
@@ -217,7 +233,7 @@ export default function LocalApp() {
       }
     }
     if (routes.length) {
-      if (importKind === "segments") {
+      if (workspace === "edit" && importKind === "segments") {
         const additions = routes.flatMap((r) =>
           r.tracks.map((points, i) => ({
             id: uid(),
@@ -260,6 +276,7 @@ export default function LocalApp() {
     );
   }
   function startDraw() {
+    switchWorkspace("edit");
     const e = {
       id: uid(),
       name: `Trazado libre ${data.draft.length + 1}`,
@@ -277,6 +294,7 @@ export default function LocalApp() {
   }
   function selectElement(id, index = 0) {
     cancelRouting();
+    if (workspace !== "edit") switchWorkspace("edit");
     setActive(id);
     setPointIndex(index);
     setTab("draft");
@@ -565,11 +583,14 @@ export default function LocalApp() {
       (inBounds(s.points, bounds) || selected.includes(s.id)) &&
       s.name.toLowerCase().includes(query.toLowerCase()),
   );
-  const routes = data.routes.filter(
-    (r) =>
-      r.name.toLowerCase().includes(query.toLowerCase()) &&
-      (sport === "Todos" || r.sport === sport),
-  );
+  const routes =
+    workspace === "view"
+      ? filterRoutes(data.routes, routeFilters, bounds)
+      : data.routes.filter(
+          (r) =>
+            r.name.toLowerCase().includes(query.toLowerCase()) &&
+            (sport === "Todos" || r.sport === sport),
+        );
   const cropRange =
     crop?.id === active
       ? crop
@@ -613,6 +634,36 @@ export default function LocalApp() {
             <small>Tu próxima ruta empieza aquí</small>
           </div>
         </div>
+        <nav
+          className="workspace-tabs"
+          role="tablist"
+          aria-label="Espacio de trabajo"
+        >
+          {[
+            ["view", "Ver rutas"],
+            ["edit", "Editar"],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              role="tab"
+              id={`workspace-tab-${value}`}
+              aria-selected={workspace === value}
+              aria-controls="workspace-panel"
+              tabIndex={workspace === value ? 0 : -1}
+              onClick={() => switchWorkspace(value)}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                  e.preventDefault();
+                  const next = value === "view" ? "edit" : "view";
+                  switchWorkspace(next);
+                  document.getElementById(`workspace-tab-${next}`).focus();
+                }
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
         <div className="local-status">
           <i />{" "}
           {routing && routingConsent
@@ -643,38 +694,57 @@ export default function LocalApp() {
         accept=".json"
         onChange={importBackup}
       />
-      <div className="workbench">
+      <div
+        className="workbench"
+        id="workspace-panel"
+        role="tabpanel"
+        aria-labelledby={`workspace-tab-${workspace}`}
+      >
         <aside id="library-panel" className="sidebar" hidden={!sidebarOpen}>
           <div className="sidebar-top">
-            <p className="eyebrow">TU ESPACIO DE RUTAS</p>
-            <nav aria-label="Biblioteca">
-              <button
-                className={tab === "segments" ? "active" : ""}
-                onClick={() => setTab("segments")}
-              >
-                Segmentos <b>{data.segments.length}</b>
-              </button>
-              <button
-                className={tab === "routes" ? "active" : ""}
-                onClick={() => setTab("routes")}
-              >
-                Rutas <b>{data.routes.length}</b>
-              </button>
-              <button
-                className={tab === "draft" ? "active" : ""}
-                onClick={() => setTab("draft")}
-              >
-                Borrador <b>{data.draft.length}</b>
-              </button>
-              <button
-                className={tab === "projects" ? "active" : ""}
-                onClick={() => setTab("projects")}
-              >
-                Proyectos
-              </button>
-            </nav>
+            <p className="eyebrow">
+              {workspace === "view"
+                ? "EXPLORAR Y COMPARAR RUTAS"
+                : "EDITOR · CARGAR RUTAS Y SEGMENTOS"}
+            </p>
+            {workspace === "edit" && (
+              <nav aria-label="Biblioteca">
+                <button
+                  className={tab === "segments" ? "active" : ""}
+                  onClick={() => setTab("segments")}
+                >
+                  Segmentos <b>{data.segments.length}</b>
+                </button>
+                <button
+                  className={tab === "routes" ? "active" : ""}
+                  onClick={() => setTab("routes")}
+                >
+                  Rutas <b>{data.routes.length}</b>
+                </button>
+                <button
+                  className={tab === "draft" ? "active" : ""}
+                  onClick={() => setTab("draft")}
+                >
+                  Borrador <b>{data.draft.length}</b>
+                </button>
+                <button
+                  className={tab === "projects" ? "active" : ""}
+                  onClick={() => setTab("projects")}
+                >
+                  Proyectos
+                </button>
+              </nav>
+            )}
           </div>
-          {(tab === "segments" || tab === "routes") && (
+          {workspace === "view" && (
+            <RouteFilters
+              value={routeFilters}
+              onChange={setRouteFilters}
+              count={routes.length}
+              total={data.routes.length}
+            />
+          )}
+          {workspace === "edit" && (tab === "segments" || tab === "routes") && (
             <div className="filters">
               <input
                 aria-label="Buscar en la biblioteca"
@@ -797,6 +867,28 @@ export default function LocalApp() {
                   Marca varias rutas para compararlas. La elevación es la del
                   archivo, sin corrección automática.
                 </p>
+                {workspace === "view" && (
+                  <div className="tools">
+                    <button
+                      disabled={!visibleRoutes.length}
+                      onClick={() =>
+                        focusPoints(
+                          data.routes
+                            .filter((r) => visibleRoutes.includes(r.id))
+                            .flatMap((r) => r.tracks.flat()),
+                        )
+                      }
+                    >
+                      Centrar superpuestas
+                    </button>
+                    <button
+                      disabled={!visibleRoutes.length}
+                      onClick={() => setVisibleRoutes([])}
+                    >
+                      Ocultar todas
+                    </button>
+                  </div>
+                )}
                 {routes.map((r) => {
                   const color =
                     colors[
@@ -805,7 +897,11 @@ export default function LocalApp() {
                         .indexOf(r) % colors.length
                     ] || colors[0];
                   return (
-                    <article className="library-card" key={r.id}>
+                    <article
+                      className="library-card"
+                      key={r.id}
+                      style={{ "--route-color": color }}
+                    >
                       <div className="card-title">
                         <input
                           type="checkbox"
@@ -816,39 +912,53 @@ export default function LocalApp() {
                           }
                         />
                         <h3>{r.name}</h3>
+                        {visibleRoutes.includes(r.id) && (
+                          <span
+                            className="color-mark"
+                            title="Color en el mapa"
+                          />
+                        )}
                       </div>
                       <Metrics tracks={r.tracks} />
                       <Profile tracks={r.tracks} color={color} />
-                      <select
-                        aria-label={`Ciclismo de ${r.name}`}
-                        value={r.sport}
-                        onChange={(e) =>
-                          update((d) => ({
-                            ...d,
-                            routes: d.routes.map((x) =>
-                              x.id === r.id
-                                ? { ...x, sport: e.target.value }
-                                : x,
+                      {workspace === "edit" ? (
+                        <select
+                          aria-label={`Ciclismo de ${r.name}`}
+                          value={r.sport}
+                          onChange={(e) =>
+                            update((d) => ({
+                              ...d,
+                              routes: d.routes.map((x) =>
+                                x.id === r.id
+                                  ? { ...x, sport: e.target.value }
+                                  : x,
+                              ),
+                            }))
+                          }
+                        >
+                          {["Sin clasificar", "Carretera", "Gravel", "MTB"].map(
+                            (s) => (
+                              <option key={s}>{s}</option>
                             ),
-                          }))
-                        }
-                      >
-                        {["Sin clasificar", "Carretera", "Gravel", "MTB"].map(
-                          (s) => (
-                            <option key={s}>{s}</option>
-                          ),
-                        )}
-                      </select>
+                          )}
+                        </select>
+                      ) : (
+                        <p className="tags">{r.sport}</p>
+                      )}
                       <div className="card-actions">
                         <button onClick={() => focusPoints(r.tracks.flat())}>
                           Centrar
                         </button>
-                        <button onClick={() => routeSegments(r)}>
-                          Crear segmentos
-                        </button>
-                        <button onClick={() => editRoute(r)}>
-                          Editar copia
-                        </button>
+                        {workspace === "edit" && (
+                          <button onClick={() => routeSegments(r)}>
+                            Crear segmentos
+                          </button>
+                        )}
+                        {workspace === "edit" && (
+                          <button onClick={() => editRoute(r)}>
+                            Editar copia
+                          </button>
+                        )}
                         {r.original && (
                           <button
                             onClick={() =>
@@ -869,7 +979,11 @@ export default function LocalApp() {
                   );
                 })}
                 {!routes.length && (
-                  <p className="empty">Importa tu primer archivo GPX.</p>
+                  <p className="empty">
+                    {data.routes.length
+                      ? "Ninguna ruta coincide con los filtros. Las rutas superpuestas siguen visibles en el mapa."
+                      : "Importa tu primer archivo GPX."}
+                  </p>
                 )}
               </>
             )}
@@ -1072,6 +1186,7 @@ export default function LocalApp() {
         <main className="map-area">
           <WorkspaceMap
             data={data}
+            viewing={workspace === "view"}
             visibleRoutes={visibleRoutes}
             selected={selected}
             hidden={hidden}
@@ -1111,7 +1226,7 @@ export default function LocalApp() {
             )}
             onSelect={selectElement}
             onMove={movePoint}
-            editing={tab === "draft" && issues === null}
+            editing={workspace === "edit" && tab === "draft" && issues === null}
             routingBusy={routingBusy}
             mode={editorMode}
             crop={cropRange}
@@ -1138,6 +1253,7 @@ export default function LocalApp() {
               active,
               drawing,
               onOpen: () => {
+                switchWorkspace("edit");
                 const element = activeElement || data.draft[0];
                 if (element) selectElement(element.id);
                 else setTab("draft");
@@ -1154,9 +1270,7 @@ export default function LocalApp() {
               onNew: startDraw,
               onFinish: () => setTool("view"),
               onExit: () => {
-                cancelRouting();
-                setTab("segments");
-                setDrawing(false);
+                switchWorkspace("view");
               },
               onUndo: undo,
               onRedo: redo,
@@ -1192,23 +1306,34 @@ export default function LocalApp() {
             issues={issues}
           />
           <div className="bottom-bar">
-            <div>
-              <span className="eyebrow">BORRADOR ACTUAL</span>
-              <strong>
-                {data.draft.length} tramos <span>·</span>{" "}
-                <Metrics tracks={data.draft.map((e) => e.points)} />
-              </strong>
-            </div>
-            <button
-              className="primary"
-              onClick={() => {
-                setDrawing(false);
-                setIssues(review(data.draft));
-                setAccept(false);
-              }}
-            >
-              Revisar y exportar →
-            </button>
+            {workspace === "view" ? (
+              <>
+                <strong>{visibleRoutes.length} rutas superpuestas</strong>
+                <span className="hint">
+                  Solo visualización · originales protegidos
+                </span>
+              </>
+            ) : (
+              <>
+                <div>
+                  <span className="eyebrow">BORRADOR ACTUAL</span>
+                  <strong>
+                    {data.draft.length} tramos <span>·</span>{" "}
+                    <Metrics tracks={data.draft.map((e) => e.points)} />
+                  </strong>
+                </div>
+                <button
+                  className="primary"
+                  onClick={() => {
+                    setDrawing(false);
+                    setIssues(review(data.draft));
+                    setAccept(false);
+                  }}
+                >
+                  Revisar y exportar →
+                </button>
+              </>
+            )}
           </div>
         </main>
       </div>

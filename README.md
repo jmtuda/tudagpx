@@ -12,7 +12,14 @@ Usa siempre la misma dirección y navegador: los datos se guardan ahí, no se si
 
 ## Primera prueba
 
-1. En Segmentos, marca dos trazados de demostración. Son sintéticos y no deben seguirse en campo.
+La cabecera tiene dos pestañas:
+
+- «Ver rutas»: solo consulta y comparación. Marca varias rutas para superponerlas en colores. Busca por nombre y tipo de ciclismo; en «Más filtros» puedes limitar distancia, desnivel y rutas que cruzan el mapa visible. Filtrar la lista no oculta las rutas ya superpuestas. «Centrar superpuestas» las encuadra y «Ocultar todas» limpia la superposición. Aquí no aparecen herramientas de edición ni el borrador.
+- «Editar»: biblioteca de Rutas y Segmentos, Borrador y Proyectos. En Rutas, «Editar copia» carga un recorrido en el borrador. En Segmentos, «+ Borrador» incorpora una copia. «Importar como» permite importar GPX a rutas o segmentos. El editor y la revisión/exportación solo están en este espacio.
+
+Cambiar entre pestañas conserva el borrador, historial, filtros y selecciones de la sesión, sin recrear el mapa. Se recuerda la pestaña principal elegida al recargar. Las superposiciones y filtros no se restauran tras cerrar o recargar; el borrador y la biblioteca sí se guardan.
+
+1. Abre «Editar» y, en Segmentos, marca dos trazados de demostración. Son sintéticos y no deben seguirse en campo.
 2. Cambia el mapa con el selector superior derecho: IGN Base, MTN, PNOA y OpenStreetMap.
 3. Mueve el mapa. La lista busca segmentos geográficamente y conserva los seleccionados fuera de la vista.
 4. Pulsa «Añadir seleccionados al borrador». Trabajas sobre copias, no sobre originales.
@@ -21,7 +28,7 @@ Usa siempre la misma dirección y navegador: los datos se guardan ahí, no se si
 7. «Guardar versión» conserva una copia independiente del proyecto, aunque esté incompleto. El borrador se guarda además automáticamente.
 8. «Revisar y exportar» muestra avisos en el mapa. Los errores impiden descargar; las advertencias pueden aceptarse. Se exporta un tramo GPX por elemento, sin inventar conexiones.
 
-Para tus propios datos, pulsa «Importar GPX». Puedes seleccionar varios archivos. En Rutas, «Editar copia» abre inmediatamente el recorrido en el editor sin modificar el original, sin necesidad de convertirlo antes en segmentos. El selector «Importar como» permite incorporarlos a Rutas o directamente a Segmentos. El botón «Original GPX» descarga el archivo importado sin modificaciones.
+Para tus propios datos, pulsa «Importar GPX». Puedes seleccionar varios archivos. En «Ver rutas» se incorporan para consultar y comparar. En «Editar» → Rutas, «Editar copia» abre el recorrido en el borrador sin modificar el original, sin necesidad de convertirlo antes en segmentos. El selector «Importar como» del editor permite incorporarlos a Rutas o directamente a Segmentos. El botón «Original GPX» descarga el archivo importado sin modificaciones.
 
 Para crear un segmento de una parte del recorrido, abre «Recortar trazado» en la barra del mapa. Ajusta Inicio y Final o arrastra sobre el perfil; verás la selección sobre el mapa antes de cambiar nada. Ponle un nombre y pulsa «Guardar selección como segmento»: se añade a la biblioteca sin recortar el borrador. «Aplicar recorte al borrador» es una acción diferente y puede deshacerse. «Cancelar recorte» abandona la selección sin modificar el trazado.
 

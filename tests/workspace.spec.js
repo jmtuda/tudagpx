@@ -2,6 +2,9 @@ import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
+    localStorage.setItem("tudagpx-workspace", "edit"),
+  );
+  await page.addInitScript(() =>
     localStorage.setItem("tudagpx-routing-mode", "free"),
   );
 });

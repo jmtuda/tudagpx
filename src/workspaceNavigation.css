@@ -1,0 +1,88 @@
+.workspace-tabs {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+  background: #eef4f2;
+  border-radius: 8px;
+  padding: 3px;
+}
+.workspace-tabs button {
+  padding: 5px 12px;
+  font-size: 13px;
+  border-color: transparent;
+  background: transparent;
+}
+.workspace-tabs button[aria-selected="true"] {
+  background: #007d77;
+  color: white;
+}
+.viewer-filters {
+  overflow-y: auto;
+  max-height: 55%;
+  flex-shrink: 0;
+}
+.viewer-filters > select {
+  margin-top: 8px;
+}
+.viewer-filters summary {
+  cursor: pointer;
+  font-size: 12px;
+  margin: 10px 0;
+}
+.range-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.range-filters label {
+  font-size: 11px;
+  color: #526d64;
+}
+.range-filters input {
+  margin-top: 4px;
+}
+.geographic-filter {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  margin: 12px 0;
+}
+.geographic-filter input {
+  width: auto;
+}
+.filter-results {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  margin-top: 8px;
+}
+.filter-results button {
+  padding: 4px 7px;
+  font-size: 11px;
+}
+.bottom-bar > .hint {
+  margin: 0;
+}
+@media (max-width: 650px) {
+  .bottom-bar > .hint {
+    display: none;
+  }
+  .topbar {
+    padding: 0 8px;
+    gap: 7px;
+  }
+  .topbar .brand h1 {
+    display: none;
+  }
+  .topbar .brand-icon {
+    width: 26px;
+    height: 26px;
+  }
+  .workspace-tabs button {
+    font-size: 12px;
+    padding: 5px 8px;
+  }
+}
