@@ -33,3 +33,9 @@ Pendiente tras esta entrega:
 6. Pruebas de volumen, accesibilidad más completa y mejora incremental del diseño.
 
 Limitaciones y decisiones: docs/ARQUITECTURA.md. Uso: README.md. El guardado es local a este navegador y dirección; conviene descargar copias. No hay publicación, push ni conexiones de producción.
+
+## Ajuste visual: prioridad al mapa
+
+Cabecera reducida a 52 px (48 en móvil), eliminada la barra «Explora. Selecciona. Conecta.» y pie del borrador reducido a 46 px (44 en móvil). Se conserva el acceso al borrador en el panel izquierdo y el botón de revisión/exportación en el pie. Sin cambios en datos ni edición.
+
+Verificado con lint, compilación y tres pruebas de disposición en Chrome (1280×577, 1440×950 y 390×844), incluidos acceso al borrador y revisión. Revisión visual adicional en navegador: mapa de 479 px de altura en una ventana de 577 px.

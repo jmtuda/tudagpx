@@ -50,9 +50,9 @@ select:focus-visible {
   outline-offset: 2px;
 }
 .topbar {
-  height: 80px;
+  height: 52px;
   flex-shrink: 0;
-  padding: 0 26px;
+  padding: 0 18px;
   display: flex;
   align-items: center;
   gap: 24px;
@@ -69,13 +69,13 @@ select:focus-visible {
   place-items: center;
   background: #007d77;
   color: white;
-  font-size: 36px;
-  width: 43px;
-  height: 43px;
-  border-radius: 13px;
+  font-size: 26px;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
 }
 .brand h1 {
-  font-size: 24px;
+  font-size: 20px;
   margin: 0;
   letter-spacing: -1px;
 }
@@ -83,8 +83,7 @@ select:focus-visible {
   color: #007d77;
 }
 .brand small {
-  font-size: 11px;
-  color: #6a7c79;
+  display: none;
 }
 .local-status {
   margin-left: auto;
@@ -323,28 +322,7 @@ h2 {
   display: flex;
   flex-direction: column;
 }
-.map-toolbar {
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: white;
-  padding: 12px 23px;
-  flex-shrink: 0;
-}
-.map-toolbar strong {
-  font-size: 14px;
-  display: block;
-}
-.map-toolbar span {
-  font-size: 10px;
-  color: #8a9992;
-  display: block;
-  margin-top: 4px;
-}
-.map-toolbar button {
-  font-size: 12px;
-}
+
 .map-shell {
   flex: 1;
   position: relative;
@@ -393,19 +371,29 @@ h2 {
   margin-left: 7px;
 }
 .bottom-bar {
-  padding: 15px 23px;
+  padding: 6px 16px;
   background: white;
   border-top: 1px solid #dce5e3;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  min-height: 78px;
+  min-height: 46px;
   flex-shrink: 0;
 }
+.bottom-bar > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .bottom-bar .eyebrow {
-  display: block;
-  margin-bottom: 5px;
+  margin: 0;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+.bottom-bar > .primary {
+  padding: 7px 10px;
+  font-size: 12px;
 }
 .bottom-bar strong {
   font-size: 13px;
@@ -587,11 +575,11 @@ h2 {
   .topbar {
     padding: 0 15px;
   }
-  .map-toolbar {
-    padding: 10px 15px;
-  }
   .bottom-bar {
-    padding: 12px;
+    padding: 6px 12px;
+  }
+  .bottom-bar .eyebrow {
+    display: none;
   }
   .bottom-bar .metrics > span {
     display: none;
@@ -609,7 +597,7 @@ h2 {
 }
 @media (max-width: 650px) {
   .topbar {
-    height: 65px;
+    height: 48px;
     gap: 10px;
   }
   .brand h1 {
@@ -662,21 +650,19 @@ h2 {
     height: 57%;
     flex: 0 0 57%;
   }
-  .map-toolbar {
-    display: none;
-  }
+
   .map-shell {
     min-height: 120px;
   }
   .bottom-bar {
-    min-height: 60px;
+    min-height: 44px;
   }
   .bottom-bar .eyebrow {
     display: none;
   }
   .bottom-bar > .primary {
     font-size: 11px;
-    padding: 9px;
+    padding: 6px 8px;
   }
   .notice {
     left: 12px;

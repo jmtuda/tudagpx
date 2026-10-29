@@ -941,24 +941,6 @@ export default function LocalApp() {
           </footer>
         </aside>
         <main className="map-area">
-          <div className="map-toolbar">
-            <div>
-              <strong>
-                {tab === "draft"
-                  ? "Construye sin límites"
-                  : "Explora. Selecciona. Conecta."}
-              </strong>
-              <span>Carretera · Gravel · MTB</span>
-            </div>
-            <button
-              onClick={() => {
-                setTab("draft");
-                focusPoints(data.draft.flatMap((e) => e.points));
-              }}
-            >
-              Ver borrador
-            </button>
-          </div>
           <WorkspaceMap
             data={data}
             visibleRoutes={visibleRoutes}
