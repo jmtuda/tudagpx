@@ -48,6 +48,8 @@ Verificado: lint y compilación correctos; cinco pruebas de interfaz en Chrome, 
 
 ## Editor visual inspirado en gpx.studio
 
+Corrección posterior: al reabrir el editor después de recargar, el borrador se conservaba pero no había tramo activo y no aparecían anclas. «Editar rutas» selecciona ahora el tramo activo válido o el primero, lo centra y abandona la revisión si estaba abierta. Prueba de regresión con GPX importado, recarga, reapertura y arrastre sin alterar el original. Lint, build y nueve pruebas del editor correctos.
+
 Revisadas la aplicación real y las guías oficiales de edición, recorte y unión. Sustituido el flujo principal basado en índices por herramientas sobre el mapa: anclas arrastrables, inserción entre puntos, menú contextual, tijeras y recorte previo mediante perfil y controles Inicio/Final. «Editar copia» abre directamente una ruta importada sin modificar su original. Guardar una selección crea un segmento sin recortar el borrador. Modo «Mover mapa» y Escape evitan prolongaciones involuntarias al terminar el dibujo.
 
 Corregidos el clic residual tras arrastrar y el indicador de persistencia de revisiones pendientes. Los controles muestreados según zoom no simplifican los puntos GPS almacenados. El dibujo y las modificaciones siguen siendo geométricos, sin ajuste automático a caminos: no se afirma equivalencia completa con gpx.studio.

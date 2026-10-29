@@ -1034,9 +1034,12 @@ export default function LocalApp() {
               active,
               drawing,
               onOpen: () => {
-                setTab("draft");
+                const element = activeElement || data.draft[0];
+                if (element) selectElement(element.id);
+                else setTab("draft");
+                setIssues(null);
                 setTool("edit");
-                focusPoints(data.draft.flatMap((e) => e.points));
+                focusPoints(element?.points || []);
               },
               onMode: setTool,
               onActive: (id) => {

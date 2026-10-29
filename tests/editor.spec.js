@@ -70,6 +70,31 @@ test("edición de una copia GPX, inserción por arrastre y un solo paso de desha
   expect(errors).toEqual([]);
 });
 
+test("reabrir una copia importada tras recargar activa sus puntos blancos", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.locator("input[type=file]").first().setInputFiles(fixture);
+  await page
+    .getByRole("button", { name: "Editar copia", exact: true })
+    .last()
+    .click();
+  const before = await state(page);
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Editar rutas", exact: false })
+    .click();
+  await expect(page.locator(".anchor-handle")).toHaveCount(4);
+  await expect(
+    page.getByRole("button", { name: "Editar trazado", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+  await drag(page, page.getByTitle("Editar punto 2", { exact: true }), 30, -20);
+  const after = await state(page);
+  expect(after.draft[0].points[1]).not.toEqual(before.draft[0].points[1]);
+  expect(after.routes.at(-1)).toEqual(before.routes.at(-1));
+});
+
 test("puntos arrastrables y menú contextual sin añadir puntos accidentales", async ({
   page,
 }) => {
