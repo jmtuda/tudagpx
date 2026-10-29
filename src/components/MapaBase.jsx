@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { TileLayer } from 'react-leaflet';
 
-export function SelectorMapaBase() {
+export function SelectorMapaBase({ onTileError = () => {} }) {
   const [tipoMapa, setTipoMapa] = useState('ign_base');
 
   const capas = {
@@ -36,6 +36,8 @@ export function SelectorMapaBase() {
         url={capas[tipoMapa].url}
         attribution={capas[tipoMapa].attribution}
         maxZoom={20}
+        maxNativeZoom={tipoMapa === 'osm' ? 19 : 18}
+        eventHandlers={{ tileerror: () => onTileError(true) }}
         subdomains="abc"
         // Configuración para agilizar la carga en caché del navegador
         keepBuffer={4} 
@@ -53,13 +55,14 @@ export function SelectorMapaBase() {
         boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
         border: '1px solid #ccc',
         display: 'flex',
-        alignions: 'center',
+        alignItems: 'center',
         gap: '6px'
       }}>
         <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#333' }}>Mapa:</label>
         <select
+          aria-label="Cartografía"
           value={tipoMapa}
-          onChange={(e) => setTipoMapa(e.target.value)}
+          onChange={(e) => { setTipoMapa(e.target.value); onTileError(false); }}
           style={{
             padding: '4px 8px',
             fontSize: '12px',
