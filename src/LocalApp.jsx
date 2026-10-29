@@ -1045,7 +1045,7 @@ export default function LocalApp() {
                 focusPoints(data.draft.find((e) => e.id === id)?.points || []);
               },
               onNew: startDraw,
-              onFinish: () => setDrawing(false),
+              onFinish: () => setTool("view"),
               onExit: () => {
                 setTab("segments");
                 setDrawing(false);

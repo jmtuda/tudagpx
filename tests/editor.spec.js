@@ -222,6 +222,31 @@ test("edición táctil a pantalla completa sin perder panel ni selección", asyn
   }
 });
 
+test("terminar dibujo y mover mapa no añaden puntos al trazado", async ({
+  page,
+}) => {
+  await demo(page);
+  await page.getByRole("button", { name: "+ Dibujar", exact: true }).click();
+  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+  const map = page.locator(".workspace-map");
+  await map.click({ position: { x: 800, y: 400 } });
+  await map.click({ position: { x: 850, y: 450 } });
+  await page.getByRole("button", { name: "Mostrar herramientas" }).click();
+  await page.getByRole("button", { name: "Terminar dibujo" }).click();
+  await expect(
+    page.getByRole("button", { name: "Mover mapa", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await map.click({ position: { x: 800, y: 500 } });
+  expect((await state(page)).draft.at(-1).points).toHaveLength(2);
+  await page
+    .getByRole("button", { name: "Editar trazado", exact: true })
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "Mover mapa", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+});
+
 test("muestreo de anclas no elimina GPS y división conserva los puntos", async ({
   page,
 }) => {

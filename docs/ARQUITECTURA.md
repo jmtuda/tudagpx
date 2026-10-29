@@ -9,7 +9,10 @@ La implementación anterior de Supabase sigue en src/App.jsx, src/components y s
 ## Aplicación local
 
 - LocalApp.jsx: biblioteca, selección, historial del borrador, importación, comparación básica, proyectos y revisión.
-- components/WorkspaceMap.jsx: capas de rutas/segmentos/borrador, límites de vista, selección y arrastre de punto activo.
+- components/WorkspaceMap.jsx: capas de rutas/segmentos/borrador, límites de vista y coordinación del mapa.
+- components/DirectTrace.jsx: anclas visibles según zoom, previsualización del arrastre, inserción y menú de puntos.
+- components/EditorTools.jsx: barra de herramientas, selección del trazado, recorte con sliders y perfil interactivo.
+- utils/editorGeometry.js: muestreo visual, proyección sobre aristas, división y distancias acumuladas del perfil de recorte.
 - utils/workspace.js: geometría, métricas, parser GPX, serialización GPX, revisión y validación de copias.
 - utils/localStore.js: IndexedDB y descargas.
 - utils/gpxFiles.js: lectura de codificación XML y conservación de bytes originales en base64, incluidos BOM y UTF-16.
@@ -25,9 +28,13 @@ Guardar versión añade un snapshot independiente, incluso incompleto. Abrir un 
 
 ## Geografía y edición
 
-La biblioteca encuentra líneas que cruzan el rectángulo visible incluso si no hay vértices dentro. La selección queda fuera del filtro de vista. Las referencias disponibles se dibujan grises; seleccionadas, de colores; borrador naranja discontinuo. Ocultar es independiente de seleccionar.
+La biblioteca encuentra líneas que cruzan el rectángulo visible incluso si no hay vértices dentro. La selección queda fuera del filtro de vista. Las referencias disponibles se dibujan grises; seleccionadas, de colores; borrador naranja, continuo cuando está en edición y discontinuo como referencia. Ocultar es independiente de seleccionar.
 
 El editor no exige continuidad. Dibujar genera rectas libres, sin servicio de enrutamiento. Mover un punto elimina su elevación anterior: no se inventa una nueva. No hay snapping, interpolación automática ni datos de elevación externos.
+
+La edición visual replica patrones documentados de gpx.studio con implementación propia: anclas arrastrables, puntos de inserción, menú contextual, tijeras y recorte con selección previa. El muestreo de anclas en pantalla no simplifica los puntos almacenados. Cada gesto de arrastre es una sola operación de historial; la vista previa es local al componente. Se suprime el clic residual al soltar para no añadir puntos accidentales. El recorte no escribe hasta confirmar; guardar su selección crea un segmento nuevo sin modificar el borrador. El perfil de recorte sí usa distancia acumulada; los perfiles comparativos anteriores siguen usando índice de puntos. Decisiones y referencias: docs/EDITOR_VISUAL.md.
+
+El estado «Guardando…» se establece al solicitar un cambio y la revisión se invalida inmediatamente, antes de esperar al efecto de persistencia. Así una escritura anterior no puede mostrar «Guardado» para un cambio nuevo todavía pendiente.
 
 ## Revisión y exportación
 

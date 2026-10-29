@@ -45,3 +45,11 @@ Verificado con lint, compilación y tres pruebas de disposición en Chrome (1280
 Botón permanente «☰» en la cabecera para ocultar y volver a mostrar el panel. El mapa ocupa todo el ancho disponible; en móvil recupera además el espacio vertical del panel. La selección, pestaña activa y borrador se mantienen. ResizeObserver actualiza el tamaño de Leaflet sin remontar el mapa.
 
 Verificado: lint y compilación correctos; cinco pruebas de interfaz en Chrome, incluidas ocultación y reapertura en escritorio y móvil sin perder selección ni borrador. Revisión visual: mapa de 1280 px en ventana de 1280 px con panel oculto.
+
+## Editor visual inspirado en gpx.studio
+
+Revisadas la aplicación real y las guías oficiales de edición, recorte y unión. Sustituido el flujo principal basado en índices por herramientas sobre el mapa: anclas arrastrables, inserción entre puntos, menú contextual, tijeras y recorte previo mediante perfil y controles Inicio/Final. «Editar copia» abre directamente una ruta importada sin modificar su original. Guardar una selección crea un segmento sin recortar el borrador. Modo «Mover mapa» y Escape evitan prolongaciones involuntarias al terminar el dibujo.
+
+Corregidos el clic residual tras arrastrar y el indicador de persistencia de revisiones pendientes. Los controles muestreados según zoom no simplifican los puntos GPS almacenados. El dibujo y las modificaciones siguen siendo geométricos, sin ajuste automático a caminos: no se afirma equivalencia completa con gpx.studio.
+
+Verificación final: npm run lint y npm run build correctos; npm test, 23/23 pruebas en Chrome, incluidas edición táctil, arrastre, inserción, un paso de deshacer por gesto, recorte, creación de segmento, división, originales byte a byte, guardado/recarga y cartografías reales. Revisión visual adicional del editor y recorte en navegador. Uso y límites: docs/EDITOR_VISUAL.md. Sin publicación ni push.

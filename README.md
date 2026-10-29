@@ -16,12 +16,16 @@ Usa siempre la misma dirección y navegador: los datos se guardan ahí, no se si
 2. Cambia el mapa con el selector superior derecho: IGN Base, MTN, PNOA y OpenStreetMap.
 3. Mueve el mapa. La lista busca segmentos geográficamente y conserva los seleccionados fuera de la vista.
 4. Pulsa «Añadir seleccionados al borrador». Trabajas sobre copias, no sobre originales.
-5. En Borrador, elige un tramo o pulsa su línea naranja, selecciona un punto y arrástralo. También puedes invertir, dividir, recortar, quitar puntos, duplicar o reordenar. Deshacer/rehacer permite volver atrás.
-6. «Dibujar» añade un trazado libre: pulsa varias veces sobre el mapa y después «Terminar dibujo». No se ajusta automáticamente a carreteras.
+5. En Borrador, edita directamente sobre el mapa: arrastra los puntos blancos para moverlos; arrastra los pequeños «+» para insertar nuevos puntos. Pulsa un punto (o haz clic derecho) para eliminarlo, dividir o marcar los límites de un recorte. La barra flotante contiene lápiz, recorte, tijeras, deshacer y rehacer.
+6. El botón «+» de la barra flotante inicia un trazado nuevo. En modo lápiz, pulsar el mapa prolonga el trazado activo. «Terminar dibujo» finaliza la sesión de dibujo y «Salir del editor» vuelve a la biblioteca. No se ajusta automáticamente a carreteras.
 7. «Guardar versión» conserva una copia independiente del proyecto, aunque esté incompleto. El borrador se guarda además automáticamente.
 8. «Revisar y exportar» muestra avisos en el mapa. Los errores impiden descargar; las advertencias pueden aceptarse. Se exporta un tramo GPX por elemento, sin inventar conexiones.
 
-Para tus propios datos, pulsa «Importar GPX». Puedes seleccionar varios archivos. El selector «Importar como» permite incorporarlos a Rutas o directamente a Segmentos, conservando también el GPX original. Desde Rutas puedes crear segmentos y superponer varios recorridos con sus métricas y perfiles iniciales. El botón «Original GPX» descarga el archivo importado sin modificaciones.
+Para tus propios datos, pulsa «Importar GPX». Puedes seleccionar varios archivos. En Rutas, «Editar copia» abre inmediatamente el recorrido en el editor sin modificar el original, sin necesidad de convertirlo antes en segmentos. El selector «Importar como» permite incorporarlos a Rutas o directamente a Segmentos. El botón «Original GPX» descarga el archivo importado sin modificaciones.
+
+Para crear un segmento de una parte del recorrido, abre «Recortar trazado» en la barra del mapa. Ajusta Inicio y Final o arrastra sobre el perfil; verás la selección sobre el mapa antes de cambiar nada. Ponle un nombre y pulsa «Guardar selección como segmento»: se añade a la biblioteca sin recortar el borrador. «Aplicar recorte al borrador» es una acción diferente y puede deshacerse. «Cancelar recorte» abandona la selección sin modificar el trazado.
+
+El botón «−» minimiza las opciones del editor para dejar más mapa visible; las herramientas siguen disponibles. El botón «☰» oculta la biblioteca completa. Se puede editar también con el panel oculto. Deshacer: Ctrl/⌘ Z; rehacer: Ctrl/⌘ Mayús Z. Detalles: docs/EDITOR_VISUAL.md.
 
 ## Proteger el trabajo
 
@@ -32,7 +36,7 @@ Abrir una versión conserva el borrador que tenías en otro snapshot. Los datos 
 ## Límites de esta entrega
 
 - Almacenamiento local provisional; todavía no hay PostgreSQL/PostGIS ni sincronización.
-- Edición básica funcional, no el editor completo de gpx.studio: faltan unión avanzada, inserción cómoda, variantes y más herramientas.
+- Interacción visual inspirada en gpx.studio, no una réplica completa: faltan unión avanzada, variantes y enrutamiento automático por carreteras y caminos.
 - Revisión básica: coordenadas, huecos entre elementos, elevación y aristas idénticas. No detecta todos los solapamientos ni garantiza el sentido correcto.
 - Comparación inicial por superposición, cifras y perfiles individuales; eje horizontal del perfil por puntos, todavía no por distancia.
 - No se calculan rutas por carreteras ni elevaciones nuevas. Mover un punto deja su elevación sin dato.

@@ -48,6 +48,7 @@ function CropProfile({ points, range, onRange }) {
       <svg
         className="crop-profile"
         viewBox="0 0 260 78"
+        preserveAspectRatio="none"
         role="img"
         aria-label="Perfil para seleccionar el recorte; arrastra sobre él"
         onPointerDown={(e) => {
@@ -162,12 +163,11 @@ export function EditorTools({
       }
       if (e.key === "Escape") {
         onFinish();
-        onMode("edit");
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [editing, onUndo, onRedo, onMode, onFinish]);
+  }, [editing, onUndo, onRedo, onFinish]);
   const element = elements.find((e) => e.id === active);
   const selection =
     element?.points.slice(
@@ -193,6 +193,7 @@ export function EditorTools({
         aria-label="Herramientas del mapa"
       >
         {[
+          ["view", "↔", "Mover mapa"],
           ["edit", "✎", "Editar trazado"],
           ["crop", "⌑", "Recortar trazado"],
           ["split", "✂", "Dividir trazado"],
@@ -254,7 +255,9 @@ export function EditorTools({
                 ? "Recortar y crear segmento"
                 : mode === "split"
                   ? "Dividir trazado"
-                  : "Dibujar y editar"}
+                  : mode === "view"
+                    ? "Mover mapa"
+                    : "Dibujar y editar"}
             </strong>
             <button
               aria-label="Minimizar herramientas"
@@ -280,6 +283,12 @@ export function EditorTools({
                 </option>
               ))}
             </select>
+          )}
+          {mode === "view" && (
+            <p>
+              Arrastra el mapa sin modificar el trazado. Pulsa el lápiz para
+              volver a editar.
+            </p>
           )}
           {mode === "edit" && (
             <>
@@ -324,8 +333,8 @@ export function EditorTools({
             (element?.points.length > 1 ? (
               <>
                 <p>
-                  Arrastra sobre el perfil o ajusta los extremos. La parte
-                  naranja del mapa es la selección; todavía no se modifica nada.
+                  Selecciona en el perfil o ajusta Inicio y Final. Vista previa,
+                  sin modificar el trazado.
                 </p>
                 <CropProfile
                   points={element.points}
