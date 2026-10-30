@@ -5,7 +5,7 @@
 Se revisó la aplicación real https://gpx.studio/app y su documentación oficial:
 - https://gpx.studio/help/toolbar/routing — anclas, arrastre, inserción, detalle según zoom y menú de puntos.
 - https://gpx.studio/help/toolbar/scissors — selección previa con sliders/perfil y división sobre la línea.
-- https://gpx.studio/help/toolbar/merge — conexión explícita frente a conservación de trazados separados, pendiente de implementar.
+- https://gpx.studio/help/toolbar/merge — referencia de unión explícita; implementada selección múltiple y fusión con conexiones shortest según el flujo pedido para TudaGPX.
 - https://gpx.studio/help/files-and-stats — pestañas de archivos cargados al pie del mapa, desplazamiento horizontal y selección por clic/teclado.
 
 Se replica el modelo de interacción, no la marca ni el código de gpx.studio. La implementación es propia en React y Leaflet. Seguir caminos es el modo inicial, con BRouter y opción de modo libre.
@@ -28,8 +28,9 @@ Barra permanente de archivos al pie del mapa del editor, inspirada en la lista d
 - Punto: pulsación o clic derecho abre acciones para eliminarlo, dividir o marcar extremos del recorte. Mayús + clic elimina el punto. El menú no exige escribir índices.
 - Recorte: controles Inicio/Final y selección arrastrada sobre el perfil, con distancia acumulada. Se previsualizan el tramo elegido y los extremos en el mapa. Cancelar no modifica datos.
 - Guardar selección como segmento: añade una copia nueva a la biblioteca, con nombre propio, sin recortar el borrador. Aplicar recorte al borrador es otra acción, reversible.
-- Tijeras: al pasar sobre la línea se señala la posición; pulsar divide en dos elementos del mismo borrador. El punto de corte queda en ambos extremos y no se pierden los puntos anteriores.
+- Tijeras: un clic sobre la línea activa separa la segunda parte como ruta independiente con nueva pestaña, color e identidad de archivo, seleccionándola. La primera conserva solo la parte anterior al corte; otros tramos del GPX no cambian. El punto de corte queda en ambos extremos y no se pierden los puntos anteriores. «Guardar ruta» añade un GPX nuevo a la biblioteca de rutas; «Guardar segmento» guarda el trazado activo en segmentos. Ambas son copias y no sustituyen originales ni cierran la edición. La × cierra solo la ruta separada y deja la primera recortada; deshacer permite recuperar el cierre o revertir el corte.
 - Deshacer/rehacer: botones y Ctrl/⌘ Z, Ctrl/⌘ Mayús Z. Un arrastre equivale a una operación, no a una por movimiento.
+- Unir trazados (cadena): selecciona el primer archivo en la barra inferior y añade otros con Ctrl/⌘ + clic. Los seleccionados quedan resaltados y numerados. La cadena los fusiona en ese orden y sentido en una única ruta/trazado; cada GPX multitramos aporta todos sus tramos en orden. Los extremos iguales no necesitan conexión. Los huecos siguen el perfil shortest de BRouter con permiso visible por sesión, sin recalcular los tracks existentes ni usar rectas como alternativa ante un fallo. Se pueden guardar los resultados como ruta o segmento, cerrar y deshacer/rehacer. Un clic sin modificador vuelve a selección única; Ctrl/⌘ + clic sobre uno seleccionado lo quita de la selección.
 - Mover mapa: desactiva la modificación por clic. «Terminar dibujo» y Escape activan este modo. Pulsar el lápiz permite seguir editando.
 - La barra flota sobre el mapa sin añadir filas de cabecera. Sus opciones se minimizan con «−». El panel de biblioteca sigue siendo ocultable sin perder el borrador.
 

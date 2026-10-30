@@ -10,7 +10,7 @@ export const routingProfiles = {
 // Solo se envían las anclas de la parte editada, nunca el archivo GPX.
 export async function followRoads(anchors, profile = "gravel", signal) {
   if (
-    !routingProfiles[profile] ||
+    (!routingProfiles[profile] && profile !== "shortest") ||
     anchors.length < 2 ||
     anchors.some((p) => !validPoint(p))
   )

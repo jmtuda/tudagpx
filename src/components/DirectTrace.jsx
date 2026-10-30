@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Marker, Polyline, Popup, Tooltip, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { anchorIndices, nearestOnTrace } from "../utils/editorGeometry";
+import { TraceEndpoints } from "./TraceEndpoints";
 const positions = (points) => points.map((p) => [p.lat, p.lon]);
 const icon = (className, html = "", size = 16) =>
   L.divIcon({
@@ -19,7 +20,9 @@ const scissorsIcon = icon("scissors-handle", "✂", 24);
 
 export function DirectTrace({
   element,
+  color,
   active,
+  showDirection,
   editing,
   mode,
   busy,
@@ -97,7 +100,7 @@ export function DirectTrace({
         positions={positions(visualPoints)}
         bubblingMouseEvents={false}
         pathOptions={{
-          color: active ? "#e05d23" : "#e79962",
+          color,
           weight: active ? 5 : 4,
           opacity: isCrop ? 0.3 : 1,
           dashArray: active && editing ? undefined : "10 7",
@@ -143,12 +146,15 @@ export function DirectTrace({
           {editing ? " · pulsa para editar" : ""}
         </Tooltip>
       </Polyline>
+      {showDirection && !isCrop && (
+        <TraceEndpoints points={visualPoints} name={element.name} />
+      )}
       {isCrop && element.points.length > 1 && (
         <>
           <Polyline
             positions={positions(element.points.slice(from, to + 1))}
             interactive={false}
-            pathOptions={{ color: "#e05d23", weight: 7 }}
+            pathOptions={{ color, weight: 7 }}
           />
           {[from, to].map((index, i) => (
             <Marker

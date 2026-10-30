@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { pinLibraries } from "./helpers/library";
 // Esta batería verifica la geometría libre; el cálculo real tiene su propia batería.
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
@@ -23,6 +24,7 @@ async function state(page) {
 }
 async function demo(page) {
   await page.goto("/");
+  await pinLibraries(page);
   await page
     .getByRole("button", { name: "+ Borrador", exact: true })
     .first()
@@ -47,6 +49,7 @@ test("edición de una copia GPX, inserción por arrastre y un solo paso de desha
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
+  await pinLibraries(page);
   await page.locator("input[type=file]").first().setInputFiles(fixture);
   await page
     .getByRole("button", { name: "Editar copia", exact: true })
@@ -83,6 +86,7 @@ test("reabrir una copia importada tras recargar activa sus puntos blancos", asyn
   page,
 }) => {
   await page.goto("/");
+  await pinLibraries(page);
   await page.locator("input[type=file]").first().setInputFiles(fixture);
   await page
     .getByRole("button", { name: "Editar copia", exact: true })
@@ -159,6 +163,7 @@ test("recorte visual reversible y creación directa de segmento sin cambiar borr
   await page.keyboard.press("Control+Shift+z");
   expect((await state(page)).draft[0].points).toEqual(original.slice(1, 3));
   await page.reload();
+  await pinLibraries(page);
   await page.getByRole("button", { name: /^Borrador/ }).click();
   expect((await state(page)).draft[0].points).toEqual(original.slice(1, 3));
 });

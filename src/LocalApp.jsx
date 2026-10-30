@@ -12,15 +12,29 @@ import {
   validateWorkspace,
 } from "./utils/workspace";
 import { loadWorkspace, saveWorkspace, download } from "./utils/localStore";
+import {
+  cloudEnabled,
+  loadCloudWorkspace,
+  saveCloudWorkspace,
+} from "./utils/cloudStore";
 import { readGPXFile, originalContent } from "./utils/gpxFiles";
 import { splitTrace } from "./utils/editorGeometry";
 import { routedEdit } from "./utils/routing";
+import { editorRouteKey } from "./utils/editorRoutes";
+import {
+  mergeRoutePoints,
+  orderedMergeElements,
+  sameEndpoint,
+} from "./utils/mergeRoutes";
 import { RouteFilters } from "./components/RouteFilters";
+import { SegmentNameDialog } from "./components/SegmentNameDialog";
+import { LibraryFilters } from "./components/LibraryFilters";
 import { emptyRouteFilters, filterRoutes } from "./utils/routeFilters";
 import "./workspace.css";
 import "./editor.css";
 import "./workspaceNavigation.css";
 import "./editorFiles.css";
+import "./dockInterface.css";
 const clone = (value) => structuredClone(value);
 const toggle = (items, id) =>
   items.includes(id) ? items.filter((x) => x !== id) : [...items, id];
@@ -35,44 +49,14 @@ function Metrics({ tracks }) {
     </span>
   );
 }
-function Profile({ tracks, color }) {
-  const values = tracks
-    .flat()
-    .filter((p) => Number.isFinite(p.ele))
-    .map((p) => p.ele);
-  if (values.length < 2) return <small>Sin perfil de elevación</small>;
-  const low = values.reduce((a, b) => Math.min(a, b), Infinity),
-    high = values.reduce((a, b) => Math.max(a, b), -Infinity);
-  const path = values
-    .map(
-      (v, i) =>
-        `${(i * 240) / (values.length - 1)},${44 - ((v - low) * 37) / (high - low || 1)}`,
-    )
-    .join(" ");
-  return (
-    <svg
-      className="profile"
-      viewBox="0 0 240 50"
-      role="img"
-      aria-label={`Perfil de elevación: ${Math.round(low)} a ${Math.round(high)} metros. Eje horizontal por puntos.`}
-    >
-      <polyline
-        points={`0,50 ${path} 240,50`}
-        fill={color}
-        fillOpacity=".09"
-        stroke="none"
-      />
-      <polyline points={path} fill="none" stroke={color} strokeWidth="2" />
-    </svg>
-  );
-}
-export default function LocalApp() {
+export default function LocalApp({ onLogout }) {
   const [workspace, setWorkspace] = useState(() =>
     localStorage.getItem("tudagpx-workspace") === "edit" ? "edit" : "view",
   );
   const [routeFilters, setRouteFilters] = useState({ ...emptyRouteFilters });
   function switchWorkspace(value) {
     cancelRouting();
+    setSidebarHover(false);
     setDrawing(false);
     setIssues(null);
     setWorkspace(value);
@@ -95,7 +79,10 @@ export default function LocalApp() {
     setRouting(value);
     localStorage.setItem("tudagpx-routing-mode", value ? "roads" : "free");
   }
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarHover, setSidebarHover] = useState(false);
+  const [sidebarPins, setSidebarPins] = useState({ view: false, edit: false });
+  const sidebarPinned = sidebarPins[workspace];
+  const sidebarOpen = sidebarHover || sidebarPinned;
   const [editorMode, setEditorMode] = useState("edit"),
     [crop, setCrop] = useState(null);
   const [data, setData] = useState(null),
@@ -115,11 +102,22 @@ export default function LocalApp() {
     [pointIndex, setPointIndex] = useState(0),
     [drawing, setDrawing] = useState(false);
   const [past, setPast] = useState([]),
+    [mergeSelection, setMergeSelection] = useState([]),
     [future, setFuture] = useState([]),
     [issues, setIssues] = useState(null),
     [accept, setAccept] = useState(false);
-  const [notice, setNotice] = useState(""),
-    [importing, setImporting] = useState(false),
+  const [notification, setNotification] = useState(null);
+  const notice = notification?.message || "";
+  function setNotice(message) {
+    setNotification(message ? { message } : null);
+  }
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(() => setNotification(null), 5000);
+    return () => clearTimeout(timer);
+  }, [notification]);
+  const [segmentRequest, setSegmentRequest] = useState(null);
+  const [importing, setImporting] = useState(false),
     [importKind, setImportKind] = useState("routes");
   const fileInput = useRef(),
     backupInput = useRef(),
@@ -127,7 +125,7 @@ export default function LocalApp() {
     revision = useRef(0);
   useEffect(() => {
     let alive = true;
-    loadWorkspace()
+    (cloudEnabled ? loadCloudWorkspace() : loadWorkspace())
       .then((value) => {
         if (alive) {
           setData(value ? validateWorkspace(value) : initialWorkspace());
@@ -137,7 +135,9 @@ export default function LocalApp() {
       .catch(() => {
         if (alive)
           setFatal(
-            "No se ha podido abrir el almacenamiento local. No se ha sobrescrito ningún dato. Comprueba que este navegador permite IndexedDB y vuelve a cargar.",
+            cloudEnabled
+              ? "No se ha podido abrir tu biblioteca privada en Neon. No se ha sobrescrito ningún dato. Comprueba la conexión y vuelve a cargar."
+              : "No se ha podido abrir el almacenamiento local. No se ha sobrescrito ningún dato. Comprueba que este navegador permite IndexedDB y vuelve a cargar.",
           );
       });
     return () => {
@@ -150,13 +150,23 @@ export default function LocalApp() {
     setSaved("Guardando…");
     queue.current = queue.current
       .catch(() => {})
-      .then(() => saveWorkspace(data));
+      .then(async () => {
+        await saveWorkspace(data);
+        if (cloudEnabled) await saveCloudWorkspace(data);
+      });
     queue.current
       .then(() => {
-        if (revision.current === rev) setSaved("Guardado en este navegador");
+        if (revision.current === rev)
+          setSaved(
+            cloudEnabled ? "Guardado en Neon" : "Guardado en este navegador",
+          );
       })
-      .catch(() => {
-        setSaved("Error de guardado: descarga una copia de seguridad");
+      .catch((error) => {
+        setSaved(
+          cloudEnabled
+            ? `No guardado en Neon: ${error.message} Descarga una copia.`
+            : "Error de guardado: descarga una copia de seguridad",
+        );
       });
   }, [data]);
   function update(fn) {
@@ -166,6 +176,7 @@ export default function LocalApp() {
     setData((d) => fn(d));
   }
   function edit(next) {
+    setMergeSelection([]);
     setPast((p) => [...p, clone(data.draft)].slice(-80));
     setFuture([]);
     update((d) => ({
@@ -220,6 +231,14 @@ export default function LocalApp() {
   async function importFiles(event) {
     const files = [...event.target.files];
     event.target.value = "";
+    await importRouteFiles(files, importKind);
+  }
+  async function importRouteFiles(
+    files,
+    kind = "routes",
+    loadInEditor = false,
+  ) {
+    if (importing) return;
     if (!files.length) return;
     setImporting(true);
     const routes = [],
@@ -234,7 +253,7 @@ export default function LocalApp() {
       }
     }
     if (routes.length) {
-      if (workspace === "edit" && importKind === "segments") {
+      if (workspace === "edit" && kind === "segments") {
         const additions = routes.flatMap((r) =>
           r.tracks.map((points, i) => ({
             id: uid(),
@@ -254,7 +273,15 @@ export default function LocalApp() {
         update((d) => ({ ...d, routes: [...d.routes, ...routes] }));
         if (workspace === "view")
           setVisibleRoutes((v) => [...v, ...routes.map((r) => r.id)]);
-        else setTab("routes");
+        else if (loadInEditor) {
+          const copies = routes.flatMap(editorCopies);
+          edit((draft) => [...draft, ...copies]);
+          setActive(copies[0].id);
+          setPointIndex(0);
+          setEditorMode("edit");
+          setDrawing(false);
+          setTab("draft");
+        } else setTab("routes");
       }
       focusPoints(routes.flatMap((r) => r.tracks.flat()));
     }
@@ -270,12 +297,7 @@ export default function LocalApp() {
       points: clone(points),
       sourceRouteId: route.id,
     }));
-    update((d) => ({ ...d, segments: [...d.segments, ...additions] }));
-    setSelected((s) => [...s, ...additions.map((x) => x.id)]);
-    setTab("segments");
-    setNotice(
-      "Segmentos independientes creados. Puedes incorporarlos y recortarlos en el borrador.",
-    );
+    setSegmentRequest({ segments: additions, select: true });
   }
   function startDraw() {
     switchWorkspace("edit");
@@ -296,6 +318,8 @@ export default function LocalApp() {
   }
   function selectElement(id, index = 0) {
     cancelRouting();
+    const element = data.draft.find((e) => e.id === id);
+    setMergeSelection(element ? [editorRouteKey(element)] : []);
     if (id !== active) {
       setEditorMode("edit");
       setCrop(null);
@@ -312,9 +336,84 @@ export default function LocalApp() {
     setDrawing(false);
     setCrop(null);
   }
-  function editRoute(route) {
+  function selectedEditorKeys() {
+    const keys = new Set(data.draft.map(editorRouteKey));
+    return mergeSelection.filter((key) => keys.has(key));
+  }
+  function selectEditorFile(id, additive = false) {
+    const element = data.draft.find((e) => e.id === id);
+    if (!element) return;
+    const key = editorRouteKey(element);
+    const previous = selectedEditorKeys();
+    selectElement(id);
+    setTool(additive ? "view" : "edit");
+    setMergeSelection(additive ? toggle(previous, key) : [key]);
+    if (!additive) focusPoints(element.points);
+  }
+  async function mergeEditorRoutes() {
+    if (routingJob.current) return;
+    const keys = selectedEditorKeys();
+    if (keys.length < 2) return;
+    const elements = orderedMergeElements(data.draft, keys);
+    if (elements.some((e) => e.points.length < 2)) {
+      setNotice(
+        "Todos los trazados seleccionados deben tener al menos dos puntos.",
+      );
+      return;
+    }
+    const needsRoads = elements
+      .slice(1)
+      .some((e, i) => !sameEndpoint(elements[i].points.at(-1), e.points[0]));
+    if (needsRoads && !routingConsent) {
+      setNotice(
+        "Para conectar los huecos por el camino más corto, permite las conexiones con BRouter: solo se enviarán sus extremos. Después pulsa Unir trazados.",
+      );
+      return;
+    }
+    const controller = new AbortController();
+    routingJob.current = controller;
+    setRoutingBusy(true);
+    setEditorMode("view");
+    setDrawing(false);
+    try {
+      const points = await mergeRoutePoints(elements, controller.signal);
+      if (controller.signal.aborted || routingJob.current !== controller)
+        return;
+      const name = elements[0].editorRouteName || elements[0].name;
+      const merged = {
+        id: uid(),
+        editorRouteId: uid(),
+        editorRouteName: name,
+        name,
+        points,
+      };
+      const remaining = data.draft.filter(
+        (e) => !keys.includes(editorRouteKey(e)),
+      );
+      const insertion = data.draft
+        .slice(0, data.draft.indexOf(elements[0]))
+        .filter((e) => !keys.includes(editorRouteKey(e))).length;
+      remaining.splice(insertion, 0, merged);
+      edit(remaining);
+      selectElement(merged.id);
+      setTool("view");
+      focusPoints(points);
+      setNotice(
+        "Trazados fusionados en el orden de selección. Puedes deshacer; los originales no cambian.",
+      );
+    } catch (error) {
+      if (!controller.signal.aborted)
+        setNotice(`No se ha unido ningún trazado: ${error.message}`);
+    } finally {
+      if (routingJob.current === controller) {
+        routingJob.current = null;
+        setRoutingBusy(false);
+      }
+    }
+  }
+  function editorCopies(route) {
     const editorRouteId = uid();
-    const copies = route.tracks.map((points, i) => ({
+    return route.tracks.map((points, i) => ({
       id: uid(),
       name: route.name + (route.tracks.length > 1 ? ` · tramo ${i + 1}` : ""),
       points: clone(points),
@@ -322,11 +421,34 @@ export default function LocalApp() {
       editorRouteId,
       editorRouteName: route.name,
     }));
+  }
+  function editRoute(route) {
+    const copies = editorCopies(route);
     edit([...data.draft, ...copies]);
     selectElement(copies[0].id);
     setTool("edit");
     focusPoints(copies.flatMap((e) => e.points));
     setNotice("Editas una copia. El GPX original permanece intacto.");
+  }
+  function closeEditorRoute(id) {
+    const remaining = data.draft.filter(
+      (e) => (e.editorRouteId || e.id) !== id,
+    );
+    edit(remaining);
+    setTab("draft");
+    if (!remaining.length) {
+      setSelected([]);
+      setHover(null);
+    }
+    setDrawing(false);
+    setEditorMode("view");
+    if (!remaining.some((e) => e.id === active)) {
+      setActive(remaining[0]?.id || null);
+      setPointIndex(0);
+    }
+    setNotice(
+      "Ruta cerrada del editor. El original se conserva; puedes deshacer el cierre.",
+    );
   }
   async function routeChange(id, index, point, action, neighbors) {
     if (routingJob.current) return;
@@ -421,22 +543,26 @@ export default function LocalApp() {
       setNotice("Elige un lugar intermedio del trazado para dividirlo.");
       return;
     }
+    const secondId = uid();
+    const secondName = element.name + " · parte 2";
     edit([
       ...data.draft.slice(0, position),
       { ...clone(element), points: parts[0] },
       {
         ...clone(element),
-        id: uid(),
-        name: element.name + " · parte 2",
+        id: secondId,
+        name: secondName,
+        editorRouteId: uid(),
+        editorRouteName: secondName,
         points: parts[1],
       },
       ...data.draft.slice(position + 1),
     ]);
-    selectElement(id, Math.max(0, index - 1));
+    selectElement(secondId, 0);
     setEditorMode("edit");
     setDrawing(false);
     setNotice(
-      "Trazado dividido en dos partes. Puedes deshacer; el original no cambia.",
+      "Corte realizado: la segunda parte es una ruta independiente. Puedes guardarla como ruta o segmento, o cerrarla. El original no cambia.",
     );
   }
   function pointAction(action, id, index, neighbors) {
@@ -473,7 +599,22 @@ export default function LocalApp() {
       setDrawing(false);
     }
   }
-  function saveSegment(points, name) {
+  function commitSegments(segments, select = false) {
+    update((data) => ({ ...data, segments: [...data.segments, ...segments] }));
+    if (select) {
+      setSelected((previous) => [
+        ...previous,
+        ...segments.map((segment) => segment.id),
+      ]);
+      setTab("segments");
+    }
+    setNotice(
+      segments.length === 1
+        ? `Segmento «${segments[0].name}» guardado. Los originales y el borrador se conservan.`
+        : `${segments.length} segmentos guardados. Los originales y el borrador se conservan.`,
+    );
+  }
+  function saveSegment(points, name, askName = true) {
     if (points.length < 2) return;
     const element = data.draft.find((e) => e.id === active);
     const segment = {
@@ -484,10 +625,33 @@ export default function LocalApp() {
       sourceRouteId: element?.sourceRouteId,
       createdAt: new Date().toISOString(),
     };
-    update((d) => ({ ...d, segments: [...d.segments, segment] }));
-    setNotice(
-      "Nuevo segmento guardado en la biblioteca. Los originales y el borrador no se modifican.",
+    if (!askName && name.trim())
+      commitSegments([{ ...segment, name: name.trim() }]);
+    else setSegmentRequest({ segments: [segment], select: false });
+  }
+  async function saveEditorRoute() {
+    const element = data.draft.find((e) => e.id === active);
+    if (!element) return;
+    const key = element.editorRouteId || element.id;
+    const elements = data.draft.filter(
+      (e) => (e.editorRouteId || e.id) === key,
     );
+    try {
+      const name =
+        elements.length === 1
+          ? element.name
+          : element.editorRouteName || element.name;
+      const xml = exportGPX(elements, name);
+      const route = await readGPXFile(
+        new File([xml], `${name}.gpx`, { type: "application/gpx+xml" }),
+      );
+      update((d) => ({ ...d, routes: [...d.routes, route] }));
+      setNotice(
+        "Nueva ruta guardada en la biblioteca. El original y las copias del editor se conservan.",
+      );
+    } catch (error) {
+      setNotice(`No se pudo guardar la ruta: ${error.message}`);
+    }
   }
   function saveProject() {
     const p = {
@@ -619,22 +783,25 @@ export default function LocalApp() {
     }
   };
   return (
-    <div className={`local-app${sidebarOpen ? "" : " panel-hidden"}`}>
+    <div
+      className={`local-app dock-interface${sidebarOpen ? "" : " panel-hidden"}${sidebarPinned ? " sidebar-pinned" : ""}`}
+      onPointerMoveCapture={(event) => {
+        if (
+          event.pointerType === "mouse" &&
+          sidebarHover &&
+          !sidebarPinned &&
+          event.clientX >=
+            document.getElementById("library-panel").getBoundingClientRect()
+              .right
+        )
+          setSidebarHover(false);
+      }}
+      onPointerDown={(event) => {
+        if (!event.target.closest("#library-panel, .sidebar-edge"))
+          setSidebarHover(false);
+      }}
+    >
       <header className="topbar">
-        <button
-          className="sidebar-toggle"
-          aria-label={
-            sidebarOpen ? "Ocultar panel de rutas" : "Mostrar panel de rutas"
-          }
-          title={
-            sidebarOpen ? "Ocultar panel de rutas" : "Mostrar panel de rutas"
-          }
-          aria-expanded={sidebarOpen}
-          aria-controls="library-panel"
-          onClick={() => setSidebarOpen((open) => !open)}
-        >
-          <span aria-hidden="true">☰</span>
-        </button>
         <div className="brand">
           <span className="brand-icon">⌁</span>
           <div>
@@ -676,11 +843,18 @@ export default function LocalApp() {
         </nav>
         <div className="local-status">
           <i />{" "}
-          {routing && routingConsent
-            ? "Datos locales · cálculo externo"
-            : "Solo local · privado"}{" "}
+          {cloudEnabled
+            ? "Neon · privado"
+            : routing && routingConsent
+              ? "Datos locales · cálculo externo"
+              : "Solo local · privado"}{" "}
           <span>{saved}</span>
         </div>
+        {onLogout && (
+          <button onClick={onLogout} title="Cerrar sesión privada">
+            Salir
+          </button>
+        )}
         <button
           className="primary"
           disabled={importing}
@@ -710,13 +884,83 @@ export default function LocalApp() {
         role="tabpanel"
         aria-labelledby={`workspace-tab-${workspace}`}
       >
-        <aside id="library-panel" className="sidebar" hidden={!sidebarOpen}>
+        <button
+          className="sidebar-edge"
+          aria-label="Mostrar panel de rutas"
+          aria-controls="library-panel"
+          aria-expanded={sidebarOpen}
+          tabIndex={sidebarOpen ? -1 : 0}
+          title="Acerca el cursor o toca aquí para abrir las rutas"
+          onPointerEnter={(event) => {
+            if (event.pointerType === "mouse" && !event.buttons)
+              setSidebarHover(true);
+          }}
+          onFocus={() => setSidebarHover(true)}
+          onClick={() => setSidebarHover(true)}
+        >
+          <span aria-hidden="true">›</span>
+        </button>
+        <aside
+          id="library-panel"
+          className="sidebar"
+          hidden={!sidebarOpen}
+          onPointerLeave={(event) => {
+            if (event.pointerType === "mouse") setSidebarHover(false);
+          }}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget))
+              setSidebarHover(false);
+          }}
+        >
+          <div className="dock-controls">
+            {workspace === "view" ? (
+              <RouteFilters
+                value={routeFilters}
+                onChange={setRouteFilters}
+                count={routes.length}
+                total={data.routes.length}
+              />
+            ) : (
+              <LibraryFilters
+                query={query}
+                onQuery={setQuery}
+                importKind={importKind}
+                onImportKind={setImportKind}
+                sport={sport}
+                onSport={setSport}
+                routes={tab === "routes"}
+              />
+            )}
+            <button
+              aria-label={
+                sidebarPinned
+                  ? "Desfijar panel de rutas"
+                  : "Fijar panel de rutas"
+              }
+              aria-pressed={sidebarPinned}
+              onClick={() => {
+                setSidebarPins((p) => ({ ...p, [workspace]: !sidebarPinned }));
+                setSidebarHover(true);
+              }}
+              title={
+                sidebarPinned
+                  ? "Desfijar: se ocultará al salir"
+                  : "Mantener el panel abierto"
+              }
+            >
+              📌
+            </button>
+            <button
+              aria-label="Ocultar panel de rutas"
+              onClick={() => {
+                setSidebarPins((p) => ({ ...p, [workspace]: false }));
+                setSidebarHover(false);
+              }}
+            >
+              ‹
+            </button>
+          </div>
           <div className="sidebar-top">
-            <p className="eyebrow">
-              {workspace === "view"
-                ? "EXPLORAR Y COMPARAR RUTAS"
-                : "EDITOR · CARGAR RUTAS Y SEGMENTOS"}
-            </p>
             {workspace === "edit" && (
               <nav aria-label="Biblioteca">
                 <button
@@ -746,54 +990,7 @@ export default function LocalApp() {
               </nav>
             )}
           </div>
-          {workspace === "view" && (
-            <RouteFilters
-              value={routeFilters}
-              onChange={setRouteFilters}
-              count={routes.length}
-              total={data.routes.length}
-            />
-          )}
-          {workspace === "edit" && (tab === "segments" || tab === "routes") && (
-            <div className="filters">
-              <input
-                aria-label="Buscar en la biblioteca"
-                placeholder="Buscar por nombre…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              <div className="import-options">
-                <label>
-                  Importar como{" "}
-                  <select
-                    aria-label="Destino del GPX"
-                    value={importKind}
-                    onChange={(e) => setImportKind(e.target.value)}
-                  >
-                    <option value="routes">Rutas</option>
-                    <option value="segments">Segmentos + original</option>
-                  </select>
-                </label>
-                {tab === "routes" && (
-                  <select
-                    aria-label="Filtrar ciclismo"
-                    value={sport}
-                    onChange={(e) => setSport(e.target.value)}
-                  >
-                    {[
-                      "Todos",
-                      "Sin clasificar",
-                      "Carretera",
-                      "Gravel",
-                      "MTB",
-                    ].map((s) => (
-                      <option key={s}>{s}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            </div>
-          )}
+
           <div className="panel-content">
             {tab === "segments" && (
               <>
@@ -869,20 +1066,7 @@ export default function LocalApp() {
             )}
             {tab === "routes" && (
               <>
-                <div className="section-heading">
-                  <h2>Biblioteca de rutas</h2>
-                  <span>
-                    {workspace === "view"
-                      ? `${visibleRoutes.length} superpuestas`
-                      : "Carga manual de copias"}
-                  </span>
-                </div>
-                <p className="hint">
-                  {workspace === "view"
-                    ? "Marca varias rutas para compararlas. Se muestran solo en el visor. Usa «Enviar al editor» para cargar una copia manualmente."
-                    : "Biblioteca de originales: no están cargados en el editor. Pulsa «Editar copia» para añadir una ruta al trabajo actual."}
-                </p>
-                {workspace === "view" && (
+                {workspace === "view" && visibleRoutes.length > 0 && (
                   <div className="tools">
                     <button
                       disabled={!visibleRoutes.length}
@@ -900,20 +1084,16 @@ export default function LocalApp() {
                       disabled={!visibleRoutes.length}
                       onClick={() => setVisibleRoutes([])}
                     >
-                      Ocultar todas
+                      Quitar selección
                     </button>
                   </div>
                 )}
                 {routes.map((r) => {
-                  const color =
-                    colors[
-                      data.routes
-                        .filter((x) => visibleRoutes.includes(x.id))
-                        .indexOf(r) % colors.length
-                    ] || colors[0];
+                  const routeStats = stats(r.tracks);
+                  const color = colors[data.routes.indexOf(r) % colors.length];
                   return (
                     <article
-                      className="library-card"
+                      className={`library-card compact-route-card${workspace === "view" ? " viewer-route-card" : ""}${visibleRoutes.includes(r.id) ? " selected" : ""}`}
                       key={r.id}
                       style={{ "--route-color": color }}
                     >
@@ -937,8 +1117,19 @@ export default function LocalApp() {
                             />
                           )}
                       </div>
-                      <Metrics tracks={r.tracks} />
-                      <Profile tracks={r.tracks} color={color} />
+                      <span className="metrics">
+                        {routeStats.km.toFixed(2)} km ·{" "}
+                        <span title="Desnivel positivo acumulado">
+                          ↗ {routeStats.ascent} m subida
+                        </span>{" "}
+                        ·{" "}
+                        <span title="Desnivel negativo acumulado">
+                          ↘ {routeStats.descent} m bajada
+                        </span>
+                        {routeStats.missing > 0 && (
+                          <small> · elevación parcial</small>
+                        )}
+                      </span>
                       {workspace === "edit" ? (
                         <select
                           aria-label={`Ciclismo de ${r.name}`}
@@ -960,39 +1151,40 @@ export default function LocalApp() {
                             ),
                           )}
                         </select>
-                      ) : (
-                        <p className="tags">{r.sport}</p>
+                      ) : null}
+                      {(workspace === "edit" ||
+                        visibleRoutes.includes(r.id)) && (
+                        <div className="card-actions">
+                          <button onClick={() => focusPoints(r.tracks.flat())}>
+                            Centrar
+                          </button>
+                          {workspace === "view" && (
+                            <button onClick={() => editRoute(r)}>
+                              Enviar al editor
+                            </button>
+                          )}
+                          {workspace === "edit" && (
+                            <button onClick={() => routeSegments(r)}>
+                              Crear segmentos
+                            </button>
+                          )}
+                          {workspace === "edit" && (
+                            <button onClick={() => editRoute(r)}>
+                              Editar copia
+                            </button>
+                          )}
+                          {r.original && (
+                            <button
+                              onClick={() =>
+                                download(originalContent(r), r.filename)
+                              }
+                            >
+                              Original GPX ↓
+                            </button>
+                          )}
+                        </div>
                       )}
-                      <div className="card-actions">
-                        <button onClick={() => focusPoints(r.tracks.flat())}>
-                          Centrar
-                        </button>
-                        {workspace === "view" && (
-                          <button onClick={() => editRoute(r)}>
-                            Enviar al editor
-                          </button>
-                        )}
-                        {workspace === "edit" && (
-                          <button onClick={() => routeSegments(r)}>
-                            Crear segmentos
-                          </button>
-                        )}
-                        {workspace === "edit" && (
-                          <button onClick={() => editRoute(r)}>
-                            Editar copia
-                          </button>
-                        )}
-                        {r.original && (
-                          <button
-                            onClick={() =>
-                              download(originalContent(r), r.filename)
-                            }
-                          >
-                            Original GPX ↓
-                          </button>
-                        )}
-                      </div>
-                      {r.demo && (
+                      {r.demo && workspace === "edit" && (
                         <small>
                           Datos sintéticos de demostración, no una ruta
                           recomendada.
@@ -1129,6 +1321,12 @@ export default function LocalApp() {
                     <div className="tools">
                       <button
                         disabled={activeElement.points.length < 2}
+                        onClick={saveEditorRoute}
+                      >
+                        Guardar como nueva ruta
+                      </button>
+                      <button
+                        disabled={activeElement.points.length < 2}
                         onClick={() =>
                           saveSegment(activeElement.points, activeElement.name)
                         }
@@ -1213,6 +1411,11 @@ export default function LocalApp() {
             data={data}
             viewing={workspace === "view"}
             visibleRoutes={visibleRoutes}
+            onToggleRoute={(id) =>
+              setVisibleRoutes((routes) => toggle(routes, id))
+            }
+            onDropFiles={(files) => importRouteFiles(files, "routes", true)}
+            importing={importing}
             selected={selected}
             hidden={hidden}
             hover={hover}
@@ -1252,6 +1455,7 @@ export default function LocalApp() {
             onSelect={selectElement}
             onMove={movePoint}
             editing={workspace === "edit" && tab === "draft" && issues === null}
+
             routingBusy={routingBusy}
             mode={editorMode}
             crop={cropRange}
@@ -1287,6 +1491,10 @@ export default function LocalApp() {
                 focusPoints(element?.points || []);
               },
               onMode: setTool,
+              mergeSelection: selectedEditorKeys(),
+              onSelectFile: selectEditorFile,
+              onMerge: mergeEditorRoutes,
+              onCloseRoute: closeEditorRoute,
               onActive: (id) => {
                 selectElement(id);
                 setTool("edit");
@@ -1317,10 +1525,12 @@ export default function LocalApp() {
                     cropRange.end + 1,
                   ),
                   name,
+                  false,
                 ),
               onSaveSegment: () =>
                 activeElement &&
                 saveSegment(activeElement.points, activeElement.name),
+              onSaveRoute: saveEditorRoute,
               onReverse: () =>
                 changeElement((e) => ({
                   ...e,
@@ -1369,6 +1579,16 @@ export default function LocalApp() {
             ×
           </button>
         </div>
+      )}
+      {segmentRequest && (
+        <SegmentNameDialog
+          segments={segmentRequest.segments}
+          onCancel={() => setSegmentRequest(null)}
+          onSave={(segments) => {
+            commitSegments(segments, segmentRequest.select);
+            setSegmentRequest(null);
+          }}
+        />
       )}
       {issues !== null && (
         <div

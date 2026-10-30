@@ -1,5 +1,61 @@
 # Progreso
 
+## Nombres de segmentos, panel compacto y avisos temporales
+
+Crear segmentos desde una ruta o guardar un trazado como segmento abre un formulario con un nombre editable por segmento. Guardar confirma copias independientes; Cancelar/Escape no modifica biblioteca, originales ni borrador. No admite nombres vacíos o solo espacios. El recorte mantiene su campo de nombre existente y guarda sin un segundo formulario.
+
+Filtros plegados y botones de fijación/cierre comparten la primera fila en visor y editor. Retirados encabezados redundantes y reducido el margen antes de las fichas. Se conserva la fila Segmentos/Rutas/Borrador/Proyectos del editor; las fichas de rutas comparten aspecto compacto y métricas de subida/bajada sin perfil automático.
+
+Los avisos flotantes desaparecen cinco segundos después de cada acción, incluso si se repite el mismo texto. Se conserva × para cerrar de inmediato. El estado de persistencia no se oculta.
+
+## Importación arrastrando y referencias en el visor
+
+Se pueden soltar uno o varios GPX sobre el mapa, con aviso visual de destino. Reutiliza la lectura y validación existentes, conserva bytes originales y procesa cada archivo de manera independiente. En el visor quedan seleccionados; en el editor se añaden copias agrupadas por archivo a las pestañas inferiores sin alterar la selección del visor. Importación por botón conservada.
+
+El visor muestra atenuadas todas las rutas de biblioteca que intersectan el rectángulo visible, incluso sin vértices interiores. Clic en línea alterna selección/resaltado; color estable y coincidente con la ficha. Selección independiente de filtros y vista. «Quitar selección» devuelve las rutas a referencias atenuadas. No se dibuja esta capa en el editor: cerrarlo todo sigue dejando solo el mapa base.
+
+Extremos de rutas/segmentos solo con iconos ▶ verde y ■ rojo, sin rótulos Inicio/Final. Nombres accesibles conservados; en circulares los iconos se separan horizontalmente para no ocultarse. Recorte conserva controles propios.
+
+Validado: lint, build y batería de 47 pruebas Chrome, con nuevas pruebas de drop simple/múltiple, archivo inválido, originales exactos, selección sobre la línea y aislamiento visor/editor; regresión de extremos en escritorio y móvil. Revisión visual con PNOA real.
+
+## Interfaz recogida y panel tipo dock
+
+PNOA máxima actualidad por defecto, con teselas reales comprobadas. El selector de mapas muestra solo un icono; al pulsarlo abre la lista con nombres y se recoge al elegir, perder el foco o pulsar Escape. Conserva IGN Base, MTN, PNOA y OSM con atribuciones.
+
+Biblioteca inicialmente oculta tanto en visor como editor. Se despliega al acercar el cursor al borde izquierdo y se recoge al salir; el borde también permite apertura táctil/teclado. Chincheta independiente por módulo para mantenerla fija durante la sesión; el botón lateral permite ocultarla expresamente. Emergente superpuesto al mapa sin remontar Leaflet; al fijarlo reserva espacio, en móvil debajo del mapa para conservar herramientas utilizables.
+
+Visor simplificado: sin título de exploración, cabecera de biblioteca, instrucciones ni perfiles por ruta. Búsqueda y filtros recogidos tras flecha; las fichas muestran nombre, distancia y desniveles positivos/negativos acumulados, con aviso si faltan elevaciones. Acciones solo en fichas seleccionadas. Se añade cálculo de descenso a stats sin sumar saltos entre tramos.
+
+Verificado: lint, build y 44 pruebas Chrome correctas. Pruebas del dock en escritorio y móvil, apertura táctil, fijación, filtros, fichas, conservación del borrador y carga real/decodificada de las cuatro cartografías. Revisión visual adicional con PNOA y panel emergente. La interfaz local queda terminada; publicación y migración a los proyectos existentes «tudagpx» de Vercel y Neon autorizadas por el usuario y pendientes de ejecutar después de esta entrega, sin cambios remotos realizados aún.
+
+## Inicio y final visibles
+
+Marcadores y etiquetas permanentes «▶ Inicio» (verde/círculo) y «■ Final» (rojo/cuadrado) en los trazados seleccionados del editor, incluso en modo Mover mapa, con herramientas minimizadas o selección múltiple. Etiquetas arriba/abajo para distinguir extremos coincidentes de rutas circulares. Se actualizan al invertir y durante previsualización de arrastre; no interceptan gestos de edición. También se muestran en las rutas superpuestas del visor y en segmentos seleccionados de biblioteca. Recorte conserva sus indicadores específicos. Al cerrar todo desaparecen los marcadores.
+
+Verificado con lint/build, 12 regresiones del editor y dos pruebas nuevas en escritorio/móvil (visibilidad, inversión, circular y cierre), más revisión visual real.
+
+## Unir rutas o segmentos del borrador
+
+Nueva selección múltiple de archivos en la barra inferior con Ctrl/⌘ + clic, resaltado y numeración del orden. Botón de cadena «Unir trazados» en la barra de edición, habilitado con dos o más archivos seleccionados. Concatena en ese orden, conserva el sentido y todos los puntos existentes y reemplaza las copias seleccionadas por una ruta con una sola pestaña; los archivos no seleccionados y la biblioteca original no cambian. Un GPX multitramos seleccionado aporta sus tramos en el orden actual del borrador.
+
+Extremos exactamente coincidentes se unen sin red ni duplicar la coordenada de unión. Los huecos se calculan con el perfil oficial BRouter shortest (comprobado en el directorio público y con peticiones reales desde Chrome), incluso si el lápiz estaba en modo libre. Consentimiento visible por sesión: solo extremos de los enlaces. No se recalculan los tracks originales, no se invierte el sentido ni se buscan órdenes automáticamente. La proximidad a la red conserva el límite de 100 m del cliente; revisar visualmente los enlaces de extremos fuera de un camino. Operación atómica, cancelable y deshacible: un fallo no fusiona parcialmente ni sustituye por una recta.
+
+Verificado: lint, build y 19 pruebas Chrome del editor. Incluyen unión de dos y tres archivos, Ctrl y ⌘, deselección, conservación de archivos ajenos y originales, coincidencias sin red, conexiones shortest reales, permiso previo, fallo/cancelación, deshacer/rehacer, persistencia y GPX resultante con un solo tramo. Revisión visual del resaltado, numeración y permiso.
+
+## Dividir en rutas independientes
+
+Las tijeras ahora separan la segunda parte con un solo clic sobre el trazado activo, asignándole nueva identidad de archivo, pestaña y color. Queda seleccionada y se puede cerrar sin retirar la primera parte ni otros tramos del GPX. Añadido «Guardar ruta» en las opciones del mapa y «Guardar como nueva ruta» en el panel: genera un GPX nuevo con bytes conservados en la biblioteca, sin reemplazar el original. Se mantiene el guardado como segmento. Corte y cierre admiten deshacer/rehacer.
+
+Verificado con lint, build y pruebas Chrome: 12 regresiones del editor y dos nuevas pruebas de corte por un solo clic en escritorio/móvil, guardado independiente como ruta y segmento, cierre de la segunda parte, originales intactos, deshacer/rehacer y persistencia de las dos pestañas tras recargar.
+
+## Colores y cierre de rutas del editor
+
+Corregido el trazado residual al cerrar: los segmentos de biblioteca que cruzan la vista ya no se dibujan automáticamente, solo los seleccionados expresamente. Cerrar la última ruta limpia también esas referencias. La prueba comprueba ahora todas las líneas y controles del mapa (no solo draft-line), antes/después de recargar y al alternar módulos: cero trazados tras cerrar todo. Lint, build y las 12 pruebas del editor correctos.
+
+Cada archivo cargado usa un color de la misma paleta del visor, compartido por todos sus tramos y su indicador en la barra inferior. La selección y el recorte conservan ese color. Añadido botón × independiente junto a cada título: cierra todos los tramos de esa copia, sin borrar originales ni alterar el visor, y permite deshacer. Al cerrar la activa se selecciona otra disponible; cerrar la última deja el editor vacío y el cambio se conserva tras recargar.
+
+Verificado: lint y build, 12 pruebas del editor en Chrome (incluidas comprobaciones de colores, cierre y deshacer en escritorio/móvil) y revisión visual de la barra inferior.
+
 ## Carga manual entre módulos y selección de archivos en el editor
 
 Corregida la separación real de capas: las rutas superpuestas del visor ya no se dibujan en el editor. Se añade «Enviar al editor» en cada ficha, que crea una copia editable mediante acción explícita. Importar desde el editor no activa superposiciones del visor y su biblioteca de originales no ofrece casillas que modifiquen el visor. Importar desde el visor no cambia la pestaña interna del editor.

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { pinLibraries } from "./helpers/library";
 import { readFile } from "node:fs/promises";
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
@@ -11,6 +12,7 @@ test.beforeEach(async ({ page }) => {
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
 const ready = async (page) => {
   await page.goto("/");
+  await pinLibraries(page);
   await expect(
     page.getByRole("heading", { name: "Segmentos de la zona" }),
   ).toBeVisible();
@@ -36,6 +38,9 @@ test("arranque, cartografías reales y selección conservada", async ({
   await page.getByRole("checkbox", { name: /Seleccionar Subida/ }).check();
   await page.getByRole("checkbox", { name: /Seleccionar Camino/ }).check();
   for (const value of ["ign_base", "mtn", "pnoa_orto", "osm"]) {
+    await page
+      .getByRole("button", { name: "Seleccionar mapa", exact: true })
+      .click();
     const select = page.getByLabel("Cartografía");
     if ((await select.inputValue()) !== value) await select.selectOption(value);
     await expect
@@ -103,11 +108,16 @@ test("importa varios tramos, superpone, conserva original y recarga", async ({
     .getByRole("button", { name: "Crear segmentos", exact: true })
     .last()
     .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Guardar segmentos", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: /Ruta de prueba & original · tramo 1/ }),
   ).toBeVisible();
   await persisted(page);
   await page.reload();
+  await pinLibraries(page);
   await page.getByRole("button", { name: /^Rutas/ }).click();
   await expect(
     page.getByRole("heading", { name: "Ruta de prueba & original" }),
@@ -172,6 +182,7 @@ test("editor: copias, arrastre, invertir, dividir, deshacer, versión y GPX", as
   expect(d.projects).toHaveLength(1);
   expect(d.segments[0].points[0].ele).toBe(1160);
   await page.reload();
+  await pinLibraries(page);
   await page.getByRole("button", { name: /^Borrador/ }).click();
   await expect(page.locator(".draft-card")).toHaveCount(2);
   expect(errors).toEqual([]);
@@ -210,6 +221,10 @@ test("dibujo libre, recorte, eliminación, nuevo segmento y copia recuperable", 
     .getByRole("button", { name: "Guardar como nuevo segmento", exact: true })
     .click();
   await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Guardar segmento", exact: true })
+    .click();
+  await page
     .getByRole("button", { name: "Guardar versión", exact: true })
     .click();
   await page.getByRole("button", { name: "Proyectos", exact: true }).click();
@@ -227,6 +242,7 @@ test("dibujo libre, recorte, eliminación, nuevo segmento y copia recuperable", 
   expect(d.segments).toHaveLength(8);
   expect(d.projects).toHaveLength(3);
   await page.reload();
+  await pinLibraries(page);
   await page.getByRole("button", { name: /^Borrador/ }).click();
   await expect(page.locator(".draft-card")).toHaveCount(1);
 });
@@ -331,6 +347,7 @@ test("importación directa de segmentos y cambio geográfico conserva selección
 }) => {
   await ready(page);
   await page.getByRole("checkbox", { name: /Seleccionar Subida/ }).check();
+  await page.getByText("Buscar y filtrar", { exact: true }).click();
   await page.getByLabel("Destino del GPX").selectOption("segments");
   await page
     .locator("input[type=file]")
@@ -372,6 +389,7 @@ test("borrador vacío recuperable y exportación incompleta bloqueada", async ({
   await persisted(page);
   expect((await state(page)).projects).toHaveLength(1);
   await page.reload();
+  await pinLibraries(page);
   await page.getByRole("button", { name: /^Borrador/ }).click();
   await expect(page.locator(".draft-card")).toHaveCount(1);
   await page.getByRole("button", { name: "Revisar y exportar →" }).click();
@@ -431,7 +449,9 @@ test("móvil: mapa y controles accesibles sin desbordamiento", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await ready(page);
-  await expect(page.getByLabel("Cartografía")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Seleccionar mapa", exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "+ Importar GPX" }),
   ).toBeVisible();

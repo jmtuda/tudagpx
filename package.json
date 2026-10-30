@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
     "@supabase/supabase-js": "^2.110.8",
     "leaflet": "^1.9.4",
     "react": "^19.2.7",

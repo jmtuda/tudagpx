@@ -1,0 +1,179 @@
+.map-drop-hint {
+  position: absolute;
+  inset: 12px;
+  z-index: 1250;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  border: 3px dashed #007d68;
+  border-radius: 12px;
+  background: #ffffffdd;
+  color: #17463e;
+  font-weight: 700;
+  text-align: center;
+  pointer-events: none;
+}
+.dock-interface .workbench {
+  position: relative;
+  flex-direction: row;
+}
+.dock-interface .map-area {
+  height: 100%;
+  flex: 1;
+}
+.dock-interface .sidebar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  height: 100%;
+  width: min(360px, calc(100vw - 24px));
+  z-index: 1200;
+  box-shadow: 6px 0 22px #173e3933;
+  border-top: 0;
+}
+.dock-interface.sidebar-pinned .sidebar {
+  position: relative;
+}
+.dock-interface .sidebar[hidden] {
+  display: none;
+}
+.sidebar-edge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1210;
+  width: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.sidebar-edge span {
+  position: absolute;
+  top: 45%;
+  left: 0;
+  background: #fffffff0;
+  border: 1px solid #dce5e3;
+  border-radius: 0 6px 6px 0;
+  padding: 12px 3px;
+  font-size: 18px;
+  color: #007d77;
+}
+.sidebar-edge:focus-visible {
+  width: 24px;
+}
+.sidebar-edge[aria-expanded="true"] span {
+  display: none;
+}
+.dock-controls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 6px 10px;
+  background: white;
+}
+.dock-controls > button {
+  padding: 3px 8px;
+  min-width: 30px;
+}
+.dock-controls button[aria-pressed="true"] {
+  background: #dcefe9;
+  border-color: #007d77;
+}
+.dock-interface .sidebar-top {
+  padding: 0 10px;
+}
+.dock-interface .sidebar nav button {
+  padding: 7px 1px 8px;
+  white-space: nowrap;
+}
+.dock-controls .filters {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  max-height: none;
+}
+.dock-controls summary {
+  margin: 0;
+  padding: 5px 0;
+}
+.dock-controls .all-route-filters > input {
+  margin-top: 6px;
+}
+.dock-controls .import-options {
+  flex-wrap: wrap;
+}
+.dock-interface .panel-content {
+  padding: 8px 10px;
+}
+.segment-name-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  border: 1px solid #dce5e3;
+  border-radius: 12px;
+  padding: 20px;
+  color: #17463e;
+  box-shadow: 0 12px 60px #173e3944;
+}
+.segment-name-dialog::backdrop {
+  background: #173e3966;
+}
+.segment-name-dialog label {
+  display: block;
+  margin: 14px 0;
+  font-size: 13px;
+}
+.segment-name-dialog input {
+  margin-top: 6px;
+}
+.segment-name-dialog .tools {
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+.dock-interface .sidebar-top:empty {
+  display: none;
+}
+.compact-route-card {
+  padding: 10px 12px;
+}
+.compact-route-card .metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  font-size: 11px;
+}
+.compact-route-card h3 {
+  font-size: 13px;
+}
+.dock-interface .notice {
+  left: 20px;
+}
+.dock-interface .editor-options {
+  max-height: calc(100dvh - 270px);
+}
+@media (max-width: 650px) {
+  .dock-interface.sidebar-pinned .editor-options {
+    max-height: calc(57dvh - 210px);
+  }
+  .dock-interface.sidebar-pinned .workbench {
+    flex-direction: column-reverse;
+  }
+  .dock-interface.sidebar-pinned .sidebar {
+    width: 100%;
+    height: 43%;
+  }
+  .dock-interface.sidebar-pinned .map-area {
+    height: 57%;
+    flex: 0 0 57%;
+  }
+  .sidebar-edge {
+    width: 18px;
+  }
+  .dock-interface .notice {
+    left: 12px;
+  }
+}

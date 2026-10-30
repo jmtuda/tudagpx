@@ -147,6 +147,9 @@ export function EditorTools({
   onCrop,
   onSaveSelection,
   onSaveSegment,
+  onSaveRoute,
+  mergeSelection = [],
+  onMerge,
   onReverse,
   onCenter,
   routing,
@@ -230,6 +233,18 @@ export function EditorTools({
         ))}
         <span className="tool-divider" />
         <button
+          aria-label="Unir trazados"
+          title="Unir en orden de selección: clic inicial y Ctrl/⌘ + clic para añadir. Los huecos siguen el camino más corto."
+          disabled={mergeSelection.length < 2 || routingBusy}
+          onClick={() => {
+            setMinimized(false);
+            onMerge();
+          }}
+        >
+          ⛓
+        </button>
+
+        <button
           aria-label="↶ Deshacer"
           title="Deshacer (Ctrl/⌘ Z)"
           onClick={onUndo}
@@ -283,6 +298,29 @@ export function EditorTools({
               −
             </button>
           </div>
+          {mergeSelection.length > 1 && (
+            <div className="routing-permission">
+              <p>
+                {mergeSelection.length} rutas seleccionadas. Se unen en el orden
+                numerado de la barra inferior, sin invertir su sentido. Los
+                huecos siguen el camino más corto de BRouter.
+              </p>
+              {!routingConsent && (
+                <>
+                  <p>
+                    Para conectar huecos se enviarán solo sus extremos a
+                    BRouter, no archivos ni nombres. Requiere internet.
+                  </p>
+                  <button
+                    aria-label="Permitir conexiones con BRouter"
+                    onClick={onConsent}
+                  >
+                    Permitir conexiones con BRouter
+                  </button>
+                </>
+              )}
+            </div>
+          )}
           {elements.length > 0 && (
             <select
               aria-label="Trazado activo"
@@ -380,6 +418,12 @@ export function EditorTools({
                 >
                   Guardar segmento
                 </button>
+                <button
+                  onClick={onSaveRoute}
+                  disabled={(element?.points.length || 0) < 2}
+                >
+                  Guardar ruta
+                </button>
                 {drawing && (
                   <button className="primary" onClick={onFinish}>
                     Terminar dibujo
@@ -391,8 +435,9 @@ export function EditorTools({
           {mode === "split" && (
             <p>
               Pulsa en el lugar del trazado donde quieras cortarlo. Las tijeras
-              señalan la posición. Se conservarán las dos partes y podrás
-              deshacer.
+              señalan la posición. Un clic separa la segunda parte en una ruta
+              independiente con su propia pestaña: puedes guardarla como ruta o
+              segmento, cerrarla o deshacer el corte.
             </p>
           )}
           {mode === "crop" &&

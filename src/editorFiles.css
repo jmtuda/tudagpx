@@ -50,10 +50,40 @@
   font-size: 10px;
 }
 .loaded-route-tabs button[aria-selected="true"] {
-  background: #fff0e5;
-  border-color: #e05d23;
-  color: #a64212;
+  background: color-mix(in srgb, var(--route-color) 12%, white);
+  border-color: var(--route-color);
+  color: var(--route-color);
   font-weight: 650;
+}
+.loaded-route-file {
+  display: flex;
+  flex-shrink: 0;
+  align-items: stretch;
+}
+.loaded-route-file [role="tab"] {
+  min-width: 0;
+  flex-shrink: 1;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.loaded-route-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--route-color);
+  flex-shrink: 0;
+}
+.loaded-route-file .close-loaded-route {
+  padding: 4px 9px;
+  min-width: 32px;
+  font-size: 18px;
+  border-left: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.close-loaded-route:hover {
+  color: #b32727;
+  background: #fff0f0;
 }
 .map-caption.editor-map-caption {
   bottom: 68px;

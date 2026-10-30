@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { pinLibraries } from "./helpers/library";
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
 async function state(page) {
   await expect(page.locator(".local-status > span")).toHaveText(
@@ -20,6 +21,7 @@ for (const viewport of [
     page.on("pageerror", (e) => errors.push(e.message));
     await page.setViewportSize(viewport);
     await page.goto("/");
+    await pinLibraries(page);
     await expect(
       page.getByRole("tab", { name: "Ver rutas", exact: true }),
     ).toHaveAttribute("aria-selected", "true");
@@ -37,6 +39,7 @@ for (const viewport of [
     await page.getByRole("checkbox", { name: /Mostrar Vuelta/ }).check();
     await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(2);
     const before = await state(page);
+    await page.getByText(/Buscar y filtrar rutas/).click();
     await page.getByLabel("Buscar rutas por nombre").fill("ruta DE PRUEBA");
     await expect(page.locator(".library-card")).toHaveCount(1);
     await page
@@ -112,6 +115,7 @@ test("filtros geográficos por cruce, límites numéricos y selección fuera del
   page,
 }) => {
   await page.goto("/");
+  await pinLibraries(page);
   const result = await page.evaluate(async () => {
     const { filterRoutes, emptyRouteFilters } =
       await import("/src/utils/routeFilters.js");
@@ -168,12 +172,16 @@ test("filtros geográficos por cruce, límites numéricos y selección fuera del
     inverted: [],
   });
   await page.getByRole("checkbox", { name: /Mostrar Vuelta/ }).check();
+  await page.getByText(/Buscar y filtrar rutas/).click();
   await page
     .getByText("Más filtros: distancia, desnivel y zona", { exact: true })
     .click();
   await page
     .getByRole("checkbox", { name: "Solo rutas que cruzan el mapa visible" })
     .check();
+  await page
+    .getByRole("button", { name: "Seleccionar mapa", exact: true })
+    .click();
   await page.getByLabel("Cartografía").selectOption("osm");
   await expect(
     page.getByRole("checkbox", { name: /Mostrar Vuelta/ }),

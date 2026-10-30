@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { pinLibraries } from "./helpers/library";
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
 async function savedState(page) {
   await expect(page.locator(".local-status > span")).toHaveText(
@@ -20,6 +21,7 @@ for (const viewport of [
       localStorage.setItem("tudagpx-routing-mode", "free"),
     );
     await page.goto("/");
+    await pinLibraries(page);
     await page.locator("input[type=file]").first().setInputFiles(fixture);
     await page.getByRole("checkbox", { name: /Mostrar Vuelta/ }).check();
     const before = await savedState(page);
@@ -57,6 +59,19 @@ for (const viewport of [
     ).toHaveAttribute("aria-selected", "true");
     const loaded = await savedState(page);
     expect(loaded.draft).toHaveLength(3);
+    const palette = await page.evaluate(
+      async () => (await import("/src/utils/workspace.js")).colors,
+    );
+    const strokes = await page
+      .locator("path.draft-line")
+      .evaluateAll((paths) => paths.map((p) => p.getAttribute("stroke")));
+    expect(strokes).toEqual([palette[0], palette[0], palette[1]]);
+    const dots = await files
+      .locator(".loaded-route-color")
+      .evaluateAll((nodes) =>
+        nodes.map((n) => getComputedStyle(n).backgroundColor),
+      );
+    expect(new Set(dots).size).toBe(2);
     await page.getByRole("button", { name: "Minimizar herramientas" }).click();
     await page.getByRole("button", { name: "Ocultar panel de rutas" }).click();
     await files.getByRole("tab", { name: /Ruta de prueba & original/ }).click();
@@ -99,6 +114,45 @@ for (const viewport of [
     expect((await savedState(page)).draft).toEqual(moved.draft);
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
     await expect(files.getByRole("tab")).toHaveCount(2);
+    // Cerrar todos los tramos de una copia conserva el original y admite deshacer.
+    await files
+      .getByRole("button", {
+        name: "Cerrar Ruta de prueba & original",
+        exact: true,
+      })
+      .click();
+    await expect(files.getByRole("tab")).toHaveCount(1);
+    expect((await savedState(page)).draft).toEqual([moved.draft[2]]);
+    expect((await savedState(page)).routes).toEqual(before.routes);
+    await page.getByRole("button", { name: "↶ Deshacer", exact: true }).click();
+    await expect(files.getByRole("tab")).toHaveCount(2);
+    expect((await savedState(page)).draft).toEqual(moved.draft);
+    await files
+      .getByRole("button", {
+        name: "Cerrar Vuelta por la sierra · DEMO",
+        exact: true,
+      })
+      .click();
+    await expect(
+      files.getByRole("tab", { name: /Ruta de prueba/ }),
+    ).toHaveAttribute("aria-selected", "true");
+    await files
+      .getByRole("button", {
+        name: "Cerrar Ruta de prueba & original",
+        exact: true,
+      })
+      .click();
+    await expect(page.getByText(/Ninguna ruta cargada/)).toBeVisible();
+    await expect(page.locator("path.draft-line")).toHaveCount(0);
+    await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(0);
+    await expect(page.locator(".anchor-handle, .insert-handle")).toHaveCount(0);
+    await page.reload();
+    expect((await savedState(page)).draft).toEqual([]);
+    await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(0);
+    await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
+    await page.getByRole("tab", { name: "Editar", exact: true }).click();
+    await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(0);
+    expect((await savedState(page)).routes).toEqual(before.routes);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -111,6 +165,7 @@ test("importar en editor no activa superposiciones en el visor", async ({
   page,
 }) => {
   await page.goto("/");
+  await pinLibraries(page);
   await page.getByRole("tab", { name: "Editar", exact: true }).click();
   await page.locator("input[type=file]").first().setInputFiles(fixture);
   await expect(page.locator("path.viewer-route")).toHaveCount(0);

@@ -1,9 +1,11 @@
 import { test, expect } from "@playwright/test";
+import { pinLibraries } from "./helpers/library";
 
 const gpx =
   '<?xml version="1.0"?><gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>Prueba pública Madrid</name><trkseg><trkpt lat="40.4168" lon="-3.7038"/><trkpt lat="40.4184" lon="-3.7019"/><trkpt lat="40.4200" lon="-3.7000"/></trkseg></trk></gpx>';
 async function imported(page) {
   await page.goto("/");
+  await pinLibraries(page);
   await page.getByRole("tab", { name: "Editar", exact: true }).click();
   await page
     .locator("input[type=file]")

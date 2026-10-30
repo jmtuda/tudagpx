@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { pinLibraries } from "./helpers/library";
 
 for (const viewport of [
   { width: 1280, height: 577 },
@@ -11,9 +12,7 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await page.goto("/");
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
-    await expect(
-      page.getByRole("heading", { name: "Segmentos de la zona" }),
-    ).toBeVisible();
+    await expect(page.locator("#library-panel")).toBeHidden();
     await expect(page.locator(".map-toolbar")).toHaveCount(0);
     const header = await page.locator(".topbar").boundingBox();
     const footer = await page.locator(".bottom-bar").boundingBox();
@@ -32,6 +31,7 @@ for (const viewport of [
     await expect(
       page.getByRole("button", { name: "+ Importar GPX" }),
     ).toBeVisible();
+    await pinLibraries(page);
     await page.getByRole("button", { name: /^Borrador/ }).click();
     await expect(
       page.getByRole("heading", { name: "Tu borrador libre" }),

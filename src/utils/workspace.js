@@ -25,16 +25,24 @@ export function distance(a, b) {
 export function stats(tracks) {
   let meters = 0,
     ascent = 0,
+    descent = 0,
     missing = 0;
   for (const points of tracks)
     points.forEach((p, i) => {
       if (!Number.isFinite(p.ele)) missing++;
       if (!i) return;
       meters += distance(points[i - 1], p);
-      if (Number.isFinite(p.ele) && Number.isFinite(points[i - 1].ele))
+      if (Number.isFinite(p.ele) && Number.isFinite(points[i - 1].ele)) {
         ascent += Math.max(0, p.ele - points[i - 1].ele);
+        descent += Math.max(0, points[i - 1].ele - p.ele);
+      }
     });
-  return { km: meters / 1000, ascent: Math.round(ascent), missing };
+  return {
+    km: meters / 1000,
+    ascent: Math.round(ascent),
+    descent: Math.round(descent),
+    missing,
+  };
 }
 const children = (node, name) =>
   [...node.children].filter((n) => n.localName === name);

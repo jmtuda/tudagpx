@@ -13,6 +13,8 @@ import { colors, inBounds } from "../utils/workspace";
 import { DirectTrace } from "./DirectTrace";
 import { EditorTools } from "./EditorTools";
 import { EditorTraceTabs } from "./EditorTraceTabs";
+import { TraceEndpoints } from "./TraceEndpoints";
+import { editorRouteColors, editorRouteKey } from "../utils/editorRoutes";
 const positions = (points) => points.map((p) => [p.lat, p.lon]);
 
 function Events({ onBounds, drawing, onDraw, focus }) {
@@ -73,14 +75,19 @@ function Events({ onBounds, drawing, onDraw, focus }) {
 export function WorkspaceMap({
   data,
   viewing = false,
+
   visibleRoutes,
+  onToggleRoute,
+  onDropFiles,
+  importing,
+  bounds,
   selected,
   hidden,
   hover,
   onHover,
   onToggle,
   onBounds,
-  bounds,
+
   drawing,
   onDraw,
   focus,
@@ -99,18 +106,42 @@ export function WorkspaceMap({
   issues,
 }) {
   const [tileError, setTileError] = useState(false);
+  const [dropping, setDropping] = useState(false);
+  const routeColors = editorRouteColors(data.draft);
 
   const shown = useMemo(
     () =>
       data.segments.filter(
-        (s) =>
-          !hidden.includes(s.id) &&
-          (selected.includes(s.id) || inBounds(s.points, bounds)),
+        (s) => !hidden.includes(s.id) && selected.includes(s.id),
       ),
-    [data.segments, hidden, selected, bounds],
+    [data.segments, hidden, selected],
   );
   return (
-    <div className="map-shell">
+    <div
+      className="map-shell"
+      onDragOver={(event) => {
+        if (!Array.from(event.dataTransfer.types).includes("Files")) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = importing ? "none" : "copy";
+        setDropping(!importing);
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget))
+          setDropping(false);
+      }}
+      onDrop={(event) => {
+        if (!Array.from(event.dataTransfer.types).includes("Files")) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setDropping(false);
+        if (!importing) onDropFiles(Array.from(event.dataTransfer.files));
+      }}
+    >
+      {dropping && (
+        <div className="map-drop-hint" role="status">
+          Suelta uno o varios archivos GPX para importarlos
+        </div>
+      )}
       <MapContainer
         center={[40.752, -3.984]}
         zoom={13}
@@ -125,18 +156,33 @@ export function WorkspaceMap({
           focus={focus}
         />
         {data.routes
-          .filter((r) => viewing && visibleRoutes.includes(r.id))
-          .map((r, i) => (
+          .filter(
+            (r) =>
+              viewing &&
+              (visibleRoutes.includes(r.id) ||
+                r.tracks.some((points) => inBounds(points, bounds))),
+          )
+          .sort(
+            (a, b) =>
+              Number(visibleRoutes.includes(a.id)) -
+              Number(visibleRoutes.includes(b.id)),
+          )
+          .map((r) => (
             <Polyline
-              key={r.id}
+              key={`${r.id}-${visibleRoutes.includes(r.id) ? "selected" : "reference"}`}
               bubblingMouseEvents={false}
               positions={r.tracks.map(positions)}
               pathOptions={{
-                color: colors[i % colors.length],
-                weight: 4,
-                opacity: 0.8,
-                className: "viewer-route",
+                color: visibleRoutes.includes(r.id)
+                  ? colors[data.routes.indexOf(r) % colors.length]
+                  : "#c1cbd0",
+                weight: visibleRoutes.includes(r.id) ? 6 : 4,
+                opacity: visibleRoutes.includes(r.id) ? 0.95 : 0.5,
+                className: visibleRoutes.includes(r.id)
+                  ? "viewer-route viewer-route-selected"
+                  : "viewer-route-reference",
               }}
+              eventHandlers={{ click: () => onToggleRoute(r.id) }}
             >
               <Tooltip>{r.name}</Tooltip>
             </Polyline>
@@ -170,7 +216,13 @@ export function WorkspaceMap({
             <DirectTrace
               key={e.id}
               element={e}
+              color={routeColors.get(editorRouteKey(e))}
               active={e.id === active}
+              showDirection={
+                tools.mergeSelection?.length
+                  ? tools.mergeSelection.includes(editorRouteKey(e))
+                  : e.id === active
+              }
               editing={editing}
               busy={routingBusy}
               mode={mode}
@@ -181,6 +233,26 @@ export function WorkspaceMap({
               onInsert={onInsert}
               onAction={onPointAction}
               onSplit={onSplit}
+            />
+          ))}
+        {viewing &&
+          data.routes
+            .filter((r) => visibleRoutes.includes(r.id))
+            .flatMap((route) =>
+              route.tracks.map((points, i) => (
+                <TraceEndpoints
+                  key={`${route.id}-${i}`}
+                  points={points}
+                  name={`${route.name} · tramo ${i + 1}`}
+                />
+              )),
+            )}
+        {!viewing &&
+          shown.map((segment) => (
+            <TraceEndpoints
+              key={`ends-${segment.id}`}
+              points={segment.points}
+              name={segment.name}
             />
           ))}
         {issues
@@ -203,12 +275,14 @@ export function WorkspaceMap({
         <EditorTraceTabs
           elements={data.draft}
           active={active}
-          onSelect={tools.onActive}
+          onSelect={tools.onSelectFile}
+          selection={tools.mergeSelection}
+          onClose={tools.onCloseRoute}
         />
       )}
       <div className={`map-caption${!viewing ? " editor-map-caption" : ""}`}>
         {viewing ? (
-          "Rutas superpuestas · un color por ruta"
+          "Rutas de la zona atenuadas · pulsa para seleccionar"
         ) : (
           <>
             <span className="dot gray" /> Biblioteca{" "}
