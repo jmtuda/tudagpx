@@ -4,6 +4,7 @@ import {
   Polyline,
   CircleMarker,
   Tooltip,
+  Popup,
   useMapEvents,
 } from "react-leaflet";
 
@@ -13,6 +14,7 @@ import { colors, inBounds } from "../utils/workspace";
 import { DirectTrace } from "./DirectTrace";
 import { EditorTools } from "./EditorTools";
 import { EditorTraceTabs } from "./EditorTraceTabs";
+import { ElevationProfile } from "./ElevationProfile";
 import { TraceEndpoints } from "./TraceEndpoints";
 import { editorRouteColors, editorRouteKey } from "../utils/editorRoutes";
 const positions = (points) => points.map((p) => [p.lat, p.lon]);
@@ -76,12 +78,32 @@ function Events({ onBounds, drawing, onDraw, focus }) {
   return null;
 }
 
+function ViewerRoute({ route, selected, color, onClick }) {
+  const line = useRef(null);
+  useEffect(() => {
+    const path = line.current?.getElement();
+    path?.classList.toggle("viewer-route", selected);
+    path?.classList.toggle("viewer-route-selected", selected);
+    path?.classList.toggle("viewer-route-reference", !selected);
+  }, [selected]);
+  return (
+    <Polyline ref={line} bubblingMouseEvents={false}
+      positions={route.tracks.map(positions)}
+      className={selected ? "viewer-route viewer-route-selected" : "viewer-route-reference"}
+      pathOptions={{ color: selected ? color : "#c1cbd0", weight: selected ? 6 : 4, opacity: selected ? 0.95 : 0.5 }}
+      eventHandlers={{ click: onClick }}>
+      <Tooltip>{route.name}</Tooltip>
+    </Polyline>
+  );
+}
+
 export function WorkspaceMap({
   data,
   viewing = false,
 
   visibleRoutes,
   onToggleRoute,
+  onSendRoute,
   onDropFiles,
   importing,
   bounds,
@@ -111,6 +133,14 @@ export function WorkspaceMap({
 }) {
   const [tileError, setTileError] = useState(false);
   const [dropping, setDropping] = useState(false);
+  const [profileMinimized, setProfileMinimized] = useState(false);
+  const [profileHover, setProfileHover] = useState(null);
+  const [routePopup, setRoutePopup] = useState(null);
+  useEffect(() => {
+    setRoutePopup(null);
+    setProfileHover(null);
+  }, [viewing]);
+  const popupRoute = viewing && data.routes.find((route) => route.id === routePopup?.id);
   const routeColors = editorRouteColors(data.draft);
 
   const shown = useMemo(
@@ -125,7 +155,8 @@ export function WorkspaceMap({
   );
   return (
     <div
-      className="map-shell"
+      className={`map-shell${!viewing ? " has-elevation-profile" : ""}`}
+      style={{ "--elevation-height": profileMinimized ? "38px" : "176px" }}
       onDragOver={(event) => {
         if (!Array.from(event.dataTransfer.types).includes("Files")) return;
         event.preventDefault();
@@ -175,25 +206,30 @@ export function WorkspaceMap({
               Number(visibleRoutes.includes(b.id)),
           )
           .map((r) => (
-            <Polyline
-              key={`${r.id}-${visibleRoutes.includes(r.id) ? "selected" : "reference"}`}
-              bubblingMouseEvents={false}
-              positions={r.tracks.map(positions)}
-              pathOptions={{
-                color: visibleRoutes.includes(r.id)
-                  ? colors[data.routes.indexOf(r) % colors.length]
-                  : "#c1cbd0",
-                weight: visibleRoutes.includes(r.id) ? 6 : 4,
-                opacity: visibleRoutes.includes(r.id) ? 0.95 : 0.5,
-                className: visibleRoutes.includes(r.id)
-                  ? "viewer-route viewer-route-selected"
-                  : "viewer-route-reference",
-              }}
-              eventHandlers={{ click: () => onToggleRoute(r.id) }}
-            >
-              <Tooltip>{r.name}</Tooltip>
-            </Polyline>
+            <ViewerRoute key={r.id} route={r}
+              selected={visibleRoutes.includes(r.id)}
+              color={colors[data.routes.indexOf(r) % colors.length]}
+              onClick={(event) => {
+                onToggleRoute(r.id);
+                setRoutePopup({ id: r.id, position: event.latlng });
+              }} />
           ))}
+        {popupRoute && (
+          <Popup position={routePopup.position} eventHandlers={{ remove: () => setRoutePopup(null) }}>
+            <div className="viewer-route-popup">
+              <strong>{popupRoute.name}</strong>
+              <button type="button" disabled={!onSendRoute} onClick={() => {
+                setRoutePopup(null);
+                onSendRoute?.(popupRoute);
+              }}>Enviar al editor</button>
+              <small>Abre una copia; el original se conserva.</small>
+            </div>
+          </Popup>
+        )}
+        {!viewing && profileHover?.active === active && profileHover?.draft === data.draft && profileHover.point && (
+          <CircleMarker className="elevation-map-marker" center={[profileHover.point.lat, profileHover.point.lon]} radius={7} interactive={false}
+            pathOptions={{ color: "#fff", fillColor: "#007d77", fillOpacity: 1, weight: 3 }} />
+        )}
         {!viewing &&
           shown.map((s) => (
             <Polyline
@@ -288,17 +324,12 @@ export function WorkspaceMap({
           onClose={tools.onCloseRoute}
         />
       )}
-      <div className={`map-caption${!viewing ? " editor-map-caption" : ""}`}>
-        {viewing ? (
-          "Rutas de la zona atenuadas · pulsa para seleccionar"
-        ) : (
-          <>
-            <span className="dot gray" /> Biblioteca{" "}
-            <span className="dot teal" /> Selección <span className="dash" />{" "}
-            Borrador
-          </>
-        )}
-      </div>
+      {!viewing && (
+        <ElevationProfile elements={data.draft} active={active} minimized={profileMinimized}
+          onToggle={() => setProfileMinimized((value) => !value)}
+          onHover={(point) => setProfileHover({ point, active, draft: data.draft })} />
+      )}
+      {viewing && <div className="map-caption">Rutas de la zona atenuadas · pulsa para seleccionar</div>}
       {tileError && (
         <div role="status" className="tile-warning">
           No se han podido cargar algunas teselas. Comprueba internet o cambia

@@ -67,6 +67,16 @@
 .sidebar-edge[aria-expanded="true"] span {
   display: none;
 }
+.catalog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+.catalog-actions button {
+  font-size: 11px;
+  padding: 4px 7px;
+}
 .dock-controls {
   display: flex;
   align-items: flex-start;

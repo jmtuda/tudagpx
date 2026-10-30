@@ -50,6 +50,8 @@ for (const width of [1440, 390]) {
     await expect(card.locator(".profile")).toHaveCount(0);
     await expect(card.locator(".tags")).toHaveCount(0);
     await expect(card.locator(".card-actions")).toHaveCount(0);
+    await expect(card.getByRole("button", { name: /^Editar nombre de / })).toBeVisible();
+    await expect(card.getByRole("button", { name: /^Borrar / })).toBeVisible();
     await expect(card).toContainText("subida");
     await expect(card).toContainText("bajada");
     await card.getByRole("checkbox").check();
@@ -58,6 +60,8 @@ for (const width of [1440, 390]) {
     ).toBeVisible();
     await card.getByRole("checkbox").uncheck();
     await expect(card.locator(".card-actions")).toHaveCount(0);
+    await expect(card.getByRole("button", { name: /^Editar nombre de / })).toBeVisible();
+    await expect(card.getByRole("button", { name: /^Borrar / })).toBeVisible();
     await page.getByText(/Buscar y filtrar rutas/).click();
     await page.getByLabel("Buscar rutas por nombre").fill("no coincide");
     await expect(page.locator(".viewer-route-card")).toHaveCount(0);

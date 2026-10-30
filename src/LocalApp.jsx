@@ -117,6 +117,7 @@ export default function LocalApp({ onLogout }) {
     return () => clearTimeout(timer);
   }, [notification]);
   const [segmentRequest, setSegmentRequest] = useState(null);
+  const [outputRequest, setOutputRequest] = useState(null);
   const [importing, setImporting] = useState(false),
     [importKind, setImportKind] = useState("routes");
   const fileInput = useRef(),
@@ -175,6 +176,71 @@ export default function LocalApp({ onLogout }) {
     setSaved("Guardando…");
     setData((d) => fn(d));
   }
+  function renameItem(collection, item) {
+    const value = window.prompt("Nuevo nombre", item.name);
+    if (value === null) return;
+    const name = value.trim();
+    if (!name) {
+      setNotice("El nombre no puede estar vacío.");
+      return;
+    }
+    update((d) => ({
+      ...d,
+      [collection]: d[collection].map((entry) =>
+        entry.id === item.id ? { ...entry, name } : entry,
+      ),
+    }));
+    setNotice("Nombre actualizado. El GPX original no se ha modificado.");
+  }
+  function deleteItem(collection, item) {
+    if (
+      !window.confirm(
+        `¿Borrar «${item.name}» de la biblioteca? Las copias abiertas en el editor se conservarán.`,
+      )
+    )
+      return;
+    // Logical deletion preserves original bytes and historical cloud revisions.
+    update((d) => ({
+      ...d,
+      [collection]: d[collection].map((entry) =>
+        entry.id === item.id
+          ? { ...entry, deletedAt: new Date().toISOString() }
+          : entry,
+      ),
+    }));
+    setSelected((ids) => ids.filter((id) => id !== item.id));
+    setVisibleRoutes((ids) => ids.filter((id) => id !== item.id));
+    setHidden((ids) => ids.filter((id) => id !== item.id));
+    setHover(null);
+    setNotice(
+      "Elemento borrado de la biblioteca. Las copias abiertas y el historial se conservan.",
+    );
+  }
+  function requestOutput(kind, elements, name, execute, alwaysReview = false) {
+    cancelRouting();
+    const findings = review(elements);
+    try {
+      const xml = exportGPX(elements, name);
+      const parsed = parseGPX(xml);
+      if (
+        parsed.tracks.length !== elements.length ||
+        parsed.tracks.some(
+          (track, i) => track.length !== elements[i].points.length,
+        )
+      )
+        throw new Error(
+          "El GPX generado no conserva todos los tramos y puntos.",
+        );
+    } catch (error) {
+      findings.push({ blocking: true, message: error.message });
+    }
+    if (findings.length || alwaysReview) {
+      setDrawing(false);
+      setOutputRequest({ kind, execute });
+      setIssues(findings);
+      setAccept(false);
+    } else execute();
+  }
   function edit(next) {
     setMergeSelection([]);
     setPast((p) => [...p, clone(data.draft)].slice(-80));
@@ -212,6 +278,7 @@ export default function LocalApp({ onLogout }) {
     const additions = data.segments
       .filter(
         (s) =>
+          !s.deletedAt &&
           ids.includes(s.id) &&
           !data.draft.some((element) => element.sourceId === s.id),
       )
@@ -622,6 +689,12 @@ export default function LocalApp({ onLogout }) {
     }
   }
   function commitSegments(segments, select = false) {
+    const snapshot = clone(segments);
+    requestOutput("segment", snapshot, snapshot[0]?.name || "Segmento", () =>
+      commitSegmentsUnchecked(snapshot, select),
+    );
+  }
+  function commitSegmentsUnchecked(segments, select = false) {
     update((data) => ({ ...data, segments: [...data.segments, ...segments] }));
     if (select) {
       setSelected((previous) => [
@@ -667,10 +740,12 @@ export default function LocalApp({ onLogout }) {
       const route = await readGPXFile(
         new File([xml], `${name}.gpx`, { type: "application/gpx+xml" }),
       );
-      update((d) => ({ ...d, routes: [...d.routes, route] }));
-      setNotice(
-        "Nueva ruta guardada en la biblioteca. El original y las copias del editor se conservan.",
-      );
+      requestOutput("route", clone(elements), name, () => {
+        update((d) => ({ ...d, routes: [...d.routes, route] }));
+        setNotice(
+          "Nueva ruta guardada en la biblioteca. El original y las copias del editor se conservan.",
+        );
+      });
     } catch (error) {
       setNotice(`No se pudo guardar la ruta: ${error.message}`);
     }
@@ -753,16 +828,21 @@ export default function LocalApp({ onLogout }) {
     );
   if (!data) return <main className="startup">Abriendo TudaGPX…</main>;
   const activeElement = data.draft.find((e) => e.id === active);
+  const catalog = {
+    ...data,
+    routes: data.routes.filter((r) => !r.deletedAt),
+    segments: data.segments.filter((s) => !s.deletedAt),
+  };
 
-  const listSegments = data.segments.filter(
+  const listSegments = catalog.segments.filter(
     (s) =>
       (inBounds(s.points, bounds) || selected.includes(s.id)) &&
       s.name.toLowerCase().includes(query.toLowerCase()),
   );
   const routes =
     workspace === "view"
-      ? filterRoutes(data.routes, routeFilters, bounds)
-      : data.routes.filter((r) =>
+      ? filterRoutes(catalog.routes, routeFilters, bounds)
+      : catalog.routes.filter((r) =>
           r.name.toLowerCase().includes(query.toLowerCase()),
         );
   const cropRange =
@@ -918,7 +998,7 @@ export default function LocalApp({ onLogout }) {
                 value={routeFilters}
                 onChange={setRouteFilters}
                 count={routes.length}
-                total={data.routes.length}
+                total={catalog.routes.length}
               />
             ) : (
               <LibraryFilters
@@ -964,13 +1044,13 @@ export default function LocalApp({ onLogout }) {
                   className={tab === "segments" ? "active" : ""}
                   onClick={() => setTab("segments")}
                 >
-                  Segmentos <b>{data.segments.length}</b>
+                  Segmentos <b>{catalog.segments.length}</b>
                 </button>
                 <button
                   className={tab === "routes" ? "active" : ""}
                   onClick={() => setTab("routes")}
                 >
-                  Rutas <b>{data.routes.length}</b>
+                  Rutas <b>{catalog.routes.length}</b>
                 </button>
               </nav>
             )}
@@ -994,7 +1074,7 @@ export default function LocalApp({ onLogout }) {
                   </p>
                 )}
                 {listSegments.map((s) => {
-                  const index = data.segments.indexOf(s),
+                  const index = catalog.segments.indexOf(s),
                     isSelected = selected.includes(s.id);
                   return (
                     <article
@@ -1035,6 +1115,18 @@ export default function LocalApp({ onLogout }) {
                         <button onClick={() => addSegments([s.id])}>
                           Abrir segmento
                         </button>
+                        <button
+                          aria-label={`Editar nombre de ${s.name}`}
+                          onClick={() => renameItem("segments", s)}
+                        >
+                          Editar nombre
+                        </button>
+                        <button
+                          aria-label={`Borrar ${s.name}`}
+                          onClick={() => deleteItem("segments", s)}
+                        >
+                          Borrar
+                        </button>
                       </div>
                     </article>
                   );
@@ -1067,7 +1159,8 @@ export default function LocalApp({ onLogout }) {
                 )}
                 {routes.map((r) => {
                   const routeStats = stats(r.tracks);
-                  const color = colors[data.routes.indexOf(r) % colors.length];
+                  const color =
+                    colors[catalog.routes.indexOf(r) % colors.length];
                   return (
                     <article
                       className={`library-card compact-route-card${workspace === "view" ? " viewer-route-card" : ""}${visibleRoutes.includes(r.id) ? " selected" : ""}`}
@@ -1108,6 +1201,20 @@ export default function LocalApp({ onLogout }) {
                         )}
                       </span>
 
+                      <div className="catalog-actions">
+                        <button
+                          aria-label={`Editar nombre de ${r.name}`}
+                          onClick={() => renameItem("routes", r)}
+                        >
+                          Editar nombre
+                        </button>
+                        <button
+                          aria-label={`Borrar ${r.name}`}
+                          onClick={() => deleteItem("routes", r)}
+                        >
+                          Borrar
+                        </button>
+                      </div>
                       {(workspace === "edit" ||
                         visibleRoutes.includes(r.id)) && (
                         <div className="card-actions">
@@ -1151,7 +1258,7 @@ export default function LocalApp({ onLogout }) {
                 })}
                 {!routes.length && (
                   <p className="empty">
-                    {data.routes.length
+                    {catalog.routes.length
                       ? "Ninguna ruta coincide con los filtros. Las rutas superpuestas siguen visibles en el mapa."
                       : "Importa tu primer archivo GPX."}
                   </p>
@@ -1193,7 +1300,8 @@ export default function LocalApp({ onLogout }) {
         </aside>
         <main className="map-area">
           <WorkspaceMap
-            data={data}
+            data={catalog}
+            onSendRoute={editRoute}
             viewing={workspace === "view"}
             visibleRoutes={visibleRoutes}
             onToggleRoute={(id) =>
@@ -1321,6 +1429,14 @@ export default function LocalApp({ onLogout }) {
                 activeElement &&
                 saveSegment(activeElement.points, activeElement.name),
               onSaveRoute: saveEditorRoute,
+              onExport: () =>
+                requestOutput(
+                  "export",
+                  clone(data.draft),
+                  data.draftName,
+                  exportDraft,
+                  true,
+                ),
               onReverse: () =>
                 changeElement((e) => ({
                   ...e,
@@ -1330,36 +1446,16 @@ export default function LocalApp({ onLogout }) {
             }}
             issues={issues}
           />
-          <div className="bottom-bar">
-            {workspace === "view" ? (
+          {workspace === "view" && (
+            <div className="bottom-bar">
               <>
                 <strong>{visibleRoutes.length} rutas superpuestas</strong>
                 <span className="hint">
                   Solo visualización · originales protegidos
                 </span>
               </>
-            ) : (
-              <>
-                <div>
-                  <span className="eyebrow">BORRADOR ACTUAL</span>
-                  <strong>
-                    {data.draft.length} tramos <span>·</span>{" "}
-                    <Metrics tracks={data.draft.map((e) => e.points)} />
-                  </strong>
-                </div>
-                <button
-                  className="primary"
-                  onClick={() => {
-                    setDrawing(false);
-                    setIssues(review(data.draft));
-                    setAccept(false);
-                  }}
-                >
-                  Revisar y exportar →
-                </button>
-              </>
-            )}
-          </div>
+            </div>
+          )}
         </main>
       </div>
       {notice && (
@@ -1388,7 +1484,10 @@ export default function LocalApp({ onLogout }) {
           aria-label="Revisión GPX"
         >
           <div className="section-heading">
-            <h2>Revisión antes de exportar</h2>
+            <h2>
+              Revisión antes de{" "}
+              {outputRequest?.kind === "export" ? "exportar" : "guardar"}
+            </h2>
             <button
               aria-label="Cerrar revisión"
               onClick={() => setIssues(null)}
@@ -1448,9 +1547,18 @@ export default function LocalApp({ onLogout }) {
               disabled={
                 issues.some((i) => i.blocking) || (issues.length > 0 && !accept)
               }
-              onClick={exportDraft}
+              onClick={() => {
+                const execute = outputRequest?.execute;
+                setIssues(null);
+                setOutputRequest(null);
+                execute?.();
+              }}
             >
-              Descargar GPX
+              {outputRequest?.kind === "route"
+                ? "Guardar ruta revisada"
+                : outputRequest?.kind === "segment"
+                  ? "Guardar segmento revisado"
+                  : "Descargar GPX"}
             </button>
           </div>
         </div>

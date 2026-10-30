@@ -11,18 +11,27 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await page.goto("/");
+    const viewerFooter = await page.locator(".bottom-bar").boundingBox();
+    expect(viewerFooter.height).toBeLessThanOrEqual(48);
+    expect(viewerFooter.y + viewerFooter.height).toBeCloseTo(viewport.height, 0);
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
     await expect(page.locator("#library-panel")).toBeHidden();
     await expect(page.locator(".map-toolbar")).toHaveCount(0);
     const header = await page.locator(".topbar").boundingBox();
-    const footer = await page.locator(".bottom-bar").boundingBox();
+    await expect(page.locator(".bottom-bar")).toHaveCount(0);
+    const profile = await page.getByRole("region", { name: "Perfil de altitud", exact: true }).boundingBox();
     const map = await page.locator(".workspace-map").boundingBox();
     expect(header.height).toBeLessThanOrEqual(52);
-    expect(footer.height).toBeLessThanOrEqual(48);
     expect(map.y).toBeCloseTo(header.height, 0);
-    expect(map.y + map.height).toBeCloseTo(footer.y, 0);
+    expect(map.y + map.height).toBeCloseTo(profile.y, 0);
+    expect(profile.y + profile.height).toBeCloseTo(viewport.height, 0);
+    await page.getByRole("button", { name: "Minimizar perfil de altitud", exact: true }).click();
+    const expandedMap = await page.locator(".workspace-map").boundingBox();
+    const output = page.getByRole("group", { name: "Guardar y limpiar", exact: true });
+    await expect(output.getByRole("button", { name: "Exportar a GPX", exact: true })).toBeVisible();
+    expect((await output.boundingBox()).y).toBeLessThan(expandedMap.y + expandedMap.height / 2);
     if (viewport.width > 650)
-      expect(map.height).toBeGreaterThanOrEqual(viewport.height - 100);
+      expect(expandedMap.height).toBeGreaterThanOrEqual(viewport.height - 100);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -42,7 +51,7 @@ for (const viewport of [
     }
     await page.getByRole("button", { name: "Abrir segmento", exact: true }).first().click();
     await expect(page.getByRole("tablist", { name: "Rutas cargadas en el editor" }).getByRole("tab")).toHaveCount(1);
-    await page.getByRole("button", { name: "Revisar y exportar →" }).click();
+    await page.getByRole("button", { name: "Exportar a GPX", exact: true }).click();
     await expect(
       page.getByRole("dialog", { name: "Revisión GPX" }),
     ).toBeVisible();

@@ -1,3 +1,21 @@
+import { expect } from "@playwright/test";
+
+// Solo para guardados con avisos conocidos: los errores nunca se aceptan.
+export async function acceptSaveWarnings(page, kind = "segmento") {
+  const review = page.getByRole("dialog", { name: "Revisión GPX", exact: true });
+  await expect(review).toBeVisible();
+  await expect(review.getByText(/^Error:/)).toHaveCount(0);
+  const save = review.getByRole("button", {
+    name: `Guardar ${kind} revisado`,
+    exact: true,
+  });
+  await expect(save).toBeDisabled();
+  await review.getByRole("checkbox", { name: /Acepto las advertencias/ }).check();
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect(review).toBeHidden();
+}
+
 // Las pruebas funcionales fijan explícitamente las bibliotecas que utilizan.
 // El comportamiento inicial oculto y la apertura por borde se prueban en sidebar.spec.js.
 export async function pinLibraries(page) {

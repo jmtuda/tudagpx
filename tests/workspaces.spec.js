@@ -29,7 +29,7 @@ for (const viewport of [
       page.getByRole("button", { name: "Editar copia", exact: true }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: "Revisar y exportar →" }),
+      page.getByRole("button", { name: "Exportar a GPX", exact: true }),
     ).toHaveCount(0);
     await expect(page.locator("path.draft-line")).toHaveCount(0);
     await expect(

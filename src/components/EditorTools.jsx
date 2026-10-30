@@ -152,6 +152,7 @@ export function EditorTools({
   onSaveSelection,
   onSaveSegment,
   onSaveRoute,
+  onExport,
   mergeSelection = [],
   onMerge,
   onReverse,
@@ -296,7 +297,7 @@ export function EditorTools({
           aria-label="Guardar ruta"
           title="Guardar el archivo activo como nueva ruta"
           onClick={onSaveRoute}
-          disabled={(element?.points.length || 0) < 2}
+          disabled={routingBusy || (element?.points.length || 0) < 2}
         >
           Guardar ruta
         </button>
@@ -304,9 +305,17 @@ export function EditorTools({
           aria-label="Guardar segmento"
           title="Guardar el trazado activo como nuevo segmento"
           onClick={onSaveSegment}
-          disabled={(element?.points.length || 0) < 2}
+          disabled={routingBusy || (element?.points.length || 0) < 2}
         >
           Guardar segmento
+        </button>
+        <button
+          aria-label="Exportar a GPX"
+          title="Comprobar y exportar los trazados abiertos a GPX"
+          onClick={onExport}
+          disabled={routingBusy}
+        >
+          Exportar a GPX
         </button>
         <button
           aria-label="Limpiar mapa"

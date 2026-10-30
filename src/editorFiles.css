@@ -2,17 +2,17 @@
   position: absolute;
   left: 12px;
   right: 12px;
-  bottom: 22px;
+  bottom: calc(var(--elevation-height, 0px) + 44px);
   z-index: 650;
   min-height: 38px;
   padding: 4px;
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #fffffff2;
-  border: 1px solid #dce5e3;
+  background: transparent;
+  border: 0;
   border-radius: 7px;
-  box-shadow: 0 2px 8px #173e3926;
+  pointer-events: none;
 }
 .loaded-label {
   font-size: 10px;
@@ -50,10 +50,11 @@
   font-size: 10px;
 }
 .loaded-route-tabs button[aria-selected="true"] {
-  background: color-mix(in srgb, var(--route-color) 12%, white);
+  background: transparent;
   border-color: var(--route-color);
-  color: var(--route-color);
-  font-weight: 650;
+  color: #102e2a;
+  box-shadow: inset 0 -3px var(--route-color);
+  font-weight: 750;
 }
 .loaded-route-file {
   display: flex;
@@ -83,10 +84,85 @@
 }
 .close-loaded-route:hover {
   color: #b32727;
-  background: #fff0f0;
+  background: transparent;
 }
-.map-caption.editor-map-caption {
-  bottom: 68px;
+.has-elevation-profile {
+  display: flex;
+  flex-direction: column;
+}
+.has-elevation-profile .map-editor {
+  max-height: calc(100% - var(--elevation-height) - 100px);
+}
+.has-elevation-profile .workspace-map {
+  flex: 1;
+  height: 0;
+  min-height: 160px;
+}
+.editor-loaded-routes .loaded-label,
+.editor-loaded-routes .loaded-empty,
+.editor-loaded-routes button {
+  color: #14322e;
+  text-shadow: 0 0 2px white, 1px 1px 2px white, -1px -1px 2px white,
+    1px -1px 2px white, -1px 1px 2px white;
+}
+.editor-loaded-routes button {
+  background: transparent;
+  border-color: transparent;
+  pointer-events: auto;
+  min-height: 36px;
+}
+.loaded-route-tabs { pointer-events: auto; }
+.editor-loaded-routes button:hover { background: transparent; border-color: #254f49; }
+.editor-loaded-routes button:focus-visible { outline: 3px solid #007d77; outline-offset: -3px; }
+.elevation-profile {
+  flex: 0 0 var(--elevation-height);
+  height: var(--elevation-height);
+  min-width: 0;
+  color: #21443e;
+  background: #f7faf9;
+  border-top: 1px solid #b5cac5;
+  z-index: 450;
+}
+.elevation-profile header {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  font-size: 11px;
+}
+.elevation-profile header button {
+  background: transparent;
+  border: 0;
+  padding: 5px 0;
+  min-height: 36px;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.elevation-file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.elevation-reading { margin-left: auto; white-space: nowrap; }
+.elevation-profile svg {
+  display: block;
+  width: 100%;
+  height: 112px;
+  touch-action: pan-y;
+  cursor: crosshair;
+}
+.elevation-profile svg:focus-visible { outline: 2px solid #007d77; outline-offset: -2px; }
+.elevation-axis line { stroke: #dce6e3; stroke-width: 1; }
+.elevation-axis text { fill: #4d635e; font-size: 11px; }
+.elevation-run path { fill: none; stroke: #007d77; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.elevation-run circle { fill: #007d77; }
+.elevation-cursor line { stroke: #21443e; stroke-dasharray: 3 3; }
+.elevation-cursor circle { fill: #e7a13c; stroke: #21443e; }
+.elevation-note { display: block; font-size: 10px; margin: 0 12px; color: #536a64; }
+.viewer-route-popup { display: grid; gap: 10px; min-width: 170px; }
+.viewer-route-popup small { color: #536a64; }
+@media (max-width: 650px) {
+  .elevation-file { display: none; }
+  .elevation-profile header { gap: 4px; padding: 0 8px; }
+  .elevation-profile header button { font-size: 10px; }
+  .elevation-reading { font-size: 10px; }
 }
 .map-shell .editor-options {
   max-height: calc(100dvh - 270px);

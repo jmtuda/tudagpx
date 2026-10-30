@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { pinLibraries } from "./helpers/library";
+import { acceptSaveWarnings, pinLibraries } from "./helpers/library";
 async function state(page) {
   await expect(page.locator(".local-status > span")).toHaveText(
     "Guardado en este navegador",
@@ -141,6 +141,8 @@ test("crear varios segmentos permite nombrarlos antes de guardar o cancelar", as
   await dialog
     .getByRole("button", { name: "Guardar segmentos", exact: true })
     .click();
+  expect(await state(page)).toEqual(before);
+  await acceptSaveWarnings(page);
   const after = await state(page);
   expect(after.segments.slice(-2).map((segment) => segment.name)).toEqual([
     "Primera subida",

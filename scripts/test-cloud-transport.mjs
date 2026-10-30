@@ -137,6 +137,36 @@ try {
   const mutation = structuredClone(data);
   mutation.routes[0].originalBase64 = "YQ==";
   await assert.rejects(remote.save(mutation), /originales/);
+  const catalogUpdate = structuredClone(data);
+  catalogUpdate.routes[0].name = "Renombrada sin modificar GPX";
+  catalogUpdate.routes[0].deletedAt = new Date().toISOString();
+  catalogUpdate.segments = [
+    {
+      id: "synthetic-segment",
+      name: "Segmento de prueba",
+      points: structuredClone(data.routes[0].tracks[0]),
+    },
+  ];
+  await remote.save(catalogUpdate);
+  assert.deepEqual(await createRemoteStore(api).load(), catalogUpdate);
+  const overwritten = structuredClone(catalogUpdate);
+  overwritten.routes[0].tracks[0][0].lat += 0.01;
+  await assert.rejects(remote.save(overwritten), /originales/);
+  const overwrittenSegment = structuredClone(catalogUpdate);
+  overwrittenSegment.segments[0].points[0].lon += 0.01;
+  await assert.rejects(remote.save(overwrittenSegment), /segmentos originales/);
+  const deletedSegment = structuredClone(catalogUpdate);
+  deletedSegment.segments[0].name = "Segmento renombrado";
+  deletedSegment.segments[0].deletedAt = new Date().toISOString();
+  await remote.save(deletedSegment);
+  assert.deepEqual(await createRemoteStore(api).load(), deletedSegment);
+  assert.equal(
+    deletedSegment.routes[0].originalBase64,
+    data.routes[0].originalBase64,
+  );
+  console.log(
+    "PASS REAL Neon: rename/logical deletion read back exactly; route and segment geometry overwrites rejected; original bytes intact.",
+  );
   for (const [status, message] of [
     [413, /tamaño/],
     [401, /sesión/],

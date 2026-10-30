@@ -114,6 +114,8 @@ for (const width of [1440, 390]) {
       .getByRole("button", { name: "Minimizar herramientas", exact: true })
       .click();
     await expect(page.locator("path.editor-segment-reference")).toHaveCount(1);
+    await page.getByRole("button", { name: "Ocultar panel de rutas", exact: true }).click();
+    await page.getByRole("button", { name: "Minimizar perfil de altitud", exact: true }).click();
     await clickTrace(page, "path.editor-segment-reference");
     await expect(page.locator("path.draft-line")).toHaveCount(1);
     await expect(page.locator("path.editor-segment-reference")).toHaveCount(0);

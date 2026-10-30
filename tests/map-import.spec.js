@@ -140,6 +140,9 @@ test("rutas de la vista atenuadas, selección en el mapa y editor independiente"
   await clickLine(page.locator("path.viewer-route-selected"));
   await expect(page.locator("path.viewer-route-reference")).toHaveCount(2);
   await expect(page.locator(".trace-endpoint")).toHaveCount(0);
+  // El clic en el visor ahora alterna la selección y abre acciones de ruta.
+  await page.locator(".leaflet-popup-close-button").click();
+  await expect(page.locator(".leaflet-popup")).toHaveCount(0);
   const box = await page.locator(".workspace-map").boundingBox();
   for (let i = 0; i < 2; i++) {
     await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.15);

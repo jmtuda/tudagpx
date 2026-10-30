@@ -1,5 +1,15 @@
 # Progreso
 
+## Fichas, guardado validado y perfil del editor
+
+Botones Editar nombre y Borrar en cada ficha de ruta/segmento. Nombre de catálogo independiente del GPX original. Confirmación antes de todo borrado; deletedAt retira el registro de listas y mapas, conservando bytes, geometría, snapshots y copias abiertas. Validación del marcador y protección del servidor contra cambios en tracks de rutas y points de segmentos.
+
+Guardar ruta, Guardar segmento y Exportar a GPX en la barra superior. Guardados de biblioteca y exportaciones comparten comprobaciones de coordenadas, puntos mínimos, recorrido no nulo, elevación, huecos y duplicados, además de serialización GPX y relectura con recuento de puntos/tramos. Errores bloquean; avisos requieren aceptación. Sin incidencias, guardar crea una entrada nueva directamente. El trabajo en curso se sigue guardando automáticamente aunque esté incompleto.
+
+Perfil de altitud minimizable del archivo activo completo, con ejes de distancia/altura e inspección por puntero, toque y teclado sincronizada con marcador en mapa. No conecta tramos separados ni interpola elevaciones ausentes. Selector de archivos sobre fondo transparente. Popup al primer clic izquierdo en una ruta del visor, con transferencia explícita de una copia a Editar. No incorpora pendiente, zoom ni selección avanzada del gráfico de gpx.studio.
+
+Verificación: lint/build correctos y 71 pruebas Chrome aprobadas, con escritorio, móvil y ventana de poca altura. Se corrigió el solapamiento de opciones del editor con el perfil en ventanas bajas. Integración real con Neon y propietario sintético: renombrado/borrado lógico guardados y releídos exactamente, cambios de geometría original rechazados, bytes intactos. Solo se eliminan registros del propietario sintético al terminar; ausencia comprobada.
+
 ## Flujo único de edición sobre el mapa
 
 Barra horizontal superior siempre disponible en Editar, independientemente de la sección de biblioteca. Incluye abrir rutas/segmentos, dibujar y acciones permanentes para guardar como ruta, como segmento y limpiar. Los guardados usan el archivo o tramo activo y crean registros nuevos sin reemplazar originales. Limpiar cancela cálculos, vacía todas las copias/referencias del editor y admite deshacer; biblioteca y proyectos se conservan. No elimina el borrador al recargar o cambiar de módulo.

@@ -45,9 +45,17 @@ export function validateChange(data, previous) {
     if (
       !next ||
       next.original !== original.original ||
-      next.originalBase64 !== original.originalBase64
+      next.originalBase64 !== original.originalBase64 ||
+      !isDeepStrictEqual(next.tracks, original.tracks)
     )
       throw new Error("No se permite sustituir ni eliminar originales.");
+  }
+  for (const original of previous?.segments || []) {
+    const next = data.segments.find((segment) => segment.id === original.id);
+    if (!next || !isDeepStrictEqual(next.points, original.points))
+      throw new Error(
+        "Los segmentos originales no se pueden sobrescribir. Edita y guarda una copia.",
+      );
   }
   for (const project of previous?.projects || []) {
     if (

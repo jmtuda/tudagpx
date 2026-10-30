@@ -135,6 +135,15 @@ export function review(elements) {
         blocking: true,
         message: `${e.name}: coordenadas inválidas.`,
       });
+    if (
+      e.points.length >= 2 &&
+      e.points.every(validPoint) &&
+      !e.points.some((p) => distance(p, e.points[0]) > 0)
+    )
+      issues.push({
+        blocking: true,
+        message: `${e.name}: todos los puntos coinciden; no hay un recorrido utilizable.`,
+      });
     const missing = e.points.filter((p) => !Number.isFinite(p.ele)).length;
     if (missing)
       issues.push({
@@ -253,6 +262,12 @@ export function validateWorkspace(data) {
     throw new Error("Copia de seguridad incompatible.");
   const ids = new Set();
   const check = (item, tracks, allowEmpty = false) => {
+    if (
+      item.deletedAt !== undefined &&
+      (typeof item.deletedAt !== "string" ||
+        !Number.isFinite(Date.parse(item.deletedAt)))
+    )
+      throw new Error("Marca de borrado inválida.");
     if (
       typeof item.id !== "string" ||
       ids.has(item.id) ||

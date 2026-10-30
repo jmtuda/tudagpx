@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { pinLibraries } from "./helpers/library";
+import { acceptSaveWarnings, pinLibraries } from "./helpers/library";
 import { readFile } from "node:fs/promises";
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
@@ -114,6 +114,7 @@ test("importa varios tramos, superpone, conserva original y recarga", async ({
     .getByRole("dialog")
     .getByRole("button", { name: "Guardar segmentos", exact: true })
     .click();
+  await acceptSaveWarnings(page);
   await expect(
     page.getByRole("heading", { name: /Ruta de prueba & original · tramo 1/ }),
   ).toBeVisible();
@@ -165,7 +166,7 @@ test("editor: copias, arrastre, invertir, dividir, historial, borrador automáti
   await page.getByTitle("Editar punto 2", { exact: true }).click();
   await page.getByRole("button", { name: "Dividir aquí" }).click();
   expect((await state(page)).draft).toHaveLength(2);
-  await page.getByRole("button", { name: "Revisar y exportar →" }).click();
+  await page.getByRole("button", { name: "Exportar a GPX", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("checkbox", { name: /Acepto las advertencias/ }).check();
   const promise = page.waitForEvent("download");
@@ -223,11 +224,16 @@ test("dibujo libre, recorte, eliminación, nuevo segmento y copia recuperable", 
   await page
     .getByRole("button", { name: "Guardar segmento", exact: true })
     .click();
+  const unsaved = await state(page);
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Guardar segmento", exact: true })
     .click();
+  expect((await state(page)).segments).toEqual(unsaved.segments);
+  await acceptSaveWarnings(page);
   const before = await state(page);
+  expect(before.segments).toHaveLength(unsaved.segments.length + 1);
+  expect(before.segments.at(-1).points).toEqual(before.draft[0].points);
   await page.locator(".sidebar-footer summary", { hasText: "Copias de seguridad" }).click();
   const promise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Descargar copia completa" }).click();
@@ -488,7 +494,7 @@ test("borrador vacío recuperable y exportación incompleta bloqueada", async ({
   await pinLibraries(page);
   expect((await state(page)).draft).toEqual(before.draft);
   await expect(page.getByLabel("Trazado activo").locator("option")).toHaveCount(1);
-  await page.getByRole("button", { name: "Revisar y exportar →" }).click();
+  await page.getByRole("button", { name: "Exportar a GPX", exact: true }).click();
   await expect(page.getByText(/necesita al menos dos puntos/)).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Descargar GPX", exact: true }),
