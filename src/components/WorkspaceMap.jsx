@@ -12,6 +12,7 @@ import { SelectorMapaBase } from "./MapaBase";
 import { colors, inBounds } from "../utils/workspace";
 import { DirectTrace } from "./DirectTrace";
 import { EditorTools } from "./EditorTools";
+import { EditorTraceTabs } from "./EditorTraceTabs";
 const positions = (points) => points.map((p) => [p.lat, p.lon]);
 
 function Events({ onBounds, drawing, onDraw, focus }) {
@@ -124,7 +125,7 @@ export function WorkspaceMap({
           focus={focus}
         />
         {data.routes
-          .filter((r) => visibleRoutes.includes(r.id))
+          .filter((r) => viewing && visibleRoutes.includes(r.id))
           .map((r, i) => (
             <Polyline
               key={r.id}
@@ -134,6 +135,7 @@ export function WorkspaceMap({
                 color: colors[i % colors.length],
                 weight: 4,
                 opacity: 0.8,
+                className: "viewer-route",
               }}
             >
               <Tooltip>{r.name}</Tooltip>
@@ -197,7 +199,14 @@ export function WorkspaceMap({
       {!viewing && (
         <EditorTools {...tools} editing={editing} mode={mode} range={crop} />
       )}
-      <div className="map-caption">
+      {!viewing && (
+        <EditorTraceTabs
+          elements={data.draft}
+          active={active}
+          onSelect={tools.onActive}
+        />
+      )}
+      <div className={`map-caption${!viewing ? " editor-map-caption" : ""}`}>
         {viewing ? (
           "Rutas superpuestas · un color por ruta"
         ) : (

@@ -114,7 +114,7 @@ export function DirectTrace({
           },
           click: (e) => {
             if (busy) return;
-            if (!editing) {
+            if (!editing || !active) {
               onSelect(element.id, 0);
               return;
             }

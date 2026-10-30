@@ -1,0 +1,81 @@
+.editor-loaded-routes {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 22px;
+  z-index: 650;
+  min-height: 38px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fffffff2;
+  border: 1px solid #dce5e3;
+  border-radius: 7px;
+  box-shadow: 0 2px 8px #173e3926;
+}
+.loaded-label {
+  font-size: 10px;
+  color: #6a7c79;
+  padding: 0 5px;
+  flex-shrink: 0;
+}
+.loaded-empty {
+  font-size: 11px;
+  color: #6a7c79;
+}
+.loaded-route-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  min-width: 0;
+  flex: 1;
+}
+.loaded-route-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  max-width: 260px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.loaded-route-tabs button > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.loaded-route-tabs small {
+  white-space: nowrap;
+  font-size: 10px;
+}
+.loaded-route-tabs button[aria-selected="true"] {
+  background: #fff0e5;
+  border-color: #e05d23;
+  color: #a64212;
+  font-weight: 650;
+}
+.map-caption.editor-map-caption {
+  bottom: 68px;
+}
+.map-shell .editor-options {
+  max-height: calc(100dvh - 270px);
+}
+@media (max-width: 650px) {
+  .map-shell .editor-options {
+    max-height: calc(57dvh - 210px);
+  }
+  .panel-hidden .map-shell .editor-options {
+    max-height: calc(100dvh - 270px);
+  }
+  .loaded-label {
+    display: none;
+  }
+  .editor-loaded-routes {
+    left: 8px;
+    right: 8px;
+  }
+  .loaded-route-tabs button {
+    max-width: 210px;
+  }
+}

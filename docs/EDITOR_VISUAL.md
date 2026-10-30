@@ -6,6 +6,7 @@ Se revisó la aplicación real https://gpx.studio/app y su documentación oficia
 - https://gpx.studio/help/toolbar/routing — anclas, arrastre, inserción, detalle según zoom y menú de puntos.
 - https://gpx.studio/help/toolbar/scissors — selección previa con sliders/perfil y división sobre la línea.
 - https://gpx.studio/help/toolbar/merge — conexión explícita frente a conservación de trazados separados, pendiente de implementar.
+- https://gpx.studio/help/files-and-stats — pestañas de archivos cargados al pie del mapa, desplazamiento horizontal y selección por clic/teclado.
 
 Se replica el modelo de interacción, no la marca ni el código de gpx.studio. La implementación es propia en React y Leaflet. Seguir caminos es el modo inicial, con BRouter y opción de modo libre.
 
@@ -18,6 +19,10 @@ Al prolongar el track calcula desde el último extremo; al arrastrar o insertar 
 El indicador «Calculando por caminos…» permite cancelar. Una petición fallida o cancelada deja el recorrido intacto, sin fallback a rectas. Un resultado aceptado se puede deshacer como un único gesto. Cambiar la actividad afecta a las siguientes ediciones, no reescribe automáticamente lo ya dibujado.
 
 Importar GPX → Rutas → Editar copia. No hace falta crear antes segmentos intermedios. Alternativamente, añadir una referencia de la biblioteca al borrador o abrir «Editar rutas» sobre el mapa.
+
+La selección del visor es independiente: solo se dibuja en ese módulo. «Enviar al editor» en una ficha del visor crea copias y abre el editor de forma explícita. El editor no tiene controles que modifiquen las superposiciones del visor; importar desde allí conserva el original sin activar su capa en el visor.
+
+Barra permanente de archivos al pie del mapa del editor, inspirada en la lista de gpx.studio: clic para seleccionar, flechas/Inicio/Fin para navegar y desplazamiento horizontal cuando no caben. Cada nueva copia de GPX conserva un editorRouteId propio compartido por sus tramos y editorRouteName para su etiqueta; el GPX multitramos no se une ni pierde geometría. Se selecciona su tramo actual o el primero; el selector «Trazado activo» mantiene acceso a los otros tramos. Borradores anteriores sin metadatos conservan pestañas por elemento sin migración destructiva. Una línea inactiva se selecciona antes de insertar o dividir: evita aplicar las tijeras accidentalmente a otra ruta.
 
 - Lápiz: anclas blancas arrastrables, puntos pequeños «+» para insertar mediante arrastre o pulsación y clic sobre la línea para insertar. Pulsar el mapa prolonga el trazado activo; si está vacío, crea uno.
 - Punto: pulsación o clic derecho abre acciones para eliminarlo, dividir o marcar extremos del recorte. Mayús + clic elimina el punto. El menú no exige escribir índices.

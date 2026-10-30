@@ -20,6 +20,7 @@ import { emptyRouteFilters, filterRoutes } from "./utils/routeFilters";
 import "./workspace.css";
 import "./editor.css";
 import "./workspaceNavigation.css";
+import "./editorFiles.css";
 const clone = (value) => structuredClone(value);
 const toggle = (items, id) =>
   items.includes(id) ? items.filter((x) => x !== id) : [...items, id];
@@ -251,8 +252,9 @@ export default function LocalApp() {
         setTab("segments");
       } else {
         update((d) => ({ ...d, routes: [...d.routes, ...routes] }));
-        setVisibleRoutes((v) => [...v, ...routes.map((r) => r.id)]);
-        setTab("routes");
+        if (workspace === "view")
+          setVisibleRoutes((v) => [...v, ...routes.map((r) => r.id)]);
+        else setTab("routes");
       }
       focusPoints(routes.flatMap((r) => r.tracks.flat()));
     }
@@ -294,6 +296,11 @@ export default function LocalApp() {
   }
   function selectElement(id, index = 0) {
     cancelRouting();
+    if (id !== active) {
+      setEditorMode("edit");
+      setCrop(null);
+      setIssues(null);
+    }
     if (workspace !== "edit") switchWorkspace("edit");
     setActive(id);
     setPointIndex(index);
@@ -306,11 +313,14 @@ export default function LocalApp() {
     setCrop(null);
   }
   function editRoute(route) {
+    const editorRouteId = uid();
     const copies = route.tracks.map((points, i) => ({
       id: uid(),
       name: route.name + (route.tracks.length > 1 ? ` · tramo ${i + 1}` : ""),
       points: clone(points),
       sourceRouteId: route.id,
+      editorRouteId,
+      editorRouteName: route.name,
     }));
     edit([...data.draft, ...copies]);
     selectElement(copies[0].id);
@@ -861,11 +871,16 @@ export default function LocalApp() {
               <>
                 <div className="section-heading">
                   <h2>Biblioteca de rutas</h2>
-                  <span>{visibleRoutes.length} superpuestas</span>
+                  <span>
+                    {workspace === "view"
+                      ? `${visibleRoutes.length} superpuestas`
+                      : "Carga manual de copias"}
+                  </span>
                 </div>
                 <p className="hint">
-                  Marca varias rutas para compararlas. La elevación es la del
-                  archivo, sin corrección automática.
+                  {workspace === "view"
+                    ? "Marca varias rutas para compararlas. Se muestran solo en el visor. Usa «Enviar al editor» para cargar una copia manualmente."
+                    : "Biblioteca de originales: no están cargados en el editor. Pulsa «Editar copia» para añadir una ruta al trabajo actual."}
                 </p>
                 {workspace === "view" && (
                   <div className="tools">
@@ -903,21 +918,24 @@ export default function LocalApp() {
                       style={{ "--route-color": color }}
                     >
                       <div className="card-title">
-                        <input
-                          type="checkbox"
-                          aria-label={`Mostrar ${r.name}`}
-                          checked={visibleRoutes.includes(r.id)}
-                          onChange={() =>
-                            setVisibleRoutes((v) => toggle(v, r.id))
-                          }
-                        />
-                        <h3>{r.name}</h3>
-                        {visibleRoutes.includes(r.id) && (
-                          <span
-                            className="color-mark"
-                            title="Color en el mapa"
+                        {workspace === "view" && (
+                          <input
+                            type="checkbox"
+                            aria-label={`Mostrar ${r.name}`}
+                            checked={visibleRoutes.includes(r.id)}
+                            onChange={() =>
+                              setVisibleRoutes((v) => toggle(v, r.id))
+                            }
                           />
                         )}
+                        <h3>{r.name}</h3>
+                        {workspace === "view" &&
+                          visibleRoutes.includes(r.id) && (
+                            <span
+                              className="color-mark"
+                              title="Color en el mapa"
+                            />
+                          )}
                       </div>
                       <Metrics tracks={r.tracks} />
                       <Profile tracks={r.tracks} color={color} />
@@ -949,6 +967,11 @@ export default function LocalApp() {
                         <button onClick={() => focusPoints(r.tracks.flat())}>
                           Centrar
                         </button>
+                        {workspace === "view" && (
+                          <button onClick={() => editRoute(r)}>
+                            Enviar al editor
+                          </button>
+                        )}
                         {workspace === "edit" && (
                           <button onClick={() => routeSegments(r)}>
                             Crear segmentos
@@ -1070,6 +1093,8 @@ export default function LocalApp() {
                             {
                               ...clone(e),
                               id: uid(),
+                              editorRouteId: uid(),
+                              editorRouteName: e.name + " · copia",
                               name: e.name + " · copia",
                             },
                           ])
@@ -1264,7 +1289,7 @@ export default function LocalApp() {
               onMode: setTool,
               onActive: (id) => {
                 selectElement(id);
-                setDrawing(false);
+                setTool("edit");
                 focusPoints(data.draft.find((e) => e.id === id)?.points || []);
               },
               onNew: startDraw,

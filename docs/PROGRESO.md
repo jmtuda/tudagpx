@@ -1,5 +1,13 @@
 # Progreso
 
+## Carga manual entre módulos y selección de archivos en el editor
+
+Corregida la separación real de capas: las rutas superpuestas del visor ya no se dibujan en el editor. Se añade «Enviar al editor» en cada ficha, que crea una copia editable mediante acción explícita. Importar desde el editor no activa superposiciones del visor y su biblioteca de originales no ofrece casillas que modifiquen el visor. Importar desde el visor no cambia la pestaña interna del editor.
+
+Revisadas la app gpx.studio y su guía files-and-stats. Implementada barra permanente de rutas cargadas al pie del mapa: selección resaltada, desplazamiento horizontal y navegación por teclado; funciona con panel oculto y opciones minimizadas. Las nuevas copias de GPX multitramos se agrupan en una pestaña por archivo, sin unir geometría. El selector de trazado mantiene acceso a sus partes. Pulsar una ruta inactiva la selecciona antes de aplicar operaciones de edición o tijeras.
+
+Verificado con lint y build; 34 pruebas Chrome correctas, incluidas tres nuevas de transferencia manual, independencia en ambos sentidos, selección entre archivos en escritorio/móvil, edición exclusiva de la copia elegida, originales intactos y agrupación persistida tras recarga. Revisión visual adicional de la barra. Se conserva la biblioteca original común y todos los borradores previos; sin publicar ni tocar main.
+
 ## Separación entre visualizar y editar
 
 Dos pestañas principales en la cabecera compacta: «Ver rutas» y «Editar». El visor solo muestra rutas seleccionadas, sin segmentos, borrador, anclas, clasificación editable ni herramientas de edición/exportación. Filtros combinables por nombre, ciclismo, distancia mínima/máxima, desnivel mínimo/máximo y cruce con la zona visible; las superposiciones no dependen de esos filtros. Añadidos centrar superpuestas, ocultar todas, colores identificables y limpiar filtros.

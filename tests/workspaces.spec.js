@@ -61,8 +61,12 @@ for (const viewport of [
     await page.getByRole("button", { name: "Limpiar filtros" }).click();
     expect((await state(page)).draft).toEqual(before.draft);
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
+    await expect(page.locator("path.viewer-route")).toHaveCount(0);
+    await expect(page.locator("path.draft-line")).toHaveCount(0);
+    await expect(page.getByText(/Ninguna ruta cargada/)).toBeVisible();
+    await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
     await page
-      .getByRole("button", { name: "Editar copia", exact: true })
+      .getByRole("button", { name: "Enviar al editor", exact: true })
       .last()
       .click();
     await expect(page.locator(".draft-card")).toHaveCount(2);

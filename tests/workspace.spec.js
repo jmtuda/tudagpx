@@ -80,17 +80,25 @@ test("importa varios tramos, superpone, conserva original y recarga", async ({
   await expect(
     page.getByRole("heading", { name: "Ruta de prueba & original" }),
   ).toBeVisible();
+  await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
   await page.getByRole("checkbox", { name: /Mostrar Vuelta/ }).check();
+  await page
+    .getByRole("checkbox", {
+      name: "Mostrar Ruta de prueba & original",
+      exact: true,
+    })
+    .check();
   await expect(
     page.getByRole("checkbox", { name: "Mostrar Ruta de prueba & original" }),
   ).toBeChecked();
-  await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(5);
+  await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(2);
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Original GPX ↓" }).click();
   const dl = await downloadPromise;
   expect(await readFile(await dl.path(), "utf8")).toBe(
     await readFile(fixture, "utf8"),
   );
+  await page.getByRole("tab", { name: "Editar", exact: true }).click();
   await page
     .getByRole("button", { name: "Crear segmentos", exact: true })
     .last()

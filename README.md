@@ -17,6 +17,10 @@ La cabecera tiene dos pestañas:
 - «Ver rutas»: solo consulta y comparación. Marca varias rutas para superponerlas en colores. Busca por nombre y tipo de ciclismo; en «Más filtros» puedes limitar distancia, desnivel y rutas que cruzan el mapa visible. Filtrar la lista no oculta las rutas ya superpuestas. «Centrar superpuestas» las encuadra y «Ocultar todas» limpia la superposición. Aquí no aparecen herramientas de edición ni el borrador.
 - «Editar»: biblioteca de Rutas y Segmentos, Borrador y Proyectos. En Rutas, «Editar copia» carga un recorrido en el borrador. En Segmentos, «+ Borrador» incorpora una copia. «Importar como» permite importar GPX a rutas o segmentos. El editor y la revisión/exportación solo están en este espacio.
 
+Los módulos no comparten las capas de rutas activas. Marcar o importar una ruta en el visor no la carga ni la dibuja en el editor. Para pasarla, pulsa «Enviar al editor» en su ficha: abre una copia editable y conserva el original. Importar un GPX desde el editor tampoco activa su superposición en el visor. La biblioteca de originales es común, pero consultar esa biblioteca no equivale a cargar sus rutas.
+
+Las rutas cargadas en el editor aparecen en una barra de pestañas al pie del mapa, como en gpx.studio. Pulsa su nombre para activarla; la seleccionada queda resaltada. Puedes desplazarte por la barra si hay muchas o usar las flechas del teclado. Funciona con la biblioteca oculta y las herramientas minimizadas. Si un GPX tiene varios tramos, ocupa una sola pestaña; el selector «Trazado activo» permite elegir su tramo sin unirlos. Pulsar otra línea del borrador la selecciona antes de editarla.
+
 Cambiar entre pestañas conserva el borrador, historial, filtros y selecciones de la sesión, sin recrear el mapa. Se recuerda la pestaña principal elegida al recargar. Las superposiciones y filtros no se restauran tras cerrar o recargar; el borrador y la biblioteca sí se guardan.
 
 1. Abre «Editar» y, en Segmentos, marca dos trazados de demostración. Son sintéticos y no deben seguirse en campo.
