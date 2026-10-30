@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cumulativeDistances } from "../utils/editorGeometry";
 import { stats } from "../utils/workspace";
-import { routingProfiles } from "../utils/routing";
+
 function CropProfile({ points, range, onRange }) {
   const distances = useMemo(() => cumulativeDistances(points), [points]);
   const total = distances.at(-1) || 1,
@@ -135,6 +135,9 @@ export function EditorTools({
   active,
   onActive,
   onNew,
+  onOpenLibrary,
+  onClear,
+  canClear,
   drawing,
   onFinish,
   onExit,
@@ -157,8 +160,7 @@ export function EditorTools({
   routingConsent,
   onConsent,
   onRevokeConsent,
-  routingProfile,
-  onRoutingProfile,
+
   routingBusy,
   onCancelRouting,
 }) {
@@ -211,6 +213,13 @@ export function EditorTools({
         role="toolbar"
         aria-label="Herramientas del mapa"
       >
+        <button
+          aria-label="Abrir rutas y segmentos"
+          title="Abrir rutas y segmentos de la biblioteca"
+          onClick={onOpenLibrary}
+        >
+          📂
+        </button>
         {[
           ["view", "↔", "Mover mapa"],
           ["edit", "✎", "Editar trazado"],
@@ -276,6 +285,36 @@ export function EditorTools({
           onClick={onExit}
         >
           ×
+        </button>
+      </div>
+      <div
+        className="editor-save-actions"
+        role="group"
+        aria-label="Guardar y limpiar"
+      >
+        <button
+          aria-label="Guardar ruta"
+          title="Guardar el archivo activo como nueva ruta"
+          onClick={onSaveRoute}
+          disabled={(element?.points.length || 0) < 2}
+        >
+          Guardar ruta
+        </button>
+        <button
+          aria-label="Guardar segmento"
+          title="Guardar el trazado activo como nuevo segmento"
+          onClick={onSaveSegment}
+          disabled={(element?.points.length || 0) < 2}
+        >
+          Guardar segmento
+        </button>
+        <button
+          aria-label="Limpiar mapa"
+          title="Limpiar mapa sin borrar la biblioteca (se puede deshacer)"
+          onClick={onClear}
+          disabled={!canClear}
+        >
+          Limpiar
         </button>
       </div>
       {!minimized ? (
@@ -356,17 +395,6 @@ export function EditorTools({
               </label>
               {routing ? (
                 <>
-                  <select
-                    aria-label="Actividad para seguir caminos"
-                    value={routingProfile}
-                    onChange={(e) => onRoutingProfile(e.target.value)}
-                  >
-                    {Object.entries(routingProfiles).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
                   {!routingConsent ? (
                     <div className="routing-permission">
                       <p>
@@ -383,7 +411,8 @@ export function EditorTools({
                     </div>
                   ) : (
                     <p className="editor-note">
-                      Cálculo: BRouter · datos © OpenStreetMap.{" "}
+                      BRouter · camino más corto, asfaltado o no · datos ©
+                      OpenStreetMap.{" "}
                       <button onClick={onRevokeConsent}>Retirar permiso</button>
                     </p>
                   )}
@@ -412,18 +441,7 @@ export function EditorTools({
                 <button onClick={onReverse} disabled={!element?.points.length}>
                   Invertir trazado
                 </button>
-                <button
-                  onClick={onSaveSegment}
-                  disabled={(element?.points.length || 0) < 2}
-                >
-                  Guardar segmento
-                </button>
-                <button
-                  onClick={onSaveRoute}
-                  disabled={(element?.points.length || 0) < 2}
-                >
-                  Guardar ruta
-                </button>
+
                 {drawing && (
                   <button className="primary" onClick={onFinish}>
                     Terminar dibujo

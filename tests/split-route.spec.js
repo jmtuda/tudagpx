@@ -15,7 +15,7 @@ for (const width of [1440, 390]) {
   }) => {
     await page.setViewportSize({ width, height: 950 });
     await page.addInitScript(() =>
-      localStorage.setItem("tudagpx-routing-mode", "free"),
+      localStorage.setItem("tudagpx-routing-mode-v2", "free"),
     );
     await page.goto("/");
     await pinLibraries(page);

@@ -27,6 +27,10 @@ function Events({ onBounds, drawing, onDraw, focus }) {
       report();
     },
     click(e) {
+      if (
+        e.originalEvent?.target?.closest?.("button, input, select, textarea, a")
+      )
+        return;
       if (drawing && performance.now() > ignoreClickUntil.current) {
         const p = e.latlng.wrap();
         onDraw({ lat: p.lat, lon: p.lng, ele: null });
@@ -85,7 +89,7 @@ export function WorkspaceMap({
   hidden,
   hover,
   onHover,
-  onToggle,
+  onOpenSegment,
   onBounds,
 
   drawing,
@@ -112,9 +116,12 @@ export function WorkspaceMap({
   const shown = useMemo(
     () =>
       data.segments.filter(
-        (s) => !hidden.includes(s.id) && selected.includes(s.id),
+        (s) =>
+          !hidden.includes(s.id) &&
+          selected.includes(s.id) &&
+          !data.draft.some((element) => element.sourceId === s.id),
       ),
-    [data.segments, hidden, selected],
+    [data.segments, data.draft, hidden, selected],
   );
   return (
     <div
@@ -194,6 +201,7 @@ export function WorkspaceMap({
               bubblingMouseEvents={false}
               positions={positions(s.points)}
               pathOptions={{
+                className: "editor-segment-reference",
                 color: selected.includes(s.id)
                   ? colors[data.segments.indexOf(s) % colors.length]
                   : "#7f8c8c",
@@ -204,7 +212,7 @@ export function WorkspaceMap({
                 mouseover: () => onHover(s.id),
                 mouseout: () => onHover(null),
                 click: () => {
-                  if (!drawing) onToggle(s.id);
+                  onOpenSegment(s.id);
                 },
               }}
             >

@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
     localStorage.setItem("tudagpx-workspace", "edit"),
   );
   await page.addInitScript(() =>
-    localStorage.setItem("tudagpx-routing-mode", "free"),
+    localStorage.setItem("tudagpx-routing-mode-v2", "free"),
   );
 });
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
@@ -95,7 +95,7 @@ test("reabrir una copia importada tras recargar activa sus puntos blancos", asyn
   const before = await state(page);
   await page.reload();
   await page
-    .getByRole("button", { name: "Editar rutas", exact: false })
+    .getByRole("button", { name: "Editar trazado", exact: true })
     .click();
   await expect(page.locator(".anchor-handle")).toHaveCount(4);
   await expect(
@@ -238,7 +238,7 @@ test("edición táctil a pantalla completa sin perder panel ni selección", asyn
     localStorage.setItem("tudagpx-workspace", "edit"),
   );
   await page.addInitScript(() =>
-    localStorage.setItem("tudagpx-routing-mode", "free"),
+    localStorage.setItem("tudagpx-routing-mode-v2", "free"),
   );
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));

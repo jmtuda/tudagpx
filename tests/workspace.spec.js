@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
     localStorage.setItem("tudagpx-workspace", "edit"),
   );
   await page.addInitScript(() =>
-    localStorage.setItem("tudagpx-routing-mode", "free"),
+    localStorage.setItem("tudagpx-routing-mode-v2", "free"),
   );
 });
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;

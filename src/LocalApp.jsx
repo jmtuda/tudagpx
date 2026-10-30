@@ -63,10 +63,10 @@ export default function LocalApp({ onLogout }) {
     localStorage.setItem("tudagpx-workspace", value);
   }
   const [routing, setRouting] = useState(
-    () => localStorage.getItem("tudagpx-routing-mode") !== "free",
+    () => localStorage.getItem("tudagpx-routing-mode-v2") !== "free",
   );
   const [routingConsent, setRoutingConsent] = useState(false);
-  const [routingProfile, setRoutingProfile] = useState("gravel");
+
   const [routingBusy, setRoutingBusy] = useState(false);
   const routingJob = useRef(null);
   function cancelRouting() {
@@ -77,7 +77,7 @@ export default function LocalApp({ onLogout }) {
   function changeRouting(value) {
     cancelRouting();
     setRouting(value);
-    localStorage.setItem("tudagpx-routing-mode", value ? "roads" : "free");
+    localStorage.setItem("tudagpx-routing-mode-v2", value ? "roads" : "free");
   }
   const [sidebarHover, setSidebarHover] = useState(false);
   const [sidebarPins, setSidebarPins] = useState({ view: false, edit: false });
@@ -89,8 +89,7 @@ export default function LocalApp({ onLogout }) {
     [fatal, setFatal] = useState(""),
     [saved, setSaved] = useState("Cargando…");
   const [editorTab, setTab] = useState("segments"),
-    [query, setQuery] = useState(""),
-    [sport, setSport] = useState("Todos");
+    [query, setQuery] = useState("");
   const tab = workspace === "view" ? "routes" : editorTab;
   const [selected, setSelected] = useState([]),
     [hidden, setHidden] = useState([]),
@@ -206,15 +205,29 @@ export default function LocalApp({ onLogout }) {
   }
   function addSegments(ids) {
     switchWorkspace("edit");
+    const existing = data.draft.find((element) =>
+      ids.includes(element.sourceId),
+    );
     const additions = data.segments
-      .filter((s) => ids.includes(s.id))
+      .filter(
+        (s) =>
+          ids.includes(s.id) &&
+          !data.draft.some((element) => element.sourceId === s.id),
+      )
       .map((s) => ({
         id: uid(),
         name: s.name,
         points: clone(s.points),
         sourceId: s.id,
       }));
-    if (!additions.length) return;
+    if (!additions.length) {
+      if (existing) {
+        selectElement(existing.id);
+        setTool("edit");
+        focusPoints(existing.points);
+      }
+      return;
+    }
     edit([...data.draft, ...additions]);
     setActive(additions[0].id);
     setPointIndex(0);
@@ -450,6 +463,20 @@ export default function LocalApp({ onLogout }) {
       "Ruta cerrada del editor. El original se conserva; puedes deshacer el cierre.",
     );
   }
+  function clearEditor() {
+    edit([]);
+    setSelected([]);
+    setHidden([]);
+    setHover(null);
+    setActive(null);
+    setPointIndex(0);
+    setDrawing(false);
+    setEditorMode("view");
+    setTab("draft");
+    setNotice(
+      "Mapa limpio. Las rutas y segmentos guardados se conservan en la biblioteca. Puedes deshacer la limpieza.",
+    );
+  }
   async function routeChange(id, index, point, action, neighbors) {
     if (routingJob.current) return;
     if (!routingConsent) {
@@ -470,7 +497,7 @@ export default function LocalApp({ onLogout }) {
         point,
         action,
         neighbors,
-        routingProfile,
+        "shortest",
         controller.signal,
       );
       if (controller.signal.aborted || routingJob.current !== controller)
@@ -734,12 +761,12 @@ export default function LocalApp({ onLogout }) {
     }
   }
   useEffect(() => {
-    if (tab !== "draft" || !data) return;
+    if (workspace !== "edit" || !data) return;
     if (!data.draft.some((e) => e.id === active)) {
       setActive(data.draft[0]?.id || null);
       setPointIndex(0);
     }
-  }, [data, tab, active]);
+  }, [data, workspace, active]);
   if (fatal)
     return (
       <main className="startup">
@@ -760,10 +787,8 @@ export default function LocalApp({ onLogout }) {
   const routes =
     workspace === "view"
       ? filterRoutes(data.routes, routeFilters, bounds)
-      : data.routes.filter(
-          (r) =>
-            r.name.toLowerCase().includes(query.toLowerCase()) &&
-            (sport === "Todos" || r.sport === sport),
+      : data.routes.filter((r) =>
+          r.name.toLowerCase().includes(query.toLowerCase()),
         );
   const cropRange =
     crop?.id === active
@@ -926,9 +951,6 @@ export default function LocalApp({ onLogout }) {
                 onQuery={setQuery}
                 importKind={importKind}
                 onImportKind={setImportKind}
-                sport={sport}
-                onSport={setSport}
-                routes={tab === "routes"}
               />
             )}
             <button
@@ -1130,28 +1152,7 @@ export default function LocalApp({ onLogout }) {
                           <small> · elevación parcial</small>
                         )}
                       </span>
-                      {workspace === "edit" ? (
-                        <select
-                          aria-label={`Ciclismo de ${r.name}`}
-                          value={r.sport}
-                          onChange={(e) =>
-                            update((d) => ({
-                              ...d,
-                              routes: d.routes.map((x) =>
-                                x.id === r.id
-                                  ? { ...x, sport: e.target.value }
-                                  : x,
-                              ),
-                            }))
-                          }
-                        >
-                          {["Sin clasificar", "Carretera", "Gravel", "MTB"].map(
-                            (s) => (
-                              <option key={s}>{s}</option>
-                            ),
-                          )}
-                        </select>
-                      ) : null}
+
                       {(workspace === "edit" ||
                         visibleRoutes.includes(r.id)) && (
                         <div className="card-actions">
@@ -1420,7 +1421,7 @@ export default function LocalApp({ onLogout }) {
             hidden={hidden}
             hover={hover}
             onHover={setHover}
-            onToggle={(id) => setSelected((s) => toggle(s, id))}
+            onOpenSegment={(id) => addSegments([id])}
             onBounds={setBounds}
             bounds={bounds}
             drawing={drawing}
@@ -1454,7 +1455,7 @@ export default function LocalApp({ onLogout }) {
             )}
             onSelect={selectElement}
             onMove={movePoint}
-            editing={workspace === "edit" && tab === "draft" && issues === null}
+            editing={workspace === "edit" && issues === null}
 
             routingBusy={routingBusy}
             mode={editorMode}
@@ -1471,11 +1472,7 @@ export default function LocalApp({ onLogout }) {
                 cancelRouting();
                 setRoutingConsent(false);
               },
-              routingProfile,
-              onRoutingProfile: (profile) => {
-                cancelRouting();
-                setRoutingProfile(profile);
-              },
+
               routingBusy,
               onCancelRouting: cancelRouting,
               elements: data.draft,
@@ -1501,6 +1498,13 @@ export default function LocalApp({ onLogout }) {
                 focusPoints(data.draft.find((e) => e.id === id)?.points || []);
               },
               onNew: startDraw,
+              onClear: clearEditor,
+              canClear: data.draft.length > 0 || selected.length > 0,
+              onOpenLibrary: () => {
+                setSidebarPins((pins) => ({ ...pins, edit: true }));
+                setSidebarHover(true);
+                setTab("routes");
+              },
               onFinish: () => setTool("view"),
               onExit: () => {
                 switchWorkspace("view");

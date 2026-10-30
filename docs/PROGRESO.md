@@ -1,5 +1,13 @@
 # Progreso
 
+## Flujo único de edición sobre el mapa
+
+Barra horizontal superior siempre disponible en Editar, independientemente de la sección de biblioteca. Incluye abrir rutas/segmentos, dibujar y acciones permanentes para guardar como ruta, como segmento y limpiar. Los guardados usan el archivo o tramo activo y crean registros nuevos sin reemplazar originales. Limpiar cancela cálculos, vacía todas las copias/referencias del editor y admite deshacer; biblioteca y proyectos se conservan. No elimina el borrador al recargar o cambiar de módulo.
+
+BRouter activado inicialmente, con modo libre opcional y consentimiento por sesión conservado. Se ignora la antigua preferencia libre al estrenar el nuevo modo; la elección explícita posterior se guarda en tudagpx-routing-mode-v2. Cálculo genérico con shortest, sin categorías ciclistas ni preferencia por asfalto. Retirados selector de actividad, clasificación y filtro ciclista del editor; filtros del visor intactos.
+
+Clic en un segmento del mapa abre una copia editable en lugar de ocultarlo; si ya está abierto lo selecciona sin duplicarlo. Las referencias de segmentos ya abiertos no se dibujan dos veces. La selección del tramo activo se recupera también con la biblioteca abierta tras recargar. El selector de cartografía detiene eventos nativos de Leaflet para evitar dibujar puntos al cambiar de mapa.
+
 ## Nombres de segmentos, panel compacto y avisos temporales
 
 Crear segmentos desde una ruta o guardar un trazado como segmento abre un formulario con un nombre editable por segmento. Guardar confirma copias independientes; Cancelar/Escape no modifica biblioteca, originales ni borrador. No admite nombres vacíos o solo espacios. El recorte mantiene su campo de nombre existente y guarda sin un segundo formulario.

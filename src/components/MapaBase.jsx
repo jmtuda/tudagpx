@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { DomEvent } from "leaflet";
 import { TileLayer } from "react-leaflet";
 
 export function SelectorMapaBase({ onTileError = () => {} }) {
   const [tipoMapa, setTipoMapa] = useState("pnoa_orto");
   const [open, setOpen] = useState(false);
+  const control = useRef(null);
+  useEffect(() => {
+    DomEvent.disableClickPropagation(control.current);
+    DomEvent.disableScrollPropagation(control.current);
+  }, []);
 
   const capas = {
     ign_base: {
@@ -50,6 +56,7 @@ export function SelectorMapaBase({ onTileError = () => {} }) {
 
       {/* Desplegable flotante */}
       <div
+        ref={control}
         style={{
           position: "absolute",
           top: "10px",

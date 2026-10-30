@@ -84,8 +84,12 @@ test("editar GPX por caminos real, deshacer y conservar original", async ({
     page.getByLabel("Seguir caminos", { exact: true }),
   ).toBeChecked();
   let calls = 0;
+  const profiles = [];
   page.on("request", (r) => {
-    if (r.url().startsWith("https://brouter.de/brouter?")) calls++;
+    if (r.url().startsWith("https://brouter.de/brouter?")) {
+      calls++;
+      profiles.push(new URL(r.url()).searchParams.get("profile"));
+    }
   });
   await page.getByRole("button", { name: "Minimizar herramientas" }).click();
   await drag(page, page.getByTitle("Editar punto 2", { exact: true }), 25, -10);
@@ -107,6 +111,7 @@ test("editar GPX por caminos real, deshacer y conservar original", async ({
   expect(after.draft[0].points.length).toBeGreaterThan(3);
   expect(after.routes.at(-1)).toEqual(before.routes.at(-1));
   expect(calls).toBe(2);
+  expect(profiles).toEqual(["shortest", "shortest"]);
   await page.getByRole("button", { name: "↶ Deshacer" }).click();
   expect((await state(page)).draft).toEqual(before.draft);
   await page.getByRole("button", { name: "↷ Rehacer" }).click();

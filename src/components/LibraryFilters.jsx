@@ -1,12 +1,4 @@
-export function LibraryFilters({
-  query,
-  onQuery,
-  importKind,
-  onImportKind,
-  sport,
-  onSport,
-  routes,
-}) {
+export function LibraryFilters({ query, onQuery, importKind, onImportKind }) {
   return (
     <section
       className="filters viewer-filters"
@@ -32,19 +24,6 @@ export function LibraryFilters({
               <option value="segments">Segmentos + original</option>
             </select>
           </label>
-          {routes && (
-            <select
-              aria-label="Filtrar ciclismo"
-              value={sport}
-              onChange={(event) => onSport(event.target.value)}
-            >
-              {["Todos", "Sin clasificar", "Carretera", "Gravel", "MTB"].map(
-                (value) => (
-                  <option key={value}>{value}</option>
-                ),
-              )}
-            </select>
-          )}
         </div>
       </details>
     </section>
