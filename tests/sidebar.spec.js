@@ -70,7 +70,7 @@ for (const width of [1440, 390]) {
       .getByRole("button", { name: "Fijar panel de rutas", exact: true })
       .click();
     await page
-      .getByRole("button", { name: "+ Borrador", exact: true })
+      .getByRole("button", { name: "Abrir segmento", exact: true })
       .first()
       .click();
     await expect(page.locator("path.draft-line")).toHaveCount(1);
@@ -81,7 +81,8 @@ for (const width of [1440, 390]) {
     await expect(panel).toBeHidden();
     await expect(page.locator("path.draft-line")).toHaveCount(1);
     await edge.click();
-    await expect(page.locator(".draft-card")).toHaveCount(1);
+    await expect(page.getByRole("tablist", { name: "Rutas cargadas en el editor" }).getByRole("tab")).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "Guardar ruta", exact: true })).toBeEnabled();
     await page
       .getByRole("button", { name: "Ocultar panel de rutas", exact: true })
       .click();

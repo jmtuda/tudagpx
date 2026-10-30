@@ -40,7 +40,10 @@ for (const width of [1440, 390]) {
     ).toHaveCount(1);
     const start = await page.locator(".trace-start").getAttribute("style");
     const end = await page.locator(".trace-end").getAttribute("style");
-    await page.getByRole("button", { name: "Mover mapa", exact: true }).click();
+    const edit = page.getByRole("button", { name: "Editar trazado", exact: true });
+    await expect(edit).toHaveAttribute("aria-pressed", "true");
+    await edit.click();
+    await expect(edit).toHaveAttribute("aria-pressed", "false");
     await expect(page.locator(".anchor-handle")).toHaveCount(0);
     await expect(page.locator(".trace-start")).toBeVisible();
     await expect(page.locator(".trace-end")).toBeVisible();

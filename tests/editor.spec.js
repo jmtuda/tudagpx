@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
     localStorage.setItem("tudagpx-workspace", "edit"),
   );
   await page.addInitScript(() =>
-    localStorage.setItem("tudagpx-routing-mode-v2", "free"),
+    localStorage.setItem("tudagpx-routing-mode-v3", "free"),
   );
 });
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
@@ -26,7 +26,7 @@ async function demo(page) {
   await page.goto("/");
   await pinLibraries(page);
   await page
-    .getByRole("button", { name: "+ Borrador", exact: true })
+    .getByRole("button", { name: "Abrir segmento", exact: true })
     .first()
     .click();
   await expect(
@@ -94,9 +94,6 @@ test("reabrir una copia importada tras recargar activa sus puntos blancos", asyn
     .click();
   const before = await state(page);
   await page.reload();
-  await page
-    .getByRole("button", { name: "Editar trazado", exact: true })
-    .click();
   await expect(page.locator(".anchor-handle")).toHaveCount(4);
   await expect(
     page.getByRole("button", { name: "Editar trazado", exact: true }),
@@ -164,7 +161,6 @@ test("recorte visual reversible y creación directa de segmento sin cambiar borr
   expect((await state(page)).draft[0].points).toEqual(original.slice(1, 3));
   await page.reload();
   await pinLibraries(page);
-  await page.getByRole("button", { name: /^Borrador/ }).click();
   expect((await state(page)).draft[0].points).toEqual(original.slice(1, 3));
 });
 
@@ -238,7 +234,7 @@ test("edición táctil a pantalla completa sin perder panel ni selección", asyn
     localStorage.setItem("tudagpx-workspace", "edit"),
   );
   await page.addInitScript(() =>
-    localStorage.setItem("tudagpx-routing-mode-v2", "free"),
+    localStorage.setItem("tudagpx-routing-mode-v3", "free"),
   );
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -260,7 +256,8 @@ test("edición táctil a pantalla completa sin perder panel ni selección", asyn
     await expect(page.getByLabel("Inicio del recorte")).toBeVisible();
     await page.getByRole("button", { name: "Cancelar recorte" }).tap();
     await page.getByRole("button", { name: "Mostrar panel de rutas" }).tap();
-    await expect(page.locator(".draft-card")).toHaveCount(1);
+    await expect(page.getByRole("tablist", { name: "Rutas cargadas en el editor" }).getByRole("tab")).toHaveCount(1);
+    expect((await state(page)).draft[0].points).toHaveLength(4);
     expect(errors).toEqual([]);
   } finally {
     await context.close();
@@ -279,8 +276,8 @@ test("terminar dibujo y mover mapa no añaden puntos al trazado", async ({
   await page.getByRole("button", { name: "Mostrar herramientas" }).click();
   await page.getByRole("button", { name: "Terminar dibujo" }).click();
   await expect(
-    page.getByRole("button", { name: "Mover mapa", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
+    page.getByRole("button", { name: "Editar trazado", exact: true }),
+  ).toHaveAttribute("aria-pressed", "false");
   await map.click({ position: { x: 800, y: 500 } });
   expect((await state(page)).draft.at(-1).points).toHaveLength(2);
   await page
@@ -288,8 +285,8 @@ test("terminar dibujo y mover mapa no añaden puntos al trazado", async ({
     .click();
   await page.keyboard.press("Escape");
   await expect(
-    page.getByRole("button", { name: "Mover mapa", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
+    page.getByRole("button", { name: "Editar trazado", exact: true }),
+  ).toHaveAttribute("aria-pressed", "false");
 });
 
 test("muestreo de anclas no elimina GPS y división conserva los puntos", async ({

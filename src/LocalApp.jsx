@@ -63,9 +63,10 @@ export default function LocalApp({ onLogout }) {
     localStorage.setItem("tudagpx-workspace", value);
   }
   const [routing, setRouting] = useState(
-    () => localStorage.getItem("tudagpx-routing-mode-v2") !== "free",
+    () => localStorage.getItem("tudagpx-routing-mode-v3") !== "free",
   );
-  const [routingConsent, setRoutingConsent] = useState(false);
+  // The owner explicitly authorized automatic BRouter calculation by default.
+  const [routingConsent, setRoutingConsent] = useState(true);
 
   const [routingBusy, setRoutingBusy] = useState(false);
   const routingJob = useRef(null);
@@ -77,7 +78,7 @@ export default function LocalApp({ onLogout }) {
   function changeRouting(value) {
     cancelRouting();
     setRouting(value);
-    localStorage.setItem("tudagpx-routing-mode-v2", value ? "roads" : "free");
+    localStorage.setItem("tudagpx-routing-mode-v3", value ? "roads" : "free");
   }
   const [sidebarHover, setSidebarHover] = useState(false);
   const [sidebarPins, setSidebarPins] = useState({ view: false, edit: false });
@@ -231,7 +232,6 @@ export default function LocalApp({ onLogout }) {
     edit([...data.draft, ...additions]);
     setActive(additions[0].id);
     setPointIndex(0);
-    setTab("draft");
     setEditorMode("edit");
     focusPoints(additions.flatMap((s) => s.points));
     setNotice(
@@ -293,7 +293,6 @@ export default function LocalApp({ onLogout }) {
           setPointIndex(0);
           setEditorMode("edit");
           setDrawing(false);
-          setTab("draft");
         } else setTab("routes");
       }
       focusPoints(routes.flatMap((r) => r.tracks.flat()));
@@ -324,7 +323,6 @@ export default function LocalApp({ onLogout }) {
     setPointIndex(0);
     setDrawing(true);
     setEditorMode("edit");
-    setTab("draft");
   }
   function changeElement(fn) {
     edit(data.draft.map((e) => (e.id === active ? fn(clone(e)) : e)));
@@ -341,7 +339,6 @@ export default function LocalApp({ onLogout }) {
     if (workspace !== "edit") switchWorkspace("edit");
     setActive(id);
     setPointIndex(index);
-    setTab("draft");
   }
   function setTool(mode) {
     cancelRouting();
@@ -448,7 +445,6 @@ export default function LocalApp({ onLogout }) {
       (e) => (e.editorRouteId || e.id) !== id,
     );
     edit(remaining);
-    setTab("draft");
     if (!remaining.length) {
       setSelected([]);
       setHover(null);
@@ -472,7 +468,6 @@ export default function LocalApp({ onLogout }) {
     setPointIndex(0);
     setDrawing(false);
     setEditorMode("view");
-    setTab("draft");
     setNotice(
       "Mapa limpio. Las rutas y segmentos guardados se conservan en la biblioteca. Puedes deshacer la limpieza.",
     );
@@ -497,7 +492,7 @@ export default function LocalApp({ onLogout }) {
         point,
         action,
         neighbors,
-        "shortest",
+        "all-paths",
         controller.signal,
       );
       if (controller.signal.aborted || routingJob.current !== controller)
@@ -680,39 +675,7 @@ export default function LocalApp({ onLogout }) {
       setNotice(`No se pudo guardar la ruta: ${error.message}`);
     }
   }
-  function saveProject() {
-    const p = {
-      id: uid(),
-      name: data.draftName || "Sin título",
-      elements: clone(data.draft),
-      createdAt: new Date().toISOString(),
-    };
-    update((d) => ({ ...d, projects: [...d.projects, p] }));
-    setNotice(
-      "Versión del proyecto guardada, sin sustituir versiones anteriores.",
-    );
-  }
-  function loadProject(p) {
-    const previous = {
-      id: uid(),
-      name: `${data.draftName} · antes de abrir proyecto`,
-      elements: clone(data.draft),
-      createdAt: new Date().toISOString(),
-    };
-    edit(clone(p.elements));
-    update((d) => ({
-      ...d,
-      draftName: p.name,
-      projects: [...d.projects, previous],
-    }));
-    setActive(null);
-    setDrawing(false);
-    setTab("draft");
-    focusPoints(p.elements.flatMap((e) => e.points));
-    setNotice(
-      "Proyecto abierto. El borrador anterior se ha conservado como otra versión.",
-    );
-  }
+
   async function importBackup(event) {
     const file = event.target.files[0];
     event.target.value = "";
@@ -722,11 +685,18 @@ export default function LocalApp({ onLogout }) {
       const idMap = new Map(
         [...source.routes, ...source.segments].map((e) => [e.id, uid()]),
       );
-      const copy = (e) => ({
-        ...clone(e),
-        id: uid(),
-        sourceId: idMap.get(e.sourceId) || e.sourceId,
-      });
+      const editorIds = new Map();
+      const copy = (e) => {
+        if (e.editorRouteId && !editorIds.has(e.editorRouteId))
+          editorIds.set(e.editorRouteId, uid());
+        return {
+          ...clone(e),
+          id: uid(),
+          sourceId: idMap.get(e.sourceId) || e.sourceId,
+          sourceRouteId: idMap.get(e.sourceRouteId) || e.sourceRouteId,
+          editorRouteId: editorIds.get(e.editorRouteId),
+        };
+      };
       const routes = source.routes.map((r) => ({ ...r, id: idMap.get(r.id) }));
       const segments = source.segments.map((s) => ({
         ...s,
@@ -746,6 +716,8 @@ export default function LocalApp({ onLogout }) {
           elements: source.draft.map(copy),
         },
       ];
+      const restored = source.draft.map(copy);
+      if (restored.length) edit([...data.draft, ...restored]);
       update((d) => ({
         ...d,
         routes: [...d.routes, ...routes],
@@ -753,9 +725,14 @@ export default function LocalApp({ onLogout }) {
         projects: [...d.projects, ...projects],
       }));
       setNotice(
-        "Copia añadida sin borrar ni reemplazar datos actuales. Su borrador está en Proyectos.",
+        "Copia añadida sin borrar ni reemplazar datos actuales. Los trazados recuperados están abiertos en el editor.",
       );
-      setTab("projects");
+      if (restored.length) {
+        switchWorkspace("edit");
+        selectElement(restored[0].id);
+        focusPoints(restored.flatMap((element) => element.points));
+      }
+      setTab("routes");
     } catch (e) {
       setNotice(`No se ha importado la copia: ${e.message}`);
     }
@@ -776,9 +753,7 @@ export default function LocalApp({ onLogout }) {
     );
   if (!data) return <main className="startup">Abriendo TudaGPX…</main>;
   const activeElement = data.draft.find((e) => e.id === active);
-  const viewportSegments = data.segments.filter((s) =>
-    inBounds(s.points, bounds),
-  );
+
   const listSegments = data.segments.filter(
     (s) =>
       (inBounds(s.points, bounds) || selected.includes(s.id)) &&
@@ -997,18 +972,6 @@ export default function LocalApp({ onLogout }) {
                 >
                   Rutas <b>{data.routes.length}</b>
                 </button>
-                <button
-                  className={tab === "draft" ? "active" : ""}
-                  onClick={() => setTab("draft")}
-                >
-                  Borrador <b>{data.draft.length}</b>
-                </button>
-                <button
-                  className={tab === "projects" ? "active" : ""}
-                  onClick={() => setTab("projects")}
-                >
-                  Proyectos
-                </button>
               </nav>
             )}
           </div>
@@ -1016,20 +979,12 @@ export default function LocalApp({ onLogout }) {
           <div className="panel-content">
             {tab === "segments" && (
               <>
-                <div className="section-heading">
-                  <h2>Segmentos de la zona</h2>
-                  <span>{viewportSegments.length} en el mapa</span>
-                </div>
-                <p className="hint">
-                  Mueve el mapa para explorar. Los seleccionados permanecen
-                  contigo, aunque salgan de la vista.
-                </p>
                 {selected.length > 0 && (
                   <button
                     className="primary full"
                     onClick={() => addSegments(selected)}
                   >
-                    Añadir {selected.length} seleccionados al borrador
+                    Abrir {selected.length} seleccionados en el editor
                   </button>
                 )}
                 {!listSegments.length && (
@@ -1078,7 +1033,7 @@ export default function LocalApp({ onLogout }) {
                           {hidden.includes(s.id) ? "Mostrar" : "Ocultar"}
                         </button>
                         <button onClick={() => addSegments([s.id])}>
-                          + Borrador
+                          Abrir segmento
                         </button>
                       </div>
                     </article>
@@ -1203,198 +1158,27 @@ export default function LocalApp({ onLogout }) {
                 )}
               </>
             )}
-            {tab === "draft" && (
-              <>
-                <div className="section-heading">
-                  <h2>Tu borrador libre</h2>
-                  <span>Copias editables</span>
-                </div>
-                <input
-                  aria-label="Nombre del proyecto"
-                  value={data.draftName}
-                  onChange={(e) =>
-                    update((d) => ({ ...d, draftName: e.target.value }))
-                  }
-                />
-                <p className="hint">
-                  Edita directamente en el mapa con el lápiz y las tijeras. Los
-                  puntos blancos se arrastran; los puntos «+» insertan nuevos
-                  puntos. No es necesario conectar los tramos mientras editas.
-                </p>
-                <div className="tools">
-                  <button disabled={!data.draft.length} onClick={saveProject}>
-                    Guardar versión
-                  </button>
-                </div>
-                {data.draft.map((e, i) => (
-                  <article
-                    className={`draft-card ${e.id === active ? "selected" : ""}`}
-                    key={e.id}
-                  >
-                    <button
-                      className="element-title"
-                      onClick={() => {
-                        setActive(e.id);
-                        setPointIndex(0);
-                        setDrawing(false);
-                        focusPoints(e.points);
-                      }}
-                    >
-                      {i + 1}. {e.name}
-                    </button>
-                    <Metrics tracks={[e.points]} />
-                    <div className="card-actions">
-                      <button
-                        aria-label={`Subir ${e.name}`}
-                        disabled={!i}
-                        onClick={() => {
-                          const next = [...data.draft];
-                          [next[i - 1], next[i]] = [next[i], next[i - 1]];
-                          edit(next);
-                        }}
-                      >
-                        ↑
-                      </button>
-                      <button
-                        aria-label={`Bajar ${e.name}`}
-                        disabled={i === data.draft.length - 1}
-                        onClick={() => {
-                          const next = [...data.draft];
-                          [next[i], next[i + 1]] = [next[i + 1], next[i]];
-                          edit(next);
-                        }}
-                      >
-                        ↓
-                      </button>
-                      <button
-                        onClick={() =>
-                          edit(
-                            data.draft.map((x) =>
-                              x.id === e.id
-                                ? { ...x, points: [...x.points].reverse() }
-                                : x,
-                            ),
-                          )
-                        }
-                      >
-                        Invertir
-                      </button>
-                      <button
-                        onClick={() =>
-                          edit([
-                            ...data.draft,
-                            {
-                              ...clone(e),
-                              id: uid(),
-                              editorRouteId: uid(),
-                              editorRouteName: e.name + " · copia",
-                              name: e.name + " · copia",
-                            },
-                          ])
-                        }
-                      >
-                        Duplicar
-                      </button>
-                      <button
-                        onClick={() => {
-                          edit(data.draft.filter((x) => x.id !== e.id));
-                          if (active === e.id) {
-                            setActive(null);
-                            setDrawing(false);
-                          }
-                        }}
-                      >
-                        Quitar
-                      </button>
-                    </div>
-                  </article>
-                ))}
-                {activeElement && (
-                  <section className="point-editor">
-                    <h3>Nombre del tramo activo</h3>
-                    <input
-                      aria-label="Nombre del tramo"
-                      value={activeElement.name}
-                      onChange={(e) =>
-                        changeElement((s) => ({ ...s, name: e.target.value }))
-                      }
-                    />
-                    <div className="tools">
-                      <button
-                        disabled={activeElement.points.length < 2}
-                        onClick={saveEditorRoute}
-                      >
-                        Guardar como nueva ruta
-                      </button>
-                      <button
-                        disabled={activeElement.points.length < 2}
-                        onClick={() =>
-                          saveSegment(activeElement.points, activeElement.name)
-                        }
-                      >
-                        Guardar como nuevo segmento
-                      </button>
-                    </div>
-                  </section>
-                )}
-                {!data.draft.length && (
-                  <p className="empty">
-                    Selecciona segmentos de la biblioteca o empieza a dibujar en
-                    el mapa.
-                  </p>
-                )}
-                <p className="hint">
-                  El borrador se guarda automáticamente. «Guardar versión»
-                  conserva además una copia independiente.
-                </p>
-              </>
-            )}
-            {tab === "projects" && (
-              <>
-                <h2>Proyectos y copias</h2>
-                <p className="hint">
-                  Todo se guarda en este navegador y en esta dirección local.
-                  Exporta una copia para protegerlo frente al borrado de datos
-                  del navegador.
-                </p>
-                <div className="tools">
-                  <button
-                    onClick={() =>
-                      download(
-                        JSON.stringify(data, null, 2),
-                        "TudaGPX-copia.json",
-                        "application/json",
-                      )
-                    }
-                  >
-                    Descargar copia completa
-                  </button>
-                  <button onClick={() => backupInput.current.click()}>
-                    Añadir copia de seguridad
-                  </button>
-                </div>
-                {[...data.projects].reverse().map((p) => (
-                  <article className="library-card" key={p.id}>
-                    <h3>{p.name}</h3>
-                    <p className="hint">
-                      {new Date(p.createdAt).toLocaleString("es-ES")} ·{" "}
-                      {p.elements.length} tramos
-                    </p>
-                    <button onClick={() => loadProject(p)}>
-                      Abrir esta versión
-                    </button>
-                  </article>
-                ))}
-                {!data.projects.length && (
-                  <p className="empty">
-                    Guarda una versión desde el borrador. También se admiten
-                    proyectos incompletos.
-                  </p>
-                )}
-              </>
-            )}
           </div>
           <footer className="sidebar-footer">
+            <details className="backup-controls">
+              <summary>Copias de seguridad</summary>
+              <div className="tools">
+                <button
+                  onClick={() =>
+                    download(
+                      JSON.stringify(data, null, 2),
+                      "TudaGPX-copia.json",
+                      "application/json",
+                    )
+                  }
+                >
+                  Descargar copia completa
+                </button>
+                <button onClick={() => backupInput.current.click()}>
+                  Añadir copia de seguridad
+                </button>
+              </div>
+            </details>
             <button
               onClick={() =>
                 focusPoints(
@@ -1482,7 +1266,7 @@ export default function LocalApp({ onLogout }) {
                 switchWorkspace("edit");
                 const element = activeElement || data.draft[0];
                 if (element) selectElement(element.id);
-                else setTab("draft");
+
                 setIssues(null);
                 setTool("edit");
                 focusPoints(element?.points || []);
@@ -1497,6 +1281,8 @@ export default function LocalApp({ onLogout }) {
                 setTool("edit");
                 focusPoints(data.draft.find((e) => e.id === id)?.points || []);
               },
+              onName: (name) =>
+                changeElement((element) => ({ ...element, name })),
               onNew: startDraw,
               onClear: clearEditor,
               canClear: data.draft.length > 0 || selected.length > 0,
@@ -1653,7 +1439,6 @@ export default function LocalApp({ onLogout }) {
             <button
               onClick={() => {
                 setIssues(null);
-                setTab("draft");
               }}
             >
               Volver al editor

@@ -25,9 +25,10 @@ for (const width of [1440, 390]) {
     page,
   }, testInfo) => {
     await page.setViewportSize({ width, height: 950 });
-    await page.addInitScript(() =>
-      localStorage.setItem("tudagpx-routing-mode", "free"),
-    );
+    await page.addInitScript(() => {
+      localStorage.setItem("tudagpx-routing-mode", "free");
+      localStorage.setItem("tudagpx-routing-mode-v2", "free");
+    });
     await page.goto("/");
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
     const toolbar = page.getByRole("toolbar", {
@@ -44,6 +45,18 @@ for (const width of [1440, 390]) {
     await expect(page.getByLabel("Actividad para seguir caminos")).toHaveCount(
       0,
     );
+    await expect(
+      page.getByRole("button", {
+        name: "Permitir cálculo con BRouter",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Retirar permiso", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Mover mapa", exact: true }),
+    ).toHaveCount(0);
     await expect(page.locator("path.draft-line")).toHaveCount(0);
     for (const name of ["Guardar ruta", "Guardar segmento", "Limpiar mapa"])
       await expect(
@@ -56,6 +69,25 @@ for (const width of [1440, 390]) {
       page.getByRole("navigation", { name: "Biblioteca", exact: true }),
     ).toBeVisible();
     await expect(page.getByLabel(/Ciclismo de/)).toHaveCount(0);
+    const library = page.getByRole("navigation", {
+      name: "Biblioteca",
+      exact: true,
+    });
+    await expect(library.getByRole("button")).toHaveCount(2);
+    for (const name of ["Segmentos", "Rutas"])
+      await expect(
+        library.getByRole("button", { name: new RegExp("^" + name) }),
+      ).toBeVisible();
+    for (const name of ["Borrador", "Proyectos"])
+      await expect(
+        library.getByRole("button", { name: new RegExp("^" + name) }),
+      ).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Segmentos de la zona" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByText("Mueve el mapa para explorar.", { exact: false }),
+    ).toHaveCount(0);
     await page.getByText("Buscar y filtrar", { exact: true }).click();
     await expect(page.getByLabel("Filtrar ciclismo")).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath("editor-inicial.png") });
@@ -75,7 +107,9 @@ for (const width of [1440, 390]) {
       .click();
     const before = await state(page);
     await page.getByRole("checkbox", { name: /Seleccionar Subida/ }).check();
-    await page.getByRole("button", { name: "Mover mapa", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Editar trazado", exact: true })
+      .click();
     await page
       .getByRole("button", { name: "Minimizar herramientas", exact: true })
       .click();
@@ -86,7 +120,9 @@ for (const width of [1440, 390]) {
     const opened = await state(page);
     expect(opened.draft[0].points).toEqual(before.segments[0].points);
     expect(opened.segments).toEqual(before.segments);
-    await page.getByRole("button", { name: "Mover mapa", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Editar trazado", exact: true })
+      .click();
     await page
       .getByRole("button", { name: "Minimizar herramientas", exact: true })
       .click();

@@ -1,4 +1,34 @@
 import { distance, validPoint } from "./workspace";
+import { pathProfile } from "./pathProfile";
+
+let uploadedProfile = null;
+async function genericProfile(signal) {
+  if (
+    uploadedProfile &&
+    Date.now() - uploadedProfile.createdAt < 15 * 60 * 1000
+  )
+    return uploadedProfile.id;
+  const response = await fetch("https://brouter.de/brouter/profile", {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: pathProfile,
+    signal,
+    credentials: "omit",
+    referrerPolicy: "no-referrer",
+  });
+  if (!response.ok)
+    throw new Error(
+      "No se ha podido preparar el cálculo de caminos. Reintenta o usa el modo libre.",
+    );
+  const result = await response.json();
+  if (result.error || !/^custom_[a-zA-Z0-9_-]+$/.test(result.profileid || ""))
+    throw new Error(
+      "BRouter no ha aceptado el perfil de caminos. No se ha modificado el trazado.",
+    );
+  signal.throwIfAborted();
+  uploadedProfile = { id: result.profileid, createdAt: Date.now() };
+  return uploadedProfile.id;
+}
 
 export const routingProfiles = {
   gravel: "Gravel",
@@ -8,24 +38,30 @@ export const routingProfiles = {
 };
 
 // Solo se envían las anclas de la parte editada, nunca el archivo GPX.
-export async function followRoads(anchors, profile = "shortest", signal) {
+export async function followRoads(anchors, profile = "all-paths", signal) {
   if (
-    (!routingProfiles[profile] && profile !== "shortest") ||
+    (!routingProfiles[profile] &&
+      profile !== "shortest" &&
+      profile !== "all-paths") ||
     anchors.length < 2 ||
     anchors.some((p) => !validPoint(p))
   )
     throw new Error("No se puede calcular con estas coordenadas.");
+  const requestSignal = signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(30000)])
+    : AbortSignal.timeout(30000);
+  requestSignal.throwIfAborted();
+  const resolvedProfile =
+    profile === "all-paths" ? await genericProfile(requestSignal) : profile;
   const url = new URL("https://brouter.de/brouter");
   url.search = new URLSearchParams({
     lonlats: anchors.map((p) => `${p.lon},${p.lat}`).join("|"),
-    profile,
+    profile: resolvedProfile,
     alternativeidx: "0",
     format: "geojson",
   });
   const response = await fetch(url, {
-    signal: signal
-      ? AbortSignal.any([signal, AbortSignal.timeout(30000)])
-      : AbortSignal.timeout(30000),
+    signal: requestSignal,
     credentials: "omit",
     referrerPolicy: "no-referrer",
   });

@@ -332,6 +332,11 @@ h2 {
   color: #8b9a92;
   margin-top: 5px;
 }
+.backup-controls summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: #007d77;
+}
 .map-area {
   flex: 1;
   min-width: 0;

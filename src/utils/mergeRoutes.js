@@ -18,7 +18,7 @@ export async function mergeRoutePoints(elements, signal) {
     const end = points.at(-1),
       start = element.points[0];
     if (!sameEndpoint(end, start)) {
-      const connection = await followRoads([end, start], "shortest", signal);
+      const connection = await followRoads([end, start], "all-paths", signal);
       // Conservar extremos originales y la geometría calculada, sin recalcular los tracks.
       for (const p of connection) {
         if (!sameEndpoint(points.at(-1), p) && !sameEndpoint(p, start))

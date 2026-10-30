@@ -72,7 +72,8 @@ for (const viewport of [
       .getByRole("button", { name: "Enviar al editor", exact: true })
       .last()
       .click();
-    await expect(page.locator(".draft-card")).toHaveCount(2);
+    await expect(page.getByLabel("Trazado activo").locator("option")).toHaveCount(2);
+    await expect(page.getByRole("tablist", { name: "Rutas cargadas en el editor" }).getByRole("tab")).toHaveCount(1);
     const draft = (await state(page)).draft;
     await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
     await expect(page.locator("path.draft-line")).toHaveCount(0);
@@ -91,10 +92,11 @@ for (const viewport of [
     expect((await state(page)).draft).toEqual(draft);
     await page.getByRole("button", { name: /^Segmentos/ }).click();
     await page
-      .getByRole("button", { name: "+ Borrador", exact: true })
+      .getByRole("button", { name: "Abrir segmento", exact: true })
       .first()
       .click();
-    await expect(page.locator(".draft-card")).toHaveCount(3);
+    await expect(page.getByLabel("Trazado activo").locator("option")).toHaveCount(3);
+    await expect(page.getByRole("tablist", { name: "Rutas cargadas en el editor" }).getByRole("tab")).toHaveCount(2);
     const final = (await state(page)).draft;
     await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
     await page.reload();

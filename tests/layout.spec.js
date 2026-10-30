@@ -32,10 +32,16 @@ for (const viewport of [
       page.getByRole("button", { name: "+ Importar GPX" }),
     ).toBeVisible();
     await pinLibraries(page);
-    await page.getByRole("button", { name: /^Borrador/ }).click();
-    await expect(
-      page.getByRole("heading", { name: "Tu borrador libre" }),
-    ).toBeVisible();
+    const nav = page.getByRole("navigation", { name: "Biblioteca", exact: true });
+    await expect(nav.getByRole("button")).toHaveCount(2);
+    for (const section of ["Rutas", "Segmentos"]) {
+      await nav.getByRole("button", { name: new RegExp(`^${section}`) }).click();
+      for (const action of ["Guardar ruta", "Guardar segmento", "Limpiar mapa"]) {
+        await expect(page.getByRole("button", { name: action, exact: true })).toBeVisible();
+      }
+    }
+    await page.getByRole("button", { name: "Abrir segmento", exact: true }).first().click();
+    await expect(page.getByRole("tablist", { name: "Rutas cargadas en el editor" }).getByRole("tab")).toHaveCount(1);
     await page.getByRole("button", { name: "Revisar y exportar →" }).click();
     await expect(
       page.getByRole("dialog", { name: "Revisión GPX" }),

@@ -1,6 +1,6 @@
 # TudaGPX
 
-Biblioteca geográfica y editor libre de rutas de bicicleta. Primera versión local con React, Vite y Leaflet. Sin cuenta, sin suscripciones y sin servicios de producción conectados.
+Biblioteca geográfica y editor de rutas con React, Vite y Leaflet. Web privada en https://tudagpx.vercel.app con correo/contraseña y almacenamiento Neon. La modalidad local conserva los datos en IndexedDB, sin cuenta.
 
 ## Abrir la aplicación
 
@@ -15,7 +15,7 @@ Usa siempre la misma dirección y navegador: los datos se guardan ahí, no se si
 La cabecera tiene dos pestañas:
 
 - «Ver rutas»: solo consulta y comparación. Marca varias rutas para superponerlas en colores. Busca por nombre y tipo de ciclismo; en «Más filtros» puedes limitar distancia, desnivel y rutas que cruzan el mapa visible. Filtrar la lista no oculta las rutas ya superpuestas. «Centrar superpuestas» las encuadra y «Ocultar todas» limpia la superposición. Aquí no aparecen herramientas de edición ni el borrador.
-- «Editar»: biblioteca de Rutas y Segmentos, Borrador y Proyectos. En Rutas, «Editar copia» carga un recorrido en el borrador. En Segmentos, «+ Borrador» incorpora una copia. «Importar como» permite importar GPX a rutas o segmentos. El editor y la revisión/exportación solo están en este espacio.
+- «Editar»: biblioteca con solo Segmentos y Rutas. En Rutas, «Editar copia» abre un recorrido; en Segmentos, «Abrir segmento» incorpora una copia. «Importar como» permite importar GPX a rutas o segmentos. Guardar ruta/segmento y Limpiar están siempre en la barra superior del mapa. No hay pestañas Borrador/Proyectos ni encabezados e instrucciones redundantes sobre la lista.
 
 Los módulos no comparten las capas de rutas activas. Marcar o importar una ruta en el visor no la carga ni la dibuja en el editor. Para pasarla, pulsa «Enviar al editor» en su ficha: abre una copia editable y conserva el original. Importar un GPX desde el editor tampoco activa su superposición en el visor. La biblioteca de originales es común, pero consultar esa biblioteca no equivale a cargar sus rutas.
 
@@ -26,10 +26,10 @@ Cambiar entre pestañas conserva el borrador, historial, filtros y selecciones d
 1. Abre «Editar» y, en Segmentos, marca dos trazados de demostración. Son sintéticos y no deben seguirse en campo.
 2. Cambia el mapa con el selector superior derecho: IGN Base, MTN, PNOA y OpenStreetMap.
 3. Mueve el mapa. La lista busca segmentos geográficamente y conserva los seleccionados fuera de la vista.
-4. Pulsa «Añadir seleccionados al borrador». Trabajas sobre copias, no sobre originales.
-5. En Borrador, edita directamente sobre el mapa: arrastra los puntos blancos para moverlos; arrastra los pequeños «+» para insertar nuevos puntos. Pulsa un punto (o haz clic derecho) para eliminarlo, dividir o marcar los límites de un recorte. La barra flotante contiene lápiz, recorte, tijeras, deshacer y rehacer.
-6. La barra horizontal superior permite abrir rutas/segmentos desde la biblioteca o iniciar un trazado con «+». En modo lápiz, pulsar el mapa prolonga el trazado activo. «Seguir caminos» está activado inicialmente: pulsa «Permitir cálculo con BRouter» una vez por sesión. Usa el camino más corto de OpenStreetMap sin categorías ciclistas ni preferencia por asfalto, tanto al dibujar como al mover o insertar anclas. Desmarca «Seguir caminos» si quieres líneas rectas. Los botones «Guardar ruta» y «Guardar segmento» guardan copias del archivo/trazado activo en la biblioteca; puedes nombrar el segmento. «Limpiar» vacía el mapa sin borrar la biblioteca y permite deshacer. El trabajo abierto se conserva al cambiar de pestaña o recargar; no se borra automáticamente para empezar desde cero.
-7. «Guardar versión» conserva una copia independiente del proyecto, aunque esté incompleto. El borrador se guarda además automáticamente.
+4. Pulsa «Abrir seleccionados en el editor». Trabajas sobre copias, no sobre originales.
+5. Edita directamente sobre el mapa: arrastra los puntos blancos para moverlos; arrastra los pequeños «+» para insertar nuevos puntos. Pulsa un punto (o haz clic derecho) para eliminarlo, dividir o marcar los límites de un recorte. La barra superior contiene lápiz, recorte, tijeras, deshacer y rehacer. El lápiz permite activar/desactivar la edición; no hay botón «Mover mapa».
+6. La barra superior permite abrir rutas/segmentos o iniciar un trazado con «+». En modo lápiz, pulsar el mapa prolonga el trazado activo. «Seguir caminos» y el permiso BRouter están activados inicialmente por petición del propietario: no hace falta pulsar «Permitir». El perfil genérico trata por igual el firme de asfalto, pistas y senderos, sin categorías deportivas ni penalizar grava/tierra. Puede incluir pasos peatonales; no garantiza ciclabilidad. Desmarca «Seguir caminos» para líneas rectas o pulsa «Retirar permiso» para impedir nuevos cálculos durante esa sesión. Los botones «Guardar ruta» y «Guardar segmento» crean copias en la biblioteca; puedes nombrar el segmento. «Limpiar» vacía el mapa sin borrar la biblioteca y permite deshacer. El trabajo abierto se conserva al cambiar de pestaña o recargar.
+7. El trabajo en curso se guarda automáticamente, incluso incompleto; los proyectos anteriores siguen conservados en los datos y en las copias JSON.
 8. «Revisar y exportar» muestra avisos en el mapa. Los errores impiden descargar; las advertencias pueden aceptarse. Se exporta un tramo GPX por elemento, sin inventar conexiones.
 
 Para tus propios datos, pulsa «Importar GPX». Puedes seleccionar varios archivos. En «Ver rutas» se incorporan para consultar y comparar. En «Editar» → Rutas, «Editar copia» abre el recorrido en el borrador sin modificar el original, sin necesidad de convertirlo antes en segmentos. El selector «Importar como» del editor permite incorporarlos a Rutas o directamente a Segmentos. El botón «Original GPX» descarga el archivo importado sin modificaciones.
@@ -40,20 +40,20 @@ El botón «−» minimiza las opciones del editor para dejar más mapa visible;
 
 ## Proteger el trabajo
 
-En Proyectos, «Descargar copia completa» guarda biblioteca, originales, borrador y versiones en un JSON. Hazlo periódicamente y antes de borrar datos del navegador. «Añadir copia de seguridad» recupera esa información sin borrar los datos actuales. Su borrador aparece como un proyecto más.
+Al pie de la biblioteca, abre «Copias de seguridad». «Descargar copia completa» guarda biblioteca, originales, trabajo abierto y versiones anteriores en un JSON. Hazlo periódicamente y antes de borrar datos del navegador. «Añadir copia de seguridad» añade esa información sin borrar datos actuales; sus trazados abiertos se recuperan como copias adicionales en el editor, con identidades nuevas.
 
-Abrir una versión conserva el borrador que tenías en otro snapshot. Los datos originales no se borran automáticamente. El sistema avanzado de versiones y dependencias entre rutas y segmentos sigue pendiente.
+Los originales y snapshots anteriores no se borran automáticamente. El sistema avanzado de versiones y dependencias entre rutas y segmentos sigue pendiente.
 
 ## Límites de esta entrega
 
-- Almacenamiento local provisional; todavía no hay PostgreSQL/PostGIS ni sincronización.
+- La modalidad local y la web privada tienen almacenes separados; publicar una versión no migra ni sustituye bibliotecas. La web utiliza revisiones privadas en Neon; detalles en docs/DESPLIEGUE.md.
 - Interacción visual inspirada en gpx.studio, no una réplica completa: faltan unión avanzada y variantes.
 - Revisión básica: coordenadas, huecos entre elementos, elevación y aristas idénticas. No detecta todos los solapamientos ni garantiza el sentido correcto.
 - Comparación inicial por superposición, cifras y perfiles individuales; eje horizontal del perfil por puntos, todavía no por distancia.
-- El cálculo por caminos requiere internet y permiso en cada sesión: envía las coordenadas de las anclas locales a BRouter, no el GPX completo. El modo libre no utiliza ese servicio. Las elevaciones calculadas proceden de BRouter si están disponibles; en modo libre, mover un punto elimina su elevación anterior.
+- El cálculo por caminos requiere internet y está permitido por defecto, revocable en la sesión: envía coordenadas de las anclas locales a BRouter, no el GPX completo. La primera petición registra un perfil de cálculo sin datos personales en el mismo BRouter; se reutiliza temporalmente. El modo libre no utiliza ese servicio. Las elevaciones calculadas proceden de BRouter si están disponibles; en modo libre, mover un punto elimina su elevación anterior.
 - BRouter sigue la red de OpenStreetMap, no las líneas dibujadas en las ortofotos PNOA. Puede no conocer un camino o sus restricciones actuales. Revisa siempre el resultado; no garantiza transitabilidad ni permiso de acceso. Si falla, se conserva el trazado anterior, sin sustituirlo automáticamente por rectas.
 - Importación de hasta 25 MB por archivo; grandes bibliotecas y trazados masivos aún sin optimizar.
-- No se ha publicado nada ni se ha conectado el Supabase anterior.
+- Supabase anterior aislado: no se activa ni en local ni en la web privada publicada.
 
 ## Desarrollo y verificación
 

@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
     localStorage.setItem("tudagpx-workspace", "edit"),
   );
   await page.addInitScript(() =>
-    localStorage.setItem("tudagpx-routing-mode-v2", "free"),
+    localStorage.setItem("tudagpx-routing-mode-v3", "free"),
   );
 });
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
@@ -14,7 +14,7 @@ const ready = async (page) => {
   await page.goto("/");
   await pinLibraries(page);
   await expect(
-    page.getByRole("heading", { name: "Segmentos de la zona" }),
+    page.getByRole("button", { name: /^Segmentos \d+/ }),
   ).toBeVisible();
 };
 const persisted = async (page) => {
@@ -23,6 +23,7 @@ const persisted = async (page) => {
   ).toBeVisible();
 };
 async function state(page) {
+  await persisted(page);
   return page.evaluate(async () => {
     const { loadWorkspace } = await import("/src/utils/localStore.js");
     return loadWorkspace();
@@ -86,6 +87,7 @@ test("importa varios tramos, superpone, conserva original y recarga", async ({
     page.getByRole("heading", { name: "Ruta de prueba & original" }),
   ).toBeVisible();
   await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
+  await pinLibraries(page);
   await page.getByRole("checkbox", { name: /Mostrar Vuelta/ }).check();
   await page
     .getByRole("checkbox", {
@@ -96,7 +98,7 @@ test("importa varios tramos, superpone, conserva original y recarga", async ({
   await expect(
     page.getByRole("checkbox", { name: "Mostrar Ruta de prueba & original" }),
   ).toBeChecked();
-  await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(2);
+  await expect(page.locator("path.viewer-route-selected")).toHaveCount(2);
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Original GPX ↓" }).click();
   const dl = await downloadPromise;
@@ -127,7 +129,7 @@ test("importa varios tramos, superpone, conserva original y recarga", async ({
   expect(d.routes.at(-1).original).toBe(await readFile(fixture, "utf8"));
 });
 
-test("editor: copias, arrastre, invertir, dividir, deshacer, versión y GPX", async ({
+test("editor: copias, arrastre, invertir, dividir, historial, borrador automático y GPX", async ({
   page,
 }) => {
   const errors = [];
@@ -135,11 +137,10 @@ test("editor: copias, arrastre, invertir, dividir, deshacer, versión y GPX", as
   await ready(page);
   await page.getByRole("checkbox", { name: /Seleccionar Subida/ }).check();
   await page
-    .getByRole("button", { name: "Añadir 1 seleccionados al borrador" })
+    .getByRole("button", { name: "Abrir 1 seleccionados en el editor" })
     .click();
-  await expect(
-    page.getByRole("heading", { name: "Tu borrador libre" }),
-  ).toBeVisible();
+  await expect(page.getByLabel("Trazado activo").locator("option")).toHaveCount(1);
+  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
   const handle = page.getByTitle("Editar punto 1", { exact: true });
   await expect(handle).toBeVisible();
   const box = await handle.boundingBox();
@@ -152,16 +153,18 @@ test("editor: copias, arrastre, invertir, dividir, deshacer, versión y GPX", as
   expect(d.segments[0].points[0].ele).toBe(1160);
   expect(d.draft[0].points[0].ele).toBe(null);
   expect(d.draft[0].points[0].lat).not.toBe(d.segments[0].points[0].lat);
-  await page.getByRole("button", { name: "Invertir", exact: true }).click();
+  const moved = structuredClone(d.draft);
+  await page.getByRole("button", { name: "Mostrar herramientas" }).click();
+  await page.getByRole("button", { name: "Invertir trazado", exact: true }).click();
+  expect((await state(page)).draft[0].points).toEqual([...moved[0].points].reverse());
   await page.getByRole("button", { name: "↶ Deshacer" }).click();
+  expect((await state(page)).draft).toEqual(moved);
   await page.getByRole("button", { name: "↷ Rehacer" }).click();
+  expect((await state(page)).draft[0].points).toEqual([...moved[0].points].reverse());
   await page.getByRole("button", { name: "Minimizar herramientas" }).click();
   await page.getByTitle("Editar punto 2", { exact: true }).click();
   await page.getByRole("button", { name: "Dividir aquí" }).click();
-  await expect(page.locator(".draft-card")).toHaveCount(2);
-  await page
-    .getByRole("button", { name: "Guardar versión", exact: true })
-    .click();
+  expect((await state(page)).draft).toHaveLength(2);
   await page.getByRole("button", { name: "Revisar y exportar →" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("checkbox", { name: /Acepto las advertencias/ }).check();
@@ -179,12 +182,13 @@ test("editor: copias, arrastre, invertir, dividir, deshacer, versión y GPX", as
   expect(xml).toContain('xmlns="http://www.topografix.com/GPX/1/1"');
   await persisted(page);
   d = await state(page);
-  expect(d.projects).toHaveLength(1);
+  expect(d.projects).toHaveLength(0);
   expect(d.segments[0].points[0].ele).toBe(1160);
+  expect(parsed.tracks).toEqual(d.draft.map((element) => element.points));
   await page.reload();
   await pinLibraries(page);
-  await page.getByRole("button", { name: /^Borrador/ }).click();
-  await expect(page.locator(".draft-card")).toHaveCount(2);
+  expect((await state(page)).draft).toEqual(d.draft);
+  await expect(page.getByLabel("Trazado activo").locator("option")).toHaveCount(2);
   expect(errors).toEqual([]);
 });
 
@@ -192,14 +196,13 @@ test("dibujo libre, recorte, eliminación, nuevo segmento y copia recuperable", 
   page,
 }) => {
   await ready(page);
-  await page.getByRole("button", { name: /^Borrador/ }).click();
   await page.getByRole("button", { name: "+ Dibujar", exact: true }).click();
   await page.getByRole("button", { name: "Minimizar herramientas" }).click();
   const map = page.locator(".workspace-map");
-  await map.click({ position: { x: 250, y: 200 } });
-  await map.click({ position: { x: 300, y: 220 } });
-  await map.click({ position: { x: 350, y: 240 } });
-  await map.click({ position: { x: 400, y: 260 } });
+  await map.click({ position: { x: 500, y: 300 } });
+  await map.click({ position: { x: 550, y: 320 } });
+  await map.click({ position: { x: 600, y: 340 } });
+  await map.click({ position: { x: 650, y: 360 } });
   await page.getByRole("button", { name: "Mostrar herramientas" }).click();
   await page.getByRole("button", { name: "Terminar dibujo" }).click();
   await persisted(page);
@@ -218,19 +221,19 @@ test("dibujo libre, recorte, eliminación, nuevo segmento y copia recuperable", 
     .getByRole("button", { name: "Eliminar punto", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Guardar como nuevo segmento", exact: true })
+    .getByRole("button", { name: "Guardar segmento", exact: true })
     .click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Guardar segmento", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Guardar versión", exact: true })
-    .click();
-  await page.getByRole("button", { name: "Proyectos", exact: true }).click();
+  const before = await state(page);
+  await page.locator(".sidebar-footer summary", { hasText: "Copias de seguridad" }).click();
   const promise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Descargar copia completa" }).click();
   const download = await promise;
+  const backup = JSON.parse(await readFile(await download.path(), "utf8"));
+  expect(backup).toEqual(before);
   await page
     .locator("input[type=file]")
     .nth(1)
@@ -238,13 +241,108 @@ test("dibujo libre, recorte, eliminación, nuevo segmento y copia recuperable", 
   await expect(page.getByText(/Copia añadida sin borrar/)).toBeVisible();
   await persisted(page);
   const d = await state(page);
-  expect(d.draft[0].points).toHaveLength(2);
-  expect(d.segments).toHaveLength(8);
-  expect(d.projects).toHaveLength(3);
+  expect(d.draft).toHaveLength(before.draft.length + backup.draft.length);
+  expect(d.draft.slice(0, before.draft.length)).toEqual(before.draft);
+  expect(d.draft.at(-1).points).toEqual(backup.draft[0].points);
+  expect(d.draft.at(-1).id).not.toBe(backup.draft[0].id);
+  expect(d.routes.slice(0, before.routes.length)).toEqual(before.routes);
+  expect(d.routes).toHaveLength(before.routes.length + backup.routes.length);
+  expect(d.segments.slice(0, before.segments.length)).toEqual(before.segments);
+  expect(d.segments).toHaveLength(before.segments.length + backup.segments.length);
+  expect(d.projects).toHaveLength(before.projects.length + backup.projects.length + 1);
+  expect(d.projects.at(-1).elements[0].points).toEqual(backup.draft[0].points);
   await page.reload();
   await pinLibraries(page);
-  await page.getByRole("button", { name: /^Borrador/ }).click();
-  await expect(page.locator(".draft-card")).toHaveCount(1);
+  expect((await state(page)).draft).toEqual(d.draft);
+  await expect(page.getByLabel("Trazado activo").locator("option")).toHaveCount(2);
+});
+
+test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia JSON", async ({ page }) => {
+  await ready(page);
+  await page.locator("input[type=file]").first().setInputFiles(fixture);
+  await page.getByRole("button", { name: "Editar copia", exact: true }).last().click();
+  await persisted(page);
+  // Simula datos de la versión anterior en IndexedDB, no una biblioteca vacía.
+  const legacy = await page.evaluate(async () => {
+    const { loadWorkspace, saveWorkspace } = await import("/src/utils/localStore.js");
+    const data = await loadWorkspace();
+    data.projects = [
+      { id: "snapshot-antiguo", name: "Versión multitramos", createdAt: "2025-01-01T10:00:00.000Z", elements: structuredClone(data.draft) },
+      { id: "snapshot-incompleto", name: "Versión sin terminar", createdAt: "2025-01-02T10:00:00.000Z", elements: [{ id: "tramo-incompleto", name: "Pendiente", points: [] }] },
+    ];
+    await saveWorkspace(data);
+    return data;
+  });
+  await page.reload();
+  await pinLibraries(page);
+  expect(await state(page)).toEqual(legacy);
+  await expect(page.getByRole("navigation", { name: "Biblioteca" }).getByRole("button")).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Guardar versión", exact: true })).toHaveCount(0);
+  await page.getByLabel("Nombre del tramo", { exact: true }).fill("Copia modificada");
+  const edited = await state(page);
+  expect(edited.projects).toEqual(legacy.projects);
+  expect(edited.routes).toEqual(legacy.routes);
+  await page.getByRole("button", { name: "Limpiar mapa", exact: true }).click();
+  expect((await state(page)).draft).toEqual([]);
+  expect((await state(page)).projects).toEqual(legacy.projects);
+  await page.getByRole("button", { name: "↶ Deshacer" }).click();
+  expect((await state(page)).draft).toEqual(edited.draft);
+  await page.reload();
+  await pinLibraries(page);
+  expect((await state(page)).projects).toEqual(legacy.projects);
+  await page.locator(".sidebar-footer summary", { hasText: "Copias de seguridad" }).click();
+  const pending = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Descargar copia completa" }).click();
+  const download = await pending;
+  const backup = JSON.parse(await readFile(await download.path(), "utf8"));
+  expect(backup.projects).toEqual(legacy.projects);
+  expect(backup.draft).toEqual(edited.draft);
+  await page.locator("input[type=file]").nth(1).setInputFiles(await download.path());
+  await expect(page.getByText(/Copia añadida sin borrar/)).toBeVisible();
+  const restored = await state(page);
+  expect(restored.projects.slice(0, legacy.projects.length)).toEqual(legacy.projects);
+  expect(restored.projects).toHaveLength(legacy.projects.length + backup.projects.length + 1);
+  expect(restored.routes.slice(0, backup.routes.length)).toEqual(backup.routes);
+  expect(restored.segments.slice(0, backup.segments.length)).toEqual(backup.segments);
+  expect(restored.routes).toHaveLength(backup.routes.length * 2);
+  expect(restored.segments).toHaveLength(backup.segments.length * 2);
+  expect(restored.draft.slice(0, backup.draft.length)).toEqual(backup.draft);
+  expect(restored.draft).toHaveLength(backup.draft.length * 2);
+  const importedRoute = restored.routes.at(-1);
+  expect(importedRoute.id).not.toBe(backup.routes.at(-1).id);
+  expect(importedRoute.originalBase64).toBe(backup.routes.at(-1).originalBase64);
+  expect(importedRoute.tracks).toEqual(backup.routes.at(-1).tracks);
+  const copies = restored.draft.slice(backup.draft.length);
+  expect(copies.map((e) => e.points)).toEqual(backup.draft.map((e) => e.points));
+  expect(copies.every((e) => e.sourceRouteId === importedRoute.id)).toBe(true);
+  expect(new Set(copies.map((e) => e.editorRouteId)).size).toBe(1);
+  expect(copies[0].editorRouteId).not.toBe(backup.draft[0].editorRouteId);
+  const addedProjects = restored.projects.slice(legacy.projects.length);
+  for (const [i, project] of addedProjects.entries()) {
+    const source = i < backup.projects.length ? backup.projects[i].elements : backup.draft;
+    expect(project.elements.map((e) => e.points)).toEqual(source.map((e) => e.points));
+    expect(project.elements.map((e) => e.name)).toEqual(source.map((e) => e.name));
+    for (const [j, element] of project.elements.entries()) {
+      expect(element.id).not.toBe(source[j].id);
+      if (source[j].sourceRouteId) expect(element.sourceRouteId).toBe(importedRoute.id);
+    }
+  }
+  for (const collection of [restored.routes, restored.segments, restored.projects, restored.draft]) {
+    expect(new Set(collection.map((e) => e.id)).size).toBe(collection.length);
+  }
+  // Las copias recuperadas se abren y se pueden editar; los snapshots no cambian.
+  await expect(page.getByLabel("Trazado activo")).toHaveValue(copies[0].id);
+  await page.getByLabel("Nombre del tramo", { exact: true }).fill("Recuperada editable");
+  const final = await state(page);
+  expect(final.draft.find((e) => e.id === copies[0].id).name).toBe("Recuperada editable");
+  expect(final.projects).toEqual(restored.projects);
+  await page.reload();
+  await pinLibraries(page);
+  expect(await state(page)).toEqual(final);
+  await page.locator(".sidebar-footer summary", { hasText: "Copias de seguridad" }).click();
+  const roundtrip = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Descargar copia completa" }).click();
+  expect(JSON.parse(await readFile(await (await roundtrip).path(), "utf8"))).toEqual(final);
 });
 
 test("modelo: cruces geográficos, GPX inválido, namespaces, huecos y duplicados", async ({
@@ -368,7 +466,7 @@ test("importación directa de segmentos y cambio geográfico conserva selección
   await expect(
     page.getByRole("heading", { name: /Camino de la ladera/ }),
   ).toHaveCount(0);
-  await expect(page.getByText("1 en el mapa", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Zona lejana", exact: true })).toHaveCount(1);
   await persisted(page);
   const d = await state(page);
   expect(d.routes).toHaveLength(2);
@@ -380,28 +478,23 @@ test("borrador vacío recuperable y exportación incompleta bloqueada", async ({
   page,
 }) => {
   await ready(page);
-  await page.getByRole("button", { name: /^Borrador/ }).click();
   await page.getByRole("button", { name: "+ Dibujar", exact: true }).click();
   await page.getByRole("button", { name: "Terminar dibujo" }).click();
-  await page
-    .getByRole("button", { name: "Guardar versión", exact: true })
-    .click();
   await persisted(page);
-  expect((await state(page)).projects).toHaveLength(1);
+  const before = await state(page);
+  expect(before.draft).toHaveLength(1);
+  expect(before.draft[0].points).toEqual([]);
   await page.reload();
   await pinLibraries(page);
-  await page.getByRole("button", { name: /^Borrador/ }).click();
-  await expect(page.locator(".draft-card")).toHaveCount(1);
+  expect((await state(page)).draft).toEqual(before.draft);
+  await expect(page.getByLabel("Trazado activo").locator("option")).toHaveCount(1);
   await page.getByRole("button", { name: "Revisar y exportar →" }).click();
   await expect(page.getByText(/necesita al menos dos puntos/)).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Descargar GPX", exact: true }),
   ).toBeDisabled();
   await page.getByRole("button", { name: "Cerrar revisión" }).click();
-  await page.getByRole("button", { name: "Proyectos", exact: true }).click();
-  await page.getByRole("button", { name: "Abrir esta versión" }).click();
-  await persisted(page);
-  expect((await state(page)).projects).toHaveLength(2);
+  expect((await state(page)).draft).toEqual(before.draft);
 });
 
 test("originales UTF-8 con BOM y UTF-16 conservan exactamente sus bytes", async ({

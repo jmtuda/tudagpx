@@ -116,7 +116,7 @@ test("dos trazados, quitar de selección y conservar el tercero", async ({
   expect(ordered).toEqual(["c", "a", "b"]);
 });
 
-test("conexiones reales shortest, consentimiento y conservación de geometría", async ({
+test("conexiones reales sin preferencia de firme, permiso inicial y conservación de geometría", async ({
   page,
 }) => {
   test.setTimeout(120000);
@@ -130,19 +130,11 @@ test("conexiones reales shortest, consentimiento y conservación de geometría",
   await page
     .getByRole("button", { name: "Unir trazados", exact: true })
     .click();
-  expect((await state(page)).draft).toEqual(before.draft);
-  expect(calls).toHaveLength(0);
-  await page
-    .getByRole("button", { name: "Permitir conexiones con BRouter" })
-    .click();
-  await page
-    .getByRole("button", { name: "Unir trazados", exact: true })
-    .click();
   await expect(files(page).getByRole("tab")).toHaveCount(1, { timeout: 90000 });
   const merged = await state(page);
   expect(calls).toHaveLength(2);
   for (const call of calls)
-    expect(call.searchParams.get("profile")).toBe("shortest");
+    expect(call.searchParams.get("profile")).toMatch(/^custom_/);
   expect(merged.draft[0].points.length).toBeGreaterThan(6);
   let index = -1;
   for (const point of before.draft.flatMap((e) => e.points)) {
@@ -170,9 +162,6 @@ test("fallo y cancelación no cambian ninguna de las copias", async ({
     route.fulfill({ status: 503, body: "Fallo de prueba" }),
   );
   await select(page);
-  await page
-    .getByRole("button", { name: "Permitir conexiones con BRouter" })
-    .click();
   await page
     .getByRole("button", { name: "Unir trazados", exact: true })
     .click();

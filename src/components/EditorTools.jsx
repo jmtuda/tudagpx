@@ -134,6 +134,7 @@ export function EditorTools({
   elements,
   active,
   onActive,
+  onName,
   onNew,
   onOpenLibrary,
   onClear,
@@ -221,7 +222,6 @@ export function EditorTools({
           📂
         </button>
         {[
-          ["view", "↔", "Mover mapa"],
           ["edit", "✎", "Editar trazado"],
           ["crop", "⌑", "Recortar trazado"],
           ["split", "✂", "Dividir trazado"],
@@ -233,7 +233,7 @@ export function EditorTools({
             title={label}
             aria-pressed={mode === value}
             onClick={() => {
-              onMode(value);
+              onMode(value === "edit" && mode === "edit" ? "view" : value);
               setMinimized(false);
             }}
           >
@@ -326,7 +326,7 @@ export function EditorTools({
                 : mode === "split"
                   ? "Dividir trazado"
                   : mode === "view"
-                    ? "Mover mapa"
+                    ? "Edición desactivada"
                     : "Dibujar y editar"}
             </strong>
             <button
@@ -383,6 +383,16 @@ export function EditorTools({
               volver a editar.
             </p>
           )}
+          {element && (
+            <label className="trace-name">
+              Nombre del tramo
+              <input
+                aria-label="Nombre del tramo"
+                value={element.name}
+                onChange={(event) => onName(event.target.value)}
+              />
+            </label>
+          )}
           {mode === "edit" && (
             <>
               <label className="routing-toggle">
@@ -411,8 +421,9 @@ export function EditorTools({
                     </div>
                   ) : (
                     <p className="editor-note">
-                      BRouter · camino más corto, asfaltado o no · datos ©
-                      OpenStreetMap.{" "}
+                      BRouter · asfalto, pistas y senderos, sin preferencia por
+                      firme · datos © OpenStreetMap. Puede incluir caminos
+                      peatonales.{" "}
                       <button onClick={onRevokeConsent}>Retirar permiso</button>
                     </p>
                   )}

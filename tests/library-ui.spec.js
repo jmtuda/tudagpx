@@ -17,10 +17,13 @@ for (const width of [1440, 390]) {
     await pinLibraries(page);
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
     await page
-      .getByRole("button", { name: "+ Borrador", exact: true })
+      .getByRole("button", { name: "Abrir segmento", exact: true })
       .first()
       .click();
+    await expect(page.getByRole("navigation", { name: "Biblioteca", exact: true }).getByRole("button", { name: /^Segmentos/ })).toHaveClass("active");
+    await page.getByLabel("Nombre del tramo", { exact: true }).fill("Copia editable del mirador");
     const before = await state(page);
+    expect(before.draft[0].name).toBe("Copia editable del mirador");
     await page
       .getByRole("button", { name: "Guardar segmento", exact: true })
       .click();
@@ -57,7 +60,10 @@ for (const width of [1440, 390]) {
     expect(after.routes).toEqual(before.routes);
     expect(after.draft).toEqual(before.draft);
     await page.reload();
-    expect((await state(page)).segments.at(-1).name).toBe(
+    const reloaded = await state(page);
+    expect(reloaded.draft).toEqual(before.draft);
+    await expect(page.getByLabel("Nombre del tramo", { exact: true })).toHaveValue("Copia editable del mirador");
+    expect(reloaded.segments.at(-1).name).toBe(
       "Mi subida al mirador 🏔",
     );
   });
@@ -81,10 +87,13 @@ for (const width of [1440, 390]) {
       name: "Biblioteca",
       exact: true,
     });
-    for (const name of ["Segmentos", "Rutas", "Borrador", "Proyectos"])
+    for (const name of ["Segmentos", "Rutas"])
       await expect(
         nav.getByRole("button", { name: new RegExp(`^${name}`) }),
       ).toBeVisible();
+    await expect(nav.getByRole("button")).toHaveCount(2);
+    await expect(page.getByRole("button", { name: "Guardar versión", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Segmentos de la zona" })).toHaveCount(0);
     await nav.getByRole("button", { name: /^Rutas/ }).click();
     await expect(firstCard.locator(".profile")).toHaveCount(0);
     await expect(firstCard).toContainText("bajada");
@@ -150,23 +159,19 @@ test("avisos: cinco segundos, reinicio al repetir y cierre manual", async ({
   await pinLibraries(page);
   await page.getByRole("tab", { name: "Editar", exact: true }).click();
   await page
-    .getByRole("button", { name: "+ Borrador", exact: true })
+    .getByRole("button", { name: "Abrir segmento", exact: true })
     .first()
     .click();
-  await state(page);
-  await page
-    .getByRole("navigation", { name: "Biblioteca", exact: true })
-    .getByRole("button", { name: /^Borrador/ })
-    .click();
+  const before = await state(page);
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
   await page.clock.pauseAt(new Date("2026-01-01T00:00:01Z"));
   const save = page.getByRole("button", {
-    name: "Guardar versión",
+    name: "Guardar ruta",
     exact: true,
   });
   const notice = page.locator(".notice");
   await save.click();
-  await expect(notice).toContainText("Versión del proyecto guardada");
+  await expect(notice).toContainText("Nueva ruta guardada en la biblioteca.");
   await page.clock.runFor(4999);
   await expect(notice).toBeVisible();
   await page.clock.runFor(1);
@@ -181,4 +186,8 @@ test("avisos: cinco segundos, reinicio al repetir y cierre manual", async ({
   await save.click();
   await page.getByRole("button", { name: "Cerrar aviso", exact: true }).click();
   await expect(notice).toHaveCount(0);
+  const after = await state(page);
+  expect(after.routes).toHaveLength(before.routes.length + 4);
+  expect(after.routes.slice(0, before.routes.length)).toEqual(before.routes);
+  expect(after.draft).toEqual(before.draft);
 });
