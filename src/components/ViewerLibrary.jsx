@@ -84,46 +84,41 @@ export function ViewerLibrary({
                 {metrics.km.toFixed(2)} km ·{" "}
                 <span title="Desnivel positivo acumulado">
                   ↗ {metrics.ascent} m subida
-                </span>{" "}
-                ·{" "}
-                <span title="Desnivel negativo acumulado">
-                  ↘ {metrics.descent} m bajada
                 </span>
                 {metrics.missing > 0 && <small> · elevación parcial</small>}
               </span>
-              <div className="catalog-actions viewer-catalog-actions">
-                <button
-                  className="send-to-editor"
-                  title={`Enviar una copia de ${item.name} al editor`}
-                  onClick={() => onSend(item)}
-                >
-                  Enviar al editor
-                </button>
-                {selected && (
-                  <>
-                    <button
-                      aria-label={`Editar nombre de ${item.name}`}
-                      onClick={() => onRename(item)}
-                    >
-                      Editar nombre
-                    </button>
-                    <button
-                      aria-label={`Borrar ${item.name}`}
-                      onClick={() => onDelete(item)}
-                    >
-                      Borrar
-                    </button>
-                    <button
-                      className="download-gpx-icon"
-                      aria-label="Descargar GPX"
-                      title={`Descargar GPX de ${item.name}`}
-                      onClick={() => onDownload(item)}
-                    >
-                      <ToolIcon name="export" />
-                    </button>
-                  </>
-                )}
-              </div>
+              {selected && (
+                <div className="catalog-actions viewer-catalog-actions">
+                  <button
+                    className="send-to-editor"
+                    title={`Enviar una copia de ${item.name} al editor`}
+                    onClick={() => onSend(item)}
+                  >
+                    Enviar al editor
+                  </button>
+
+                  <button
+                    aria-label={`Editar nombre de ${item.name}`}
+                    onClick={() => onRename(item)}
+                  >
+                    Editar nombre
+                  </button>
+                  <button
+                    aria-label={`Borrar ${item.name}`}
+                    onClick={() => onDelete(item)}
+                  >
+                    Borrar
+                  </button>
+                  <button
+                    className="download-gpx-icon"
+                    aria-label="Descargar GPX"
+                    title={`Descargar GPX de ${item.name}`}
+                    onClick={() => onDownload(item)}
+                  >
+                    <ToolIcon name="export" />
+                  </button>
+                </div>
+              )}
             </article>
           );
         })}

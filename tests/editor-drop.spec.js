@@ -49,6 +49,11 @@ for (const width of [1440, 390]) {
     await page
       .locator(".viewer-route-card")
       .first()
+      .getByRole("checkbox")
+      .check();
+    await page
+      .locator(".viewer-route-card")
+      .first()
       .getByRole("button", { name: "Enviar al editor", exact: true })
       .click();
     const before = await state(page);

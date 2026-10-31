@@ -1,5 +1,9 @@
 # Progreso
 
+## Fichas sin bajada y acciones solo al seleccionar
+
+Las fichas de rutas y segmentos del visor muestran nombre, distancia y desnivel positivo, sin bajada. Enviar al editor aparece únicamente al seleccionar, en la misma fila que editar nombre, borrar y descargar GPX. Sin selección no se reserva fila de acciones. Envío por popup conservado. Verificado con lint/build y 102 pruebas Chrome, incluidas selección/deselección, alineación móvil/escritorio, copias independientes y conservación de originales.
+
 ## Nombres y referencias sobre PNOA
 
 Verificación final: lint/build correctos y 102 pruebas Chrome aprobadas, incluidas cartografías reales y conservación de originales.

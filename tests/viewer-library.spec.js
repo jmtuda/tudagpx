@@ -73,12 +73,17 @@ for (const width of [1440, 390]) {
     for (const kind of ["route", "segment"]) {
       await category(page, kind);
       const card = page.locator(`.viewer-route-card[data-kind="${kind}"]`);
-      await expect(card.getByRole("button")).toHaveCount(1);
+      await expect(card.getByRole("button")).toHaveCount(0);
+      await expect(card).not.toContainText("bajada");
+      await expect(
+        card.getByRole("button", { name: "Enviar al editor", exact: true }),
+      ).toHaveCount(0);
+      await card.getByRole("checkbox").check();
+      await expect(card.getByRole("button")).toHaveCount(4);
       await expect(
         card.getByRole("button", { name: "Enviar al editor", exact: true }),
       ).toBeVisible();
-      await card.getByRole("checkbox").check();
-      await expect(card.getByRole("button")).toHaveCount(4);
+      await expect(card).not.toContainText("bajada");
       await expect(
         card
           .getByRole("button", { name: "Descargar GPX", exact: true })
@@ -140,6 +145,7 @@ for (const width of [1440, 390]) {
     for (const kind of ["route", "segment"]) {
       await category(page, kind);
       const card = page.locator(`.viewer-route-card[data-kind="${kind}"]`);
+      await card.getByRole("checkbox").check();
       await card
         .getByRole("button", { name: "Enviar al editor", exact: true })
         .click();

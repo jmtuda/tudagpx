@@ -28,6 +28,7 @@ export async function sendLibraryItem(page, kind = "segment", index = 0, name) {
   const card = name
     ? cards.filter({ has: page.getByRole("heading", { name, exact: true }) })
     : cards.nth(index);
+  await card.getByRole("checkbox").check();
   await card
     .getByRole("button", { name: "Enviar al editor", exact: true })
     .click();

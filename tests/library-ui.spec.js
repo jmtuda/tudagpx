@@ -91,7 +91,8 @@ for (const width of [1440, 390]) {
     await expect(nav.getByRole("button")).toHaveCount(2);
     await nav.getByRole("button", { name: /^Rutas/ }).click();
     await expect(firstCard.locator(".profile")).toHaveCount(0);
-    await expect(firstCard).toContainText("bajada");
+    await expect(firstCard).not.toContainText("bajada");
+    await expect(firstCard).toContainText("subida");
     await expect(page.getByLabel("Buscar rutas por nombre")).toBeHidden();
     expect((await filters.boundingBox()).height).toBe(viewHeight);
     expect(

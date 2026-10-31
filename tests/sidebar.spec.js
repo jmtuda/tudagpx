@@ -55,12 +55,12 @@ for (const width of [1440, 390]) {
     await expect(card.locator(".profile")).toHaveCount(0);
     await expect(card.locator(".tags")).toHaveCount(0);
     await expect(card.locator(".card-actions")).toHaveCount(0);
-    await expect(card.getByRole("button")).toHaveCount(1);
+    await expect(card.getByRole("button")).toHaveCount(0);
     await expect(
       card.getByRole("button", { name: "Enviar al editor", exact: true }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     await expect(card).toContainText("subida");
-    await expect(card).toContainText("bajada");
+    await expect(card).not.toContainText("bajada");
     await card.getByRole("checkbox").check();
     const actions = card.locator(".catalog-actions");
     await expect(actions.getByRole("button")).toHaveCount(4);
@@ -86,10 +86,10 @@ for (const width of [1440, 390]) {
     expect(Math.max(...boxes) - Math.min(...boxes)).toBeLessThanOrEqual(1);
     await card.getByRole("checkbox").uncheck();
     await expect(card.locator(".card-actions")).toHaveCount(0);
-    await expect(card.getByRole("button")).toHaveCount(1);
+    await expect(card.getByRole("button")).toHaveCount(0);
     await expect(
       card.getByRole("button", { name: "Enviar al editor", exact: true }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     await page.getByText(/Buscar y filtrar rutas/).click();
     await page.getByLabel("Buscar rutas por nombre").fill("no coincide");
     await expect(page.locator(".viewer-route-card")).toHaveCount(0);

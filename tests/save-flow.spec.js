@@ -11,7 +11,7 @@ async function state(page) {
   );
 }
 for (const width of [1440, 390]) {
-  test(`visor envío permanente y tres acciones en línea al seleccionar ${width}`, async ({
+  test(`visor muestra cuatro acciones solo al seleccionar ${width}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 950 });
@@ -21,10 +21,10 @@ for (const width of [1440, 390]) {
     const card = page.locator(".viewer-route-card").last();
     const check = card.getByRole("checkbox");
     await check.uncheck();
-    await expect(card.getByRole("button")).toHaveCount(1);
+    await expect(card.getByRole("button")).toHaveCount(0);
     await expect(
       card.getByRole("button", { name: "Enviar al editor", exact: true }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     await check.check();
     expect(await card.getByRole("button").allTextContents()).toEqual([
       "Enviar al editor",
