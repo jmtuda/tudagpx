@@ -1,5 +1,9 @@
 # Progreso
 
+## Extremos unificados entre visor y editor
+
+Rutas y segmentos del editor usan exactamente la misma fábrica de iconos que Ver rutas: inicio verde con play blanco y final rojo. Las anclas de los extremos siguen siendo arrastrables y mantienen el menú de puntos, sin ocultar el símbolo con un círculo de edición. El recorte también usa los iconos compartidos, sin textos permanentes Inicio/Final. Se mantiene la separación de extremos coincidentes en circulares. Iconos arrastrables memoizados para que las vistas previas no reinicien el gesto.
+
 ## Guardado automático y simplificación final de controles
 
 En el visor, fichas sin botones si no están seleccionadas; al seleccionar solo Editar nombre, Borrar y Descargar GPX en una línea. Transferencia al editor conservada en el popup del mapa. Descarga conserva los bytes originales.

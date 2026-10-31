@@ -3,6 +3,7 @@ import { Marker, Polyline, Popup, Tooltip, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { anchorIndices, nearestOnTrace } from "../utils/editorGeometry";
 import { TraceEndpoints } from "./TraceEndpoints";
+import { traceEndpointIcon } from "../utils/traceEndpointIcon";
 const positions = (points) => points.map((p) => [p.lat, p.lon]);
 const icon = (className, html = "", size = 16) =>
   L.divIcon({
@@ -13,8 +14,7 @@ const icon = (className, html = "", size = 16) =>
   });
 const anchorIcon = icon("point-handle anchor-handle");
 const selectedIcon = icon("point-handle anchor-handle selected-anchor");
-const startIcon = icon("point-handle anchor-handle start-anchor");
-const endIcon = icon("point-handle anchor-handle end-anchor");
+
 const insertIcon = icon("insert-handle", "+", 14);
 const scissorsIcon = icon("scissors-handle", "✂", 24);
 
@@ -69,6 +69,23 @@ export function DirectTrace({
       : element.points.map((p, i) => (i === preview.index ? preview.point : p))
     : element.points;
   const isCrop = active && editing && mode === "crop";
+  const editableAnchors = active && editing && mode === "edit";
+  const circular =
+    element.points.length > 1 &&
+    element.points[0].lat === element.points.at(-1).lat &&
+    element.points[0].lon === element.points.at(-1).lon;
+  const endpoints = useMemo(
+    () => ({
+      start: traceEndpointIcon(
+        "start",
+        `Inicio de ${element.name}`,
+        circular,
+        true,
+      ),
+      end: traceEndpointIcon("end", `Final de ${element.name}`, circular, true),
+    }),
+    [element.name, circular],
+  );
   const from = crop?.start ?? 0,
     to = crop?.end ?? element.points.length - 1;
   const act = (action, index) => {
@@ -148,7 +165,7 @@ export function DirectTrace({
           {editing ? " · pulsa para editar" : ""}
         </Tooltip>
       </Polyline>
-      {showDirection && !isCrop && (
+      {showDirection && !isCrop && !editableAnchors && (
         <TraceEndpoints points={visualPoints} name={element.name} />
       )}
       {isCrop && element.points.length > 1 && (
@@ -163,18 +180,10 @@ export function DirectTrace({
               className: "crop-line",
             }}
           />
-          {[from, to].map((index, i) => (
-            <Marker
-              key={`crop-${i}`}
-              position={[element.points[index].lat, element.points[index].lon]}
-              icon={i ? endIcon : startIcon}
-              interactive={false}
-            >
-              <Tooltip permanent direction={i ? "right" : "left"}>
-                {i ? "Final" : "Inicio"}
-              </Tooltip>
-            </Marker>
-          ))}
+          <TraceEndpoints
+            points={element.points.slice(from, to + 1)}
+            name={element.name}
+          />
         </>
       )}
       {active &&
@@ -190,12 +199,12 @@ export function DirectTrace({
               key={`anchor-${index}`}
               position={[p.lat, p.lon]}
               icon={
-                index === pointIndex
-                  ? selectedIcon
-                  : index === 0
-                    ? startIcon
-                    : index === element.points.length - 1
-                      ? endIcon
+                index === 0
+                  ? endpoints.start
+                  : index === element.points.length - 1
+                    ? endpoints.end
+                    : index === pointIndex
+                      ? selectedIcon
                       : anchorIcon
               }
               draggable={!busy}

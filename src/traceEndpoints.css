@@ -16,3 +16,20 @@
   background: #c13030;
   border-radius: 4px;
 }
+.trace-endpoint.endpoint-handle {
+  border: 3px solid white;
+  border-radius: 4px;
+  box-shadow: 0 1px 5px #0008;
+  pointer-events: auto !important;
+  cursor: grab;
+}
+.endpoint-handle > span {
+  pointer-events: none;
+  user-select: none;
+}
+.trace-start.endpoint-handle {
+  background: #007d49;
+}
+.trace-end.endpoint-handle {
+  background: #c13030;
+}
