@@ -171,6 +171,7 @@ for (const width of [1440, 390]) {
       .click();
     await state(page);
     await page.reload();
+    await page.getByRole("tab", { name: "Editar", exact: true }).click();
     await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(0);
     expect((await state(page)).routes).toEqual(saved.routes);
   });

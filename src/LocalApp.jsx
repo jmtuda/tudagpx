@@ -37,16 +37,13 @@ const toggle = (items, id) =>
   items.includes(id) ? items.filter((x) => x !== id) : [...items, id];
 
 export default function LocalApp({ onLogout }) {
-  const [workspace, setWorkspace] = useState(() =>
-    localStorage.getItem("tudagpx-workspace") === "edit" ? "edit" : "view",
-  );
+  const [workspace, setWorkspace] = useState("view");
   const [routeFilters, setRouteFilters] = useState({ ...emptyRouteFilters });
   function switchWorkspace(value) {
     cancelRouting();
     setDrawing(false);
     setIssues(null);
     setWorkspace(value);
-    localStorage.setItem("tudagpx-workspace", value);
   }
   const [routing, setRouting] = useState(
     () => localStorage.getItem("tudagpx-routing-mode-v3") !== "free",
@@ -256,7 +253,7 @@ export default function LocalApp({ onLogout }) {
     event.target.value = "";
     await importRouteFiles(files);
   }
-  async function importRouteFiles(files) {
+  async function importRouteFiles(files, editorOnly = false) {
     if (importing) return;
     if (!files.length) return;
     setImporting(true);
@@ -272,14 +269,21 @@ export default function LocalApp({ onLogout }) {
       }
     }
     if (routes.length) {
-      update((d) => ({ ...d, routes: [...d.routes, ...routes] }));
-      setVisibleRoutes((v) => [...v, ...routes.map((r) => r.id)]);
-      setTab("routes");
-      switchWorkspace("view");
+      if (editorOnly) {
+        const copies = routes.flatMap((route) => editorCopies(route, false));
+        edit((draft) => [...draft, ...copies]);
+        selectElement(copies[0].id);
+        setTool("edit");
+      } else {
+        update((d) => ({ ...d, routes: [...d.routes, ...routes] }));
+        setVisibleRoutes((v) => [...v, ...routes.map((r) => r.id)]);
+        setTab("routes");
+        switchWorkspace("view");
+      }
       focusPoints(routes.flatMap((r) => r.tracks.flat()));
     }
     setNotice(
-      `${routes.length} GPX importados; originales conservados.${errors.length ? " " + errors.join(" ") : ""}`,
+      `${editorOnly ? `${routes.length} GPX abiertos solo en el editor; no se han añadido a la biblioteca.` : `${routes.length} GPX importados; originales conservados.`}${errors.length ? " " + errors.join(" ") : ""}`,
     );
     setImporting(false);
   }
@@ -394,15 +398,17 @@ export default function LocalApp({ onLogout }) {
       }
     }
   }
-  function editorCopies(route) {
+  function editorCopies(route, linked = true) {
     const editorRouteId = uid();
     return route.tracks.map((points, i) => ({
       id: uid(),
       name: route.name + (route.tracks.length > 1 ? ` · tramo ${i + 1}` : ""),
       points: clone(points),
-      ...(route.kind === "segment"
-        ? { sourceId: route.id }
-        : { sourceRouteId: route.id }),
+      ...(linked
+        ? route.kind === "segment"
+          ? { sourceId: route.id }
+          : { sourceRouteId: route.id }
+        : {}),
       editorRouteId,
       editorRouteName: route.name,
     }));
@@ -895,7 +901,9 @@ export default function LocalApp({ onLogout }) {
             onToggleRoute={(id) =>
               setVisibleRoutes((routes) => toggle(routes, id))
             }
-            onDropFiles={importRouteFiles}
+            onDropFiles={(files) =>
+              importRouteFiles(files, workspace === "edit")
+            }
             importing={importing}
             onCenterSelection={() =>
               focusPoints(

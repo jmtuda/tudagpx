@@ -41,6 +41,7 @@ async function seed(page, gaps = false) {
     await store.saveWorkspace(d);
   }, gaps);
   await page.reload();
+  await page.getByRole("tab", { name: "Editar", exact: true }).click();
   await expect(files(page).getByRole("tab")).toHaveCount(3);
   return state(page);
 }
@@ -82,6 +83,7 @@ for (const modifier of ["Control", "Meta"]) {
     await page.getByRole("button", { name: "↷ Rehacer", exact: true }).click();
     expect((await state(page)).draft).toEqual(merged.draft);
     await page.reload();
+    await page.getByRole("tab", { name: "Editar", exact: true }).click();
     expect((await state(page)).draft).toEqual(merged.draft);
     await expect(files(page).getByRole("tab")).toHaveCount(1);
   });

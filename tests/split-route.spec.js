@@ -90,6 +90,7 @@ for (const width of [1440, 390]) {
     await page.getByRole("button", { name: "↷ Rehacer", exact: true }).click();
     expect((await state(page)).draft).toEqual(split.draft);
     await page.reload();
+    await page.getByRole("tab", { name: "Editar", exact: true }).click();
     expect((await state(page)).draft).toEqual(split.draft);
     await expect(files.getByRole("tab")).toHaveCount(2);
   });

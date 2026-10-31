@@ -70,7 +70,12 @@ for (const viewport of [
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
     await expect(page.locator("path.viewer-route")).toHaveCount(0);
     await expect(page.locator("path.draft-line")).toHaveCount(0);
-    await expect(page.getByText(/Ninguna ruta cargada/)).toBeVisible();
+    await expect(
+      page.getByText(
+        "Usa «Enviar al editor» desde «Ver rutas» o arrastra aquí un GPX.",
+        { exact: true },
+      ),
+    ).toBeVisible();
     await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
     await sendViewerRoute(page, -1);
     expect((await state(page)).draft).toHaveLength(2);

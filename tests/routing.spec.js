@@ -208,6 +208,7 @@ test("crear un track por caminos con clics reales y recuperarlo al recargar", as
   const data = await state(page);
   expect(data.draft.at(-1).points.length).toBeGreaterThan(2);
   await page.reload();
+  await page.getByRole("tab", { name: "Editar", exact: true }).click();
   expect((await state(page)).draft).toEqual(data.draft);
   await expect(
     page.getByLabel("Seguir caminos", { exact: true }),

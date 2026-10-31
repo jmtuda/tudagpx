@@ -173,6 +173,13 @@ for (const width of [1440, 390]) {
     expect(repeated[2].editorRouteId).not.toBe(copies[1].editorRouteId);
     await page.reload();
     expect((await state(page)).draft).toEqual(repeated);
+    await expect(
+      page.getByRole("tab", { name: "Ver rutas", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator("path.draft-line, .anchor-handle")).toHaveCount(
+      0,
+    );
+    await page.getByRole("tab", { name: "Editar", exact: true }).click();
     await expect(page.locator("#library-panel")).toHaveCount(0);
   });
 }
@@ -207,7 +214,7 @@ for (const kind of ["route", "segment"]) {
   });
 }
 for (const method of ["input", "drop"]) {
-  test(`importación ${method} desde editor pasa a biblioteca sin cargar trazados`, async ({
+  test(`importación ${method} desde editor ${method === "input" ? "pasa a biblioteca sin cargar trazados" : "abre solo copias de trabajo"}`, async ({
     page,
   }) => {
     await seed(page);
@@ -239,13 +246,29 @@ for (const method of ["input", "drop"]) {
       await transfer.dispose();
     }
     await expect(
-      page.getByRole("tab", { name: "Ver rutas", exact: true }),
+      page.getByRole("tab", {
+        name: method === "input" ? "Ver rutas" : "Editar",
+        exact: true,
+      }),
     ).toHaveAttribute("aria-selected", "true");
     const after = await state(page);
-    expect(after.draft).toEqual(before.draft);
-    expect(after.routes).toHaveLength(before.routes.length + 1);
-    await expect(page.locator("#library-panel")).toBeVisible();
-    await page.getByRole("tab", { name: "Editar", exact: true }).click();
-    await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(0);
+    expect(after.segments).toEqual(before.segments);
+    if (method === "input") {
+      expect(after.draft).toEqual(before.draft);
+      expect(after.routes).toHaveLength(before.routes.length + 1);
+      await expect(page.locator("#library-panel")).toBeVisible();
+      await page.getByRole("tab", { name: "Editar", exact: true }).click();
+      await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(0);
+    } else {
+      expect(after.routes).toEqual(before.routes);
+      expect(after.draft).toHaveLength(before.draft.length + 1);
+      expect(after.draft.at(-1).points).toEqual([
+        { lat: 40.75, lon: -3.98, ele: null },
+        { lat: 40.76, lon: -3.97, ele: null },
+      ]);
+      expect(after.draft.at(-1).sourceRouteId).toBeFalsy();
+      await expect(page.locator("#library-panel")).toHaveCount(0);
+      await expect(page.locator("path.draft-line")).toHaveCount(1);
+    }
   });
 }

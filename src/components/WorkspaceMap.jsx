@@ -202,7 +202,9 @@ export function WorkspaceMap({
     >
       {dropping && (
         <div className="map-drop-hint" role="status">
-          Suelta uno o varios archivos GPX para importarlos
+          {viewing
+            ? "Suelta uno o varios archivos GPX para importarlos"
+            : "Suelta uno o varios archivos GPX para abrirlos solo en el editor"}
         </div>
       )}
       <MapContainer

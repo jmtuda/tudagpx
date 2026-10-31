@@ -117,7 +117,7 @@ export function EditorTraceTabs({
         </div>
       ) : (
         <span className="loaded-empty">
-          Ninguna ruta cargada. Usa «Enviar al editor» desde «Ver rutas».
+          Usa «Enviar al editor» desde «Ver rutas» o arrastra aquí un GPX.
         </span>
       )}
     </div>

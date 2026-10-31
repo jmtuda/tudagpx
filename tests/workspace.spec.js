@@ -12,6 +12,10 @@ test.beforeEach(async ({ page }) => {
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
 const ready = async (page) => {
   await page.goto("/");
+  await expect(
+    page.getByRole("tab", { name: "Ver rutas", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "Editar", exact: true }).click();
   await pinLibraries(page);
   await expect(
     page.getByRole("tab", { name: "Editar", exact: true }),
@@ -322,6 +326,7 @@ test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia
     return data;
   });
   await page.reload();
+  await page.getByRole("tab", { name: "Editar", exact: true }).click();
   await pinLibraries(page);
   expect(await state(page)).toEqual(legacy);
   await expect(
@@ -601,6 +606,7 @@ test("borrador vacío recuperable y exportación incompleta bloqueada", async ({
   expect(before.draft).toHaveLength(1);
   expect(before.draft[0].points).toEqual([]);
   await page.reload();
+  await page.getByRole("tab", { name: "Editar", exact: true }).click();
   await pinLibraries(page);
   expect((await state(page)).draft).toEqual(before.draft);
   expect((await state(page)).draft).toHaveLength(1);

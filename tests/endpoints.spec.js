@@ -25,6 +25,7 @@ for (const width of [1440, 390]) {
       await store.saveWorkspace(d);
     });
     await page.reload();
+    await page.getByRole("tab", { name: "Editar", exact: true }).click();
     await pinLibraries(page);
     const tabs = page.getByRole("tablist", {
       name: "Rutas cargadas en el editor",

@@ -1,5 +1,13 @@
 # Progreso
 
+## Inicio en visor y GPX externos del editor
+
+Al abrir o recargar se inicia siempre en Ver rutas, ignorando la preferencia anterior de pestaña y sin borrar el trabajo previo. Al volver a Editar se recupera el borrador.
+
+Arrastrar uno o varios GPX sobre el editor abre copias agrupadas por archivo solo en draft. No añade originales ni segmentos a biblioteca, no crea sourceRouteId/sourceId inexistentes y no modifica el archivo del ordenador. Se añade al trabajo existente en una operación deshacible. Guardado automático protege ese trabajo sin catalogarlo; Guardar ruta/segmento lo incorpora expresamente tras validar y nombrar. El botón Importar GPX y el drop del visor conservan su importación a biblioteca. Aviso de drop diferencia ambos destinos; errores conservan datos y un lote mixto abre solo archivos válidos.
+
+Verificado con lint/build y 100 pruebas Chrome correctas. Incluye arranque pese a antigua preferencia Editar, recuperación tras recargar, múltiples GPX/tramos sin catalogar ni recalcular por BRouter al abrir, conservación del trabajo previo, deshacer/rehacer del lote, archivos inválidos/lotes mixtos y guardado explícito como ruta/segmento. Bytes del archivo de prueba intactos; capturas móvil/escritorio del editor revisadas.
+
 ## Biblioteca fija del visor y transferencia única
 
 La biblioteca de Ver rutas queda fija con selector Rutas/Segmentos; en móvil permanece visible debajo del mapa. Retirados dock/hover/fijación/cierre y botones de centrar/quitar selección. Un botón de diana en el mapa encuadra toda la selección, independiente de categoría y filtros. Rutas y segmentos comparten representación, perfiles y colores en el visor.

@@ -30,7 +30,12 @@ for (const viewport of [
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
     await expect(page.locator("path.viewer-route")).toHaveCount(0);
     await expect(page.locator("path.draft-line")).toHaveCount(0);
-    await expect(page.getByText(/Ninguna ruta cargada/)).toBeVisible();
+    await expect(
+      page.getByText(
+        "Usa «Enviar al editor» desde «Ver rutas» o arrastra aquí un GPX.",
+        { exact: true },
+      ),
+    ).toBeVisible();
     await expect(
       page.getByRole("navigation", { name: "Biblioteca", exact: true }),
     ).toHaveCount(0);
@@ -107,6 +112,12 @@ for (const viewport of [
       }),
     ).toBeChecked();
     await page.reload();
+    await expect(
+      page.getByRole("tab", { name: "Ver rutas", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator("path.draft-line, .anchor-handle")).toHaveCount(
+      0,
+    );
     expect((await savedState(page)).draft).toEqual(moved.draft);
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
     await expect(files.getByRole("tab")).toHaveCount(2);
@@ -138,11 +149,17 @@ for (const viewport of [
         exact: true,
       })
       .click();
-    await expect(page.getByText(/Ninguna ruta cargada/)).toBeVisible();
+    await expect(
+      page.getByText(
+        "Usa «Enviar al editor» desde «Ver rutas» o arrastra aquí un GPX.",
+        { exact: true },
+      ),
+    ).toBeVisible();
     await expect(page.locator("path.draft-line")).toHaveCount(0);
     await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(0);
     await expect(page.locator(".anchor-handle, .insert-handle")).toHaveCount(0);
     await page.reload();
+    await page.getByRole("tab", { name: "Editar", exact: true }).click();
     expect((await savedState(page)).draft).toEqual([]);
     await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(0);
     await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
@@ -157,7 +174,7 @@ for (const viewport of [
   });
 }
 
-test("importar en editor selecciona biblioteca sin cargar copias hasta envío explícito", async ({
+test("Importar GPX de cabecera desde editor selecciona biblioteca sin cargar copias hasta envío explícito", async ({
   page,
 }) => {
   await page.goto("/");

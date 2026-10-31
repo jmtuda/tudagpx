@@ -1,4 +1,3 @@
-import { sendViewerRoute } from "./helpers/library";
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url);
@@ -10,7 +9,7 @@ async function state(page) {
     (await import("/src/utils/localStore.js")).loadWorkspace(),
   );
 }
-async function drop(page, files) {
+async function drop(page, files, editor = false) {
   const transfer = await page.evaluateHandle((entries) => {
     const result = new DataTransfer();
     for (const entry of entries)
@@ -26,7 +25,11 @@ async function drop(page, files) {
   const map = page.locator(".workspace-map");
   await map.dispatchEvent("dragover", { dataTransfer: transfer });
   await expect(
-    page.getByText("Suelta uno o varios archivos GPX para importarlos"),
+    page.getByText(
+      editor
+        ? "Suelta uno o varios archivos GPX para abrirlos solo en el editor"
+        : "Suelta uno o varios archivos GPX para importarlos",
+    ),
   ).toBeVisible();
   await map.dispatchEvent("drop", { dataTransfer: transfer });
   await expect(page.locator(".map-drop-hint")).toHaveCount(0);
@@ -46,25 +49,36 @@ test("arrastrar uno o varios GPX al visor y editor conserva originales e indepen
   expect(saved.draft).toEqual(before.draft);
   await expect(page.locator("path.viewer-route-selected")).toHaveCount(1);
   await page.getByRole("tab", { name: "Editar", exact: true }).click();
-  await drop(page, [
-    { name: "segunda.gpx", base64 },
-    { name: "tercera.gpx", base64 },
-  ]);
-  saved = await state(page);
-  expect(saved.routes.length).toBe(before.routes.length + 3);
-  expect(saved.draft).toEqual(before.draft);
-  await expect(
-    page.getByRole("tab", { name: "Ver rutas", exact: true }),
-  ).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("path.viewer-route-selected")).toHaveCount(3);
-  await sendViewerRoute(page, -2);
-  await sendViewerRoute(page, -1);
-  saved = await state(page);
-  expect(saved.draft).toHaveLength(4);
-  expect(new Set(saved.draft.map((e) => e.editorRouteId)).size).toBe(2);
-  expect(saved.routes.slice(-2).every((r) => r.originalBase64 === base64)).toBe(
+  const libraryAfterImport = saved;
+  await drop(
+    page,
+    [
+      { name: "segunda.gpx", base64 },
+      { name: "tercera.gpx", base64 },
+    ],
     true,
   );
+  saved = await state(page);
+  expect(saved.routes).toEqual(libraryAfterImport.routes);
+  expect(saved.segments).toEqual(before.segments);
+  expect(saved.routes.at(-1).originalBase64).toBe(base64);
+  await expect(
+    page.getByRole("tab", { name: "Editar", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  expect(saved.draft).toHaveLength(4);
+  expect(new Set(saved.draft.map((e) => e.editorRouteId)).size).toBe(2);
+  for (const group of [...new Set(saved.draft.map((e) => e.editorRouteId))]) {
+    const copies = saved.draft.filter((e) => e.editorRouteId === group);
+    expect(copies.map((e) => e.points)).toEqual(
+      libraryAfterImport.routes.at(-1).tracks,
+    );
+    expect(copies.every((e) => !e.sourceRouteId)).toBe(true);
+  }
+  await page.getByRole("button", { name: "↶ Deshacer", exact: true }).click();
+  expect((await state(page)).draft).toEqual(before.draft);
+  expect((await state(page)).routes).toEqual(libraryAfterImport.routes);
+  await page.getByRole("button", { name: "↷ Rehacer", exact: true }).click();
+  expect((await state(page)).draft).toEqual(saved.draft);
   await expect(
     page
       .getByRole("tablist", { name: "Rutas cargadas en el editor" })
@@ -74,7 +88,7 @@ test("arrastrar uno o varios GPX al visor y editor conserva originales e indepen
     page.locator("path.viewer-route-reference, path.viewer-route-selected"),
   ).toHaveCount(0);
   await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
-  await expect(page.locator("path.viewer-route-selected")).toHaveCount(3);
+  await expect(page.locator("path.viewer-route-selected")).toHaveCount(1);
   await page.reload();
   expect((await state(page)).draft).toEqual(saved.draft);
 });

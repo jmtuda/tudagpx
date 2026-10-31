@@ -85,6 +85,7 @@ test("reabrir una copia importada tras recargar activa sus puntos blancos", asyn
   await sendLibraryItem(page, "route", -1);
   const before = await state(page);
   await page.reload();
+  await page.getByRole("tab", { name: "Editar", exact: true }).click();
   await expect(page.locator(".anchor-handle")).toHaveCount(4);
   await expect(
     page.getByRole("button", { name: "Editar trazado", exact: true }),
@@ -158,6 +159,7 @@ test("recorte visual reversible y creación directa de segmento sin cambiar borr
   await page.keyboard.press("Control+Shift+z");
   expect((await state(page)).draft[0].points).toEqual(original.slice(1, 3));
   await page.reload();
+  await page.getByRole("tab", { name: "Editar", exact: true }).click();
   await pinLibraries(page);
   expect((await state(page)).draft[0].points).toEqual(original.slice(1, 3));
 });

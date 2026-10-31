@@ -258,6 +258,7 @@ test("un trazado sin recorrido se bloquea antes de guardar o exportar; trabajo e
     await store.saveWorkspace(d);
   });
   await page.reload();
+  await page.getByRole("tab", { name: "Editar", exact: true }).click();
   const before = await state(page);
   const dialog = page.getByRole("dialog", {
     name: "Revisión GPX",
