@@ -18,9 +18,9 @@ Al prolongar el track calcula desde el último extremo; al arrastrar o insertar 
 
 El indicador «Calculando por caminos…» permite cancelar, incluido el registro inicial del perfil. Una petición fallida o cancelada deja el recorrido intacto, sin fallback a rectas. Un resultado aceptado se puede deshacer como un único gesto. Cambiar caminos/libre no reescribe automáticamente lo ya dibujado.
 
-Importar GPX → Rutas → Editar copia. No hace falta crear antes segmentos intermedios. Alternativamente, añadir una referencia de la biblioteca al borrador o abrir «Editar rutas» sobre el mapa.
+Importar GPX → Ver rutas → Rutas → Enviar al editor. El visor tiene biblioteca fija con Rutas/Segmentos. Cada ficha y el popup de su línea ofrecen Enviar al editor; es la única carga de originales al editor. No hace falta crear segmentos intermedios. El editor no tiene biblioteca lateral ni referencias cargables con un clic.
 
-La selección del visor es independiente: solo se dibuja en ese módulo. «Enviar al editor» en una ficha del visor crea copias y abre el editor de forma explícita. El editor no tiene controles que modifiquen las superposiciones del visor; importar desde allí conserva el original sin activar su capa en el visor.
+La selección de rutas/segmentos del visor es independiente y solo se dibuja allí, con perfiles y colores comunes. El botón de diana sobre el mapa encuadra toda la selección aunque se cambie categoría o filtros. Enviar al editor siempre crea copias nuevas. Importar por botón o drop desde cualquier pestaña añade originales y abre el visor; no carga copias automáticamente. Recuperación del trabajo y dibujo nuevo conservados.
 
 Barra permanente de archivos al pie del mapa del editor, inspirada en la lista de gpx.studio: clic para seleccionar, flechas/Inicio/Fin para navegar y desplazamiento horizontal cuando no caben. Cada nueva copia de GPX conserva un editorRouteId propio compartido por sus tramos y editorRouteName para su etiqueta; el GPX multitramos no se une ni pierde geometría. Se selecciona su tramo actual o el primero; el selector «Trazado activo» mantiene acceso a los otros tramos. Borradores anteriores sin metadatos conservan pestañas por elemento sin migración destructiva. Una línea inactiva se selecciona antes de insertar o dividir: evita aplicar las tijeras accidentalmente a otra ruta.
 
@@ -32,7 +32,7 @@ Barra permanente de archivos al pie del mapa del editor, inspirada en la lista d
 - Deshacer/rehacer: botones y Ctrl/⌘ Z, Ctrl/⌘ Mayús Z. Un arrastre equivale a una operación, no a una por movimiento.
 - Unir trazados (cadena): selecciona el primer archivo en la barra inferior y añade otros con Ctrl/⌘ + clic. Los seleccionados quedan resaltados y numerados. La cadena los fusiona en ese orden y sentido en una única ruta/trazado; cada GPX multitramos aporta todos sus tramos en orden. Los extremos iguales no necesitan conexión. Los huecos siguen el mismo perfil all-paths, con cálculo permitido inicialmente, sin recalcular los tracks existentes ni usar rectas como alternativa ante un fallo. Se pueden guardar los resultados como ruta o segmento, cerrar y deshacer/rehacer. Un clic sin modificador vuelve a selección única; Ctrl/⌘ + clic sobre uno seleccionado lo quita de la selección.
 - Lápiz conmutador: pulsarlo cuando está activo desactiva la modificación por clic; pulsarlo otra vez reactiva las anclas. «Terminar dibujo» y Escape también desactivan la edición. El mapa se puede arrastrar sin un botón Mover mapa independiente.
-- La barra flota sobre el mapa sin añadir filas de cabecera. Sus opciones se minimizan con «−». El panel de biblioteca sigue siendo ocultable sin perder el borrador.
+- La barra flota sobre el mapa sin añadir filas de cabecera. No hay panel de biblioteca en el editor; el mapa dispone de todo el ancho. La biblioteca del visor permanece fija y no se oculta al salir con el cursor.
 
 ## Reglas técnicas que deben conservarse
 

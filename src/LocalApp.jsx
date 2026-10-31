@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { WorkspaceMap } from "./components/WorkspaceMap";
 import {
-  colors,
   uid,
   parseGPX,
-  stats,
-  inBounds,
   initialWorkspace,
   review,
   exportGPX,
@@ -26,10 +23,10 @@ import {
   orderedMergeElements,
   sameEndpoint,
 } from "./utils/mergeRoutes";
-import { RouteFilters } from "./components/RouteFilters";
+import { ViewerLibrary } from "./components/ViewerLibrary";
+import { viewerLibrary } from "./utils/viewerLibrary";
 import { SegmentNameDialog } from "./components/SegmentNameDialog";
-import { LibraryFilters } from "./components/LibraryFilters";
-import { emptyRouteFilters, filterRoutes } from "./utils/routeFilters";
+import { emptyRouteFilters } from "./utils/routeFilters";
 import "./workspace.css";
 import "./editor.css";
 import "./workspaceNavigation.css";
@@ -38,17 +35,7 @@ import "./dockInterface.css";
 const clone = (value) => structuredClone(value);
 const toggle = (items, id) =>
   items.includes(id) ? items.filter((x) => x !== id) : [...items, id];
-function Metrics({ tracks }) {
-  const s = stats(tracks);
-  return (
-    <span className="metrics">
-      {s.km.toFixed(2)} km{" "}
-      <span>
-        ↗ {s.ascent} m{s.missing ? " · elevación parcial" : ""}
-      </span>
-    </span>
-  );
-}
+
 export default function LocalApp({ onLogout }) {
   const [workspace, setWorkspace] = useState(() =>
     localStorage.getItem("tudagpx-workspace") === "edit" ? "edit" : "view",
@@ -56,7 +43,6 @@ export default function LocalApp({ onLogout }) {
   const [routeFilters, setRouteFilters] = useState({ ...emptyRouteFilters });
   function switchWorkspace(value) {
     cancelRouting();
-    setSidebarHover(false);
     setDrawing(false);
     setIssues(null);
     setWorkspace(value);
@@ -80,23 +66,15 @@ export default function LocalApp({ onLogout }) {
     setRouting(value);
     localStorage.setItem("tudagpx-routing-mode-v3", value ? "roads" : "free");
   }
-  const [sidebarHover, setSidebarHover] = useState(false);
-  const [sidebarPins, setSidebarPins] = useState({ view: false, edit: false });
-  const sidebarPinned = sidebarPins[workspace];
-  const sidebarOpen = sidebarHover || sidebarPinned;
+
   const [editorMode, setEditorMode] = useState("edit"),
     [crop, setCrop] = useState(null);
   const [data, setData] = useState(null),
     [fatal, setFatal] = useState(""),
     [saved, setSaved] = useState("Cargando…");
-  const [editorTab, setTab] = useState("segments"),
-    [query, setQuery] = useState("");
-  const tab = workspace === "view" ? "routes" : editorTab;
-  const [selected, setSelected] = useState([]),
-    [hidden, setHidden] = useState([]),
-    [visibleRoutes, setVisibleRoutes] = useState([]);
-  const [hover, setHover] = useState(null),
-    [bounds, setBounds] = useState(null),
+  const [tab, setTab] = useState("routes");
+  const [visibleRoutes, setVisibleRoutes] = useState([]);
+  const [bounds, setBounds] = useState(null),
     [focus, setFocus] = useState(null);
   const [active, setActive] = useState(null),
     [pointIndex, setPointIndex] = useState(0),
@@ -119,8 +97,7 @@ export default function LocalApp({ onLogout }) {
   const [segmentRequest, setSegmentRequest] = useState(null);
   const [routeRequest, setRouteRequest] = useState(null);
   const [outputRequest, setOutputRequest] = useState(null);
-  const [importing, setImporting] = useState(false),
-    [importKind, setImportKind] = useState("routes");
+  const [importing, setImporting] = useState(false);
   const fileInput = useRef(),
     backupInput = useRef(),
     queue = useRef(Promise.resolve()),
@@ -209,10 +186,7 @@ export default function LocalApp({ onLogout }) {
           : entry,
       ),
     }));
-    setSelected((ids) => ids.filter((id) => id !== item.id));
     setVisibleRoutes((ids) => ids.filter((id) => id !== item.id));
-    setHidden((ids) => ids.filter((id) => id !== item.id));
-    setHover(null);
     setNotice(
       "Elemento borrado de la biblioteca. Las copias abiertas y el historial se conservan.",
     );
@@ -273,54 +247,16 @@ export default function LocalApp({ onLogout }) {
     setIssues(null);
     setCrop(null);
   }
-  function addSegments(ids) {
-    switchWorkspace("edit");
-    const existing = data.draft.find((element) =>
-      ids.includes(element.sourceId),
-    );
-    const additions = data.segments
-      .filter(
-        (s) =>
-          !s.deletedAt &&
-          ids.includes(s.id) &&
-          !data.draft.some((element) => element.sourceId === s.id),
-      )
-      .map((s) => ({
-        id: uid(),
-        name: s.name,
-        points: clone(s.points),
-        sourceId: s.id,
-      }));
-    if (!additions.length) {
-      if (existing) {
-        selectElement(existing.id);
-        setTool("edit");
-        focusPoints(existing.points);
-      }
-      return;
-    }
-    edit([...data.draft, ...additions]);
-    setActive(additions[0].id);
-    setPointIndex(0);
-    setEditorMode("edit");
-    focusPoints(additions.flatMap((s) => s.points));
-    setNotice(
-      "Copias añadidas al borrador. Los segmentos originales no cambian.",
-    );
-  }
+
   function focusPoints(points) {
     setFocus({ id: uid(), points });
   }
   async function importFiles(event) {
     const files = [...event.target.files];
     event.target.value = "";
-    await importRouteFiles(files, importKind);
+    await importRouteFiles(files);
   }
-  async function importRouteFiles(
-    files,
-    kind = "routes",
-    loadInEditor = false,
-  ) {
+  async function importRouteFiles(files) {
     if (importing) return;
     if (!files.length) return;
     setImporting(true);
@@ -336,35 +272,10 @@ export default function LocalApp({ onLogout }) {
       }
     }
     if (routes.length) {
-      if (workspace === "edit" && kind === "segments") {
-        const additions = routes.flatMap((r) =>
-          r.tracks.map((points, i) => ({
-            id: uid(),
-            name: r.name + (r.tracks.length > 1 ? ` · tramo ${i + 1}` : ""),
-            points: clone(points),
-            sourceRouteId: r.id,
-          })),
-        );
-        update((d) => ({
-          ...d,
-          routes: [...d.routes, ...routes],
-          segments: [...d.segments, ...additions],
-        }));
-        setSelected((s) => [...s, ...additions.map((x) => x.id)]);
-        setTab("segments");
-      } else {
-        update((d) => ({ ...d, routes: [...d.routes, ...routes] }));
-        if (workspace === "view")
-          setVisibleRoutes((v) => [...v, ...routes.map((r) => r.id)]);
-        else if (loadInEditor) {
-          const copies = routes.flatMap(editorCopies);
-          edit((draft) => [...draft, ...copies]);
-          setActive(copies[0].id);
-          setPointIndex(0);
-          setEditorMode("edit");
-          setDrawing(false);
-        } else setTab("routes");
-      }
+      update((d) => ({ ...d, routes: [...d.routes, ...routes] }));
+      setVisibleRoutes((v) => [...v, ...routes.map((r) => r.id)]);
+      setTab("routes");
+      switchWorkspace("view");
       focusPoints(routes.flatMap((r) => r.tracks.flat()));
     }
     setNotice(
@@ -372,17 +283,7 @@ export default function LocalApp({ onLogout }) {
     );
     setImporting(false);
   }
-  function routeSegments(route) {
-    const additions = route.tracks.map((points, i) => ({
-      id: uid(),
-      name: `${route.name} · tramo ${i + 1}`,
-      points: clone(points),
-      sourceRouteId: route.id,
-    }));
-    requestOutput("segment", additions, route.name, () =>
-      setSegmentRequest({ segments: additions, select: true }),
-    );
-  }
+
   function startDraw() {
     switchWorkspace("edit");
     const e = {
@@ -499,7 +400,9 @@ export default function LocalApp({ onLogout }) {
       id: uid(),
       name: route.name + (route.tracks.length > 1 ? ` · tramo ${i + 1}` : ""),
       points: clone(points),
-      sourceRouteId: route.id,
+      ...(route.kind === "segment"
+        ? { sourceId: route.id }
+        : { sourceRouteId: route.id }),
       editorRouteId,
       editorRouteName: route.name,
     }));
@@ -517,10 +420,7 @@ export default function LocalApp({ onLogout }) {
       (e) => (e.editorRouteId || e.id) !== id,
     );
     edit(remaining);
-    if (!remaining.length) {
-      setSelected([]);
-      setHover(null);
-    }
+
     setDrawing(false);
     setEditorMode("view");
     if (!remaining.some((e) => e.id === active)) {
@@ -533,9 +433,6 @@ export default function LocalApp({ onLogout }) {
   }
   function clearEditor() {
     edit([]);
-    setSelected([]);
-    setHidden([]);
-    setHover(null);
     setActive(null);
     setPointIndex(0);
     setDrawing(false);
@@ -702,7 +599,7 @@ export default function LocalApp({ onLogout }) {
   function commitSegmentsUnchecked(segments, select = false) {
     update((data) => ({ ...data, segments: [...data.segments, ...segments] }));
     if (select) {
-      setSelected((previous) => [
+      setVisibleRoutes((previous) => [
         ...previous,
         ...segments.map((segment) => segment.id),
       ]);
@@ -840,17 +737,7 @@ export default function LocalApp({ onLogout }) {
     segments: data.segments.filter((s) => !s.deletedAt),
   };
 
-  const listSegments = catalog.segments.filter(
-    (s) =>
-      (inBounds(s.points, bounds) || selected.includes(s.id)) &&
-      s.name.toLowerCase().includes(query.toLowerCase()),
-  );
-  const routes =
-    workspace === "view"
-      ? filterRoutes(catalog.routes, routeFilters, bounds)
-      : catalog.routes.filter((r) =>
-          r.name.toLowerCase().includes(query.toLowerCase()),
-        );
+  const libraryItems = viewerLibrary(catalog);
   const cropRange =
     crop?.id === active
       ? crop
@@ -870,22 +757,7 @@ export default function LocalApp({ onLogout }) {
   };
   return (
     <div
-      className={`local-app dock-interface${sidebarOpen ? "" : " panel-hidden"}${sidebarPinned ? " sidebar-pinned" : ""}`}
-      onPointerMoveCapture={(event) => {
-        if (
-          event.pointerType === "mouse" &&
-          sidebarHover &&
-          !sidebarPinned &&
-          event.clientX >=
-            document.getElementById("library-panel").getBoundingClientRect()
-              .right
-        )
-          setSidebarHover(false);
-      }}
-      onPointerDown={(event) => {
-        if (!event.target.closest("#library-panel, .sidebar-edge"))
-          setSidebarHover(false);
-      }}
+      className={`local-app dock-interface ${workspace === "view" ? "viewer-library-fixed" : "editor-full-map panel-hidden"}`}
     >
       <header className="topbar">
         <div className="brand">
@@ -970,349 +842,50 @@ export default function LocalApp({ onLogout }) {
         role="tabpanel"
         aria-labelledby={`workspace-tab-${workspace}`}
       >
-        <button
-          className="sidebar-edge"
-          aria-label="Mostrar panel de rutas"
-          aria-controls="library-panel"
-          aria-expanded={sidebarOpen}
-          tabIndex={sidebarOpen ? -1 : 0}
-          title="Acerca el cursor o toca aquí para abrir las rutas"
-          onPointerEnter={(event) => {
-            if (event.pointerType === "mouse" && !event.buttons)
-              setSidebarHover(true);
-          }}
-          onFocus={() => setSidebarHover(true)}
-          onClick={() => setSidebarHover(true)}
-        >
-          <span aria-hidden="true">›</span>
-        </button>
-        <aside
-          id="library-panel"
-          className="sidebar"
-          hidden={!sidebarOpen}
-          onPointerLeave={(event) => {
-            if (event.pointerType === "mouse") setSidebarHover(false);
-          }}
-          onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget))
-              setSidebarHover(false);
-          }}
-        >
-          <div className="dock-controls">
-            {workspace === "view" ? (
-              <RouteFilters
-                value={routeFilters}
-                onChange={setRouteFilters}
-                count={routes.length}
-                total={catalog.routes.length}
-              />
-            ) : (
-              <LibraryFilters
-                query={query}
-                onQuery={setQuery}
-                importKind={importKind}
-                onImportKind={setImportKind}
-              />
-            )}
-            <button
-              aria-label={
-                sidebarPinned
-                  ? "Desfijar panel de rutas"
-                  : "Fijar panel de rutas"
-              }
-              aria-pressed={sidebarPinned}
-              onClick={() => {
-                setSidebarPins((p) => ({ ...p, [workspace]: !sidebarPinned }));
-                setSidebarHover(true);
-              }}
-              title={
-                sidebarPinned
-                  ? "Desfijar: se ocultará al salir"
-                  : "Mantener el panel abierto"
-              }
-            >
-              📌
-            </button>
-            <button
-              aria-label="Ocultar panel de rutas"
-              onClick={() => {
-                setSidebarPins((p) => ({ ...p, [workspace]: false }));
-                setSidebarHover(false);
-              }}
-            >
-              ‹
-            </button>
-          </div>
-          <div className="sidebar-top">
-            {workspace === "edit" && (
-              <nav aria-label="Biblioteca">
-                <button
-                  className={tab === "segments" ? "active" : ""}
-                  onClick={() => setTab("segments")}
-                >
-                  Segmentos <b>{catalog.segments.length}</b>
-                </button>
-                <button
-                  className={tab === "routes" ? "active" : ""}
-                  onClick={() => setTab("routes")}
-                >
-                  Rutas <b>{catalog.routes.length}</b>
-                </button>
-              </nav>
-            )}
-          </div>
-
-          <div className="panel-content">
-            {tab === "segments" && (
-              <>
-                {selected.length > 0 && (
-                  <button
-                    className="primary full"
-                    onClick={() => addSegments(selected)}
-                  >
-                    Abrir {selected.length} seleccionados en el editor
-                  </button>
-                )}
-                {!listSegments.length && (
-                  <p className="empty">
-                    No hay segmentos en esta zona. Importa un GPX o vuelve a la
-                    zona de demostración.
-                  </p>
-                )}
-                {listSegments.map((s) => {
-                  const index = catalog.segments.indexOf(s),
-                    isSelected = selected.includes(s.id);
-                  return (
-                    <article
-                      key={s.id}
-                      className={`library-card ${isSelected ? "selected" : ""} ${hover === s.id ? "hovered" : ""}`}
-                      style={{ "--route-color": colors[index % colors.length] }}
-                      onMouseEnter={() => setHover(s.id)}
-                      onMouseLeave={() => setHover(null)}
-                    >
-                      <div className="card-title">
-                        <input
-                          type="checkbox"
-                          aria-label={`Seleccionar ${s.name}`}
-                          checked={isSelected}
-                          onChange={() => setSelected((v) => toggle(v, s.id))}
-                        />
-                        <h3>{s.name}</h3>
-                        <span className="color-mark" />
-                      </div>
-                      <Metrics tracks={[s.points]} />
-                      <p className="tags">
-                        {s.demo
-                          ? "Demostración sintética · no seguir en campo"
-                          : "Original protegido"}
-                        {!inBounds(s.points, bounds)
-                          ? " · fuera de la vista"
-                          : ""}
-                      </p>
-                      <div className="card-actions">
-                        <button onClick={() => focusPoints(s.points)}>
-                          Centrar
-                        </button>
-                        <button
-                          onClick={() => setHidden((h) => toggle(h, s.id))}
-                        >
-                          {hidden.includes(s.id) ? "Mostrar" : "Ocultar"}
-                        </button>
-                        <button onClick={() => addSegments([s.id])}>
-                          Abrir segmento
-                        </button>
-                        <button
-                          aria-label={`Editar nombre de ${s.name}`}
-                          onClick={() => renameItem("segments", s)}
-                        >
-                          Editar nombre
-                        </button>
-                        <button
-                          aria-label={`Borrar ${s.name}`}
-                          onClick={() => deleteItem("segments", s)}
-                        >
-                          Borrar
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
-              </>
-            )}
-            {tab === "routes" && (
-              <>
-                {workspace === "view" && visibleRoutes.length > 0 && (
-                  <div className="tools">
-                    <button
-                      disabled={!visibleRoutes.length}
-                      onClick={() =>
-                        focusPoints(
-                          data.routes
-                            .filter((r) => visibleRoutes.includes(r.id))
-                            .flatMap((r) => r.tracks.flat()),
-                        )
-                      }
-                    >
-                      Centrar superpuestas
-                    </button>
-                    <button
-                      disabled={!visibleRoutes.length}
-                      onClick={() => setVisibleRoutes([])}
-                    >
-                      Quitar selección
-                    </button>
-                  </div>
-                )}
-                {routes.map((r) => {
-                  const routeStats = stats(r.tracks);
-                  const color =
-                    colors[catalog.routes.indexOf(r) % colors.length];
-                  return (
-                    <article
-                      className={`library-card compact-route-card${workspace === "view" ? " viewer-route-card" : ""}${visibleRoutes.includes(r.id) ? " selected" : ""}`}
-                      key={r.id}
-                      style={{ "--route-color": color }}
-                    >
-                      <div className="card-title">
-                        {workspace === "view" && (
-                          <input
-                            type="checkbox"
-                            aria-label={`Mostrar ${r.name}`}
-                            checked={visibleRoutes.includes(r.id)}
-                            onChange={() =>
-                              setVisibleRoutes((v) => toggle(v, r.id))
-                            }
-                          />
-                        )}
-                        <h3>{r.name}</h3>
-                        {workspace === "view" &&
-                          visibleRoutes.includes(r.id) && (
-                            <span
-                              className="color-mark"
-                              title="Color en el mapa"
-                            />
-                          )}
-                      </div>
-                      <span className="metrics">
-                        {routeStats.km.toFixed(2)} km ·{" "}
-                        <span title="Desnivel positivo acumulado">
-                          ↗ {routeStats.ascent} m subida
-                        </span>{" "}
-                        ·{" "}
-                        <span title="Desnivel negativo acumulado">
-                          ↘ {routeStats.descent} m bajada
-                        </span>
-                        {routeStats.missing > 0 && (
-                          <small> · elevación parcial</small>
-                        )}
-                      </span>
-
-                      {(workspace === "edit" ||
-                        visibleRoutes.includes(r.id)) && (
-                        <div
-                          className={`catalog-actions${workspace === "view" ? " viewer-catalog-actions" : ""}`}
-                        >
-                          <button
-                            aria-label={`Editar nombre de ${r.name}`}
-                            onClick={() => renameItem("routes", r)}
-                          >
-                            Editar nombre
-                          </button>
-                          <button
-                            aria-label={`Borrar ${r.name}`}
-                            onClick={() => deleteItem("routes", r)}
-                          >
-                            Borrar
-                          </button>
-                          {workspace === "view" && (
-                            <button
-                              onClick={() =>
-                                download(originalContent(r), r.filename)
-                              }
-                            >
-                              Descargar GPX
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      {workspace === "edit" && (
-                        <div className="card-actions">
-                          <button onClick={() => focusPoints(r.tracks.flat())}>
-                            Centrar
-                          </button>
-
-                          {workspace === "edit" && (
-                            <button onClick={() => routeSegments(r)}>
-                              Crear segmentos
-                            </button>
-                          )}
-                          {workspace === "edit" && (
-                            <button onClick={() => editRoute(r)}>
-                              Editar copia
-                            </button>
-                          )}
-                          {r.original && (
-                            <button
-                              onClick={() =>
-                                download(originalContent(r), r.filename)
-                              }
-                            >
-                              Original GPX ↓
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      {r.demo && workspace === "edit" && (
-                        <small>
-                          Datos sintéticos de demostración, no una ruta
-                          recomendada.
-                        </small>
-                      )}
-                    </article>
-                  );
-                })}
-                {!routes.length && (
-                  <p className="empty">
-                    {catalog.routes.length
-                      ? "Ninguna ruta coincide con los filtros. Las rutas superpuestas siguen visibles en el mapa."
-                      : "Importa tu primer archivo GPX."}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-          <footer className="sidebar-footer">
-            <details className="backup-controls">
-              <summary>Copias de seguridad</summary>
-              <div className="tools">
-                <button
-                  onClick={() =>
-                    download(
-                      JSON.stringify(data, null, 2),
-                      "TudaGPX-copia.json",
-                      "application/json",
-                    )
-                  }
-                >
-                  Descargar copia completa
-                </button>
-                <button onClick={() => backupInput.current.click()}>
-                  Añadir copia de seguridad
-                </button>
-              </div>
-            </details>
-            <button
-              onClick={() =>
-                focusPoints(
-                  initialWorkspace().segments.flatMap((s) => s.points),
-                )
-              }
-            >
-              ⌖ Zona de demostración
-            </button>
-            <small>Originales protegidos · sin conexión a Supabase</small>
-          </footer>
-        </aside>
+        {workspace === "view" && (
+          <ViewerLibrary
+            items={libraryItems}
+            tab={tab}
+            onTab={setTab}
+            filters={routeFilters}
+            onFilters={setRouteFilters}
+            bounds={bounds}
+            visible={visibleRoutes}
+            onToggle={(id) => setVisibleRoutes((ids) => toggle(ids, id))}
+            onSend={editRoute}
+            onRename={(item) =>
+              renameItem(item.kind === "segment" ? "segments" : "routes", item)
+            }
+            onDelete={(item) =>
+              deleteItem(item.kind === "segment" ? "segments" : "routes", item)
+            }
+            onDownload={(item) =>
+              item.kind === "segment"
+                ? requestOutput(
+                    "export",
+                    [{ points: item.points, name: item.name }],
+                    item.name,
+                    () =>
+                      download(
+                        exportGPX(
+                          [{ points: item.points, name: item.name }],
+                          item.name,
+                        ),
+                        `${item.name}.gpx`,
+                      ),
+                  )
+                : download(originalContent(item), item.filename)
+            }
+            onBackup={() =>
+              download(
+                JSON.stringify(data, null, 2),
+                "TudaGPX-copia.json",
+                "application/json",
+              )
+            }
+            onRestore={() => backupInput.current.click()}
+          />
+        )}
         <main className="map-area">
           <WorkspaceMap
             data={catalog}
@@ -1322,13 +895,15 @@ export default function LocalApp({ onLogout }) {
             onToggleRoute={(id) =>
               setVisibleRoutes((routes) => toggle(routes, id))
             }
-            onDropFiles={(files) => importRouteFiles(files, "routes", true)}
+            onDropFiles={importRouteFiles}
             importing={importing}
-            selected={selected}
-            hidden={hidden}
-            hover={hover}
-            onHover={setHover}
-            onOpenSegment={(id) => addSegments([id])}
+            onCenterSelection={() =>
+              focusPoints(
+                libraryItems
+                  .filter((item) => visibleRoutes.includes(item.id))
+                  .flatMap((item) => item.tracks.flat()),
+              )
+            }
             onBounds={setBounds}
             bounds={bounds}
             drawing={drawing}
@@ -1408,12 +983,7 @@ export default function LocalApp({ onLogout }) {
                 changeElement((element) => ({ ...element, name })),
               onNew: startDraw,
               onClear: clearEditor,
-              canClear: data.draft.length > 0 || selected.length > 0,
-              onOpenLibrary: () => {
-                setSidebarPins((pins) => ({ ...pins, edit: true }));
-                setSidebarHover(true);
-                setTab("routes");
-              },
+              canClear: data.draft.length > 0,
               onFinish: () => setTool("view"),
               onExit: () => {
                 switchWorkspace("view");

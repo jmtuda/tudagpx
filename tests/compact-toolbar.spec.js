@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { pinLibraries } from "./helpers/library";
+import { pinLibraries, sendLibraryItem } from "./helpers/library";
 
 for (const viewport of [
   { width: 1440, height: 950 },
@@ -16,10 +16,7 @@ for (const viewport of [
     });
     await page.goto("/");
     await pinLibraries(page);
-    await page
-      .getByRole("button", { name: "Abrir segmento", exact: true })
-      .first()
-      .click();
+    await sendLibraryItem(page, "segment", 0);
     const toolbar = page.getByRole("toolbar", {
       name: "Herramientas del mapa",
     });

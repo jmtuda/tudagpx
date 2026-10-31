@@ -22,50 +22,11 @@
   flex: 1;
 }
 .dock-interface .sidebar {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  height: 100%;
-  width: min(360px, calc(100vw - 24px));
-  z-index: 1200;
-  box-shadow: 6px 0 22px #173e3933;
-  border-top: 0;
-}
-.dock-interface.sidebar-pinned .sidebar {
   position: relative;
-}
-.dock-interface .sidebar[hidden] {
-  display: none;
-}
-.sidebar-edge {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  z-index: 1210;
-  width: 10px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-.sidebar-edge span {
-  position: absolute;
-  top: 45%;
-  left: 0;
-  background: #fffffff0;
-  border: 1px solid #dce5e3;
-  border-radius: 0 6px 6px 0;
-  padding: 12px 3px;
-  font-size: 18px;
-  color: #007d77;
-}
-.sidebar-edge:focus-visible {
-  width: 24px;
-}
-.sidebar-edge[aria-expanded="true"] span {
-  display: none;
+  height: 100%;
+  width: 360px;
+  z-index: 1200;
+  border-top: 0;
 }
 .catalog-actions {
   display: flex;
@@ -84,6 +45,26 @@
   white-space: nowrap;
   padding: 4px 6px;
   font-size: 10px;
+}
+.viewer-catalog-actions .download-gpx-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 5px;
+}
+.viewer-catalog-actions .send-to-editor {
+  color: #00645f;
+  border-color: #99c5ba;
+}
+.center-view-selection {
+  position: absolute;
+  right: 10px;
+  top: 64px;
+  z-index: 500;
+  display: grid;
+  place-items: center;
+  padding: 7px;
+  box-shadow: 0 1px 5px #0005;
 }
 .dock-controls {
   display: flex;
@@ -174,22 +155,27 @@
   max-height: calc(100dvh - 270px);
 }
 @media (max-width: 650px) {
-  .dock-interface.sidebar-pinned .editor-options {
-    max-height: calc(57dvh - 210px);
-  }
-  .dock-interface.sidebar-pinned .workbench {
+  .dock-interface.viewer-library-fixed .workbench {
     flex-direction: column-reverse;
   }
-  .dock-interface.sidebar-pinned .sidebar {
+  .dock-interface.viewer-library-fixed .sidebar {
     width: 100%;
     height: 43%;
   }
-  .dock-interface.sidebar-pinned .map-area {
+  .dock-interface.viewer-library-fixed .map-area {
     height: 57%;
     flex: 0 0 57%;
   }
-  .sidebar-edge {
-    width: 18px;
+  .dock-interface.editor-full-map .map-area {
+    height: 100%;
+    flex: 1;
+  }
+  .dock-interface .sidebar-footer {
+    display: block;
+    padding: 6px 12px;
+  }
+  .dock-interface .sidebar-footer small {
+    display: none;
   }
   .dock-interface .notice {
     left: 12px;

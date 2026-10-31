@@ -31,7 +31,9 @@ for (const viewport of [
     await expect(page.locator("path.viewer-route")).toHaveCount(0);
     await expect(page.locator("path.draft-line")).toHaveCount(0);
     await expect(page.getByText(/Ninguna ruta cargada/)).toBeVisible();
-    await page.getByRole("button", { name: /^Rutas/ }).click();
+    await expect(
+      page.getByRole("navigation", { name: "Biblioteca", exact: true }),
+    ).toHaveCount(0);
     await expect(page.getByRole("checkbox", { name: /Mostrar / })).toHaveCount(
       0,
     );
@@ -67,7 +69,7 @@ for (const viewport of [
       );
     expect(new Set(dots).size).toBe(2);
 
-    await page.getByRole("button", { name: "Ocultar panel de rutas" }).click();
+    await expect(page.locator("#library-panel")).toHaveCount(0);
     await files.getByRole("tab", { name: /Ruta de prueba & original/ }).click();
     await expect(
       files.getByRole("tab", { name: /Ruta de prueba & original/ }),
@@ -94,7 +96,7 @@ for (const viewport of [
     await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
     await expect(page.locator("path.viewer-route")).toHaveCount(2);
     await expect(page.locator("path.draft-line")).toHaveCount(0);
-    await page.getByRole("button", { name: "Mostrar panel de rutas" }).click();
+    await expect(page.locator("#library-panel")).toBeVisible();
     await expect(
       page.getByRole("checkbox", { name: /Mostrar Vuelta/ }),
     ).toBeChecked();
@@ -155,21 +157,27 @@ for (const viewport of [
   });
 }
 
-test("importar en editor no activa superposiciones en el visor", async ({
+test("importar en editor selecciona biblioteca sin cargar copias hasta envío explícito", async ({
   page,
 }) => {
   await page.goto("/");
-  await pinLibraries(page);
   await page.getByRole("tab", { name: "Editar", exact: true }).click();
+  const before = await savedState(page);
   await page.locator("input[type=file]").first().setInputFiles(fixture);
-  await expect(page.locator("path.viewer-route")).toHaveCount(0);
-  await expect(page.locator("path.draft-line")).toHaveCount(0);
-  await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
+  await expect(
+    page.getByRole("tab", { name: "Ver rutas", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
   await expect(
     page.getByRole("checkbox", {
       name: "Mostrar Ruta de prueba & original",
       exact: true,
     }),
-  ).not.toBeChecked();
+  ).toBeChecked();
+  await expect(page.locator("path.viewer-route-selected")).toHaveCount(1);
+  await expect(page.locator("path.draft-line")).toHaveCount(0);
+  expect((await savedState(page)).draft).toEqual(before.draft);
+  await sendViewerRoute(page, -1);
+  const after = await savedState(page);
+  expect(after.draft.map((e) => e.points)).toEqual(after.routes.at(-1).tracks);
   await expect(page.locator("path.viewer-route")).toHaveCount(0);
 });

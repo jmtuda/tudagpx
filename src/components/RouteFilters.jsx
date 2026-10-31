@@ -1,16 +1,25 @@
 import { emptyRouteFilters } from "../utils/routeFilters";
 
-export function RouteFilters({ value, onChange, count, total }) {
+export function RouteFilters({
+  value,
+  onChange,
+  count,
+  total,
+  category = "rutas",
+}) {
   const set = (key, next) => onChange({ ...value, [key]: next });
   return (
-    <section className="filters viewer-filters" aria-label="Filtros de rutas">
+    <section
+      className="filters viewer-filters"
+      aria-label={`Filtros de ${category}`}
+    >
       <details className="all-route-filters">
         <summary>
-          Buscar y filtrar rutas · {count} de {total}
+          Buscar y filtrar {category} · {count} de {total}
         </summary>
         <input
-          aria-label="Buscar rutas por nombre"
-          placeholder="Buscar rutas por nombre…"
+          aria-label={`Buscar ${category} por nombre`}
+          placeholder={`Buscar ${category} por nombre…`}
           value={value.name}
           onChange={(e) => set("name", e.target.value)}
         />
@@ -53,7 +62,7 @@ export function RouteFilters({ value, onChange, count, total }) {
               checked={value.inView}
               onChange={(e) => set("inView", e.target.checked)}
             />
-            Solo rutas que cruzan el mapa visible
+            Solo {category} que cruzan el mapa visible
           </label>
           <p className="hint">
             El desnivel es el acumulado disponible en el GPX; puede estar
@@ -62,7 +71,7 @@ export function RouteFilters({ value, onChange, count, total }) {
         </details>
         <div className="filter-results">
           <span role="status">
-            {count} de {total} rutas
+            {count} de {total} {category}
           </span>
           <button onClick={() => onChange({ ...emptyRouteFilters })}>
             Limpiar filtros

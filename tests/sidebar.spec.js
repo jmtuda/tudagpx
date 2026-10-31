@@ -1,19 +1,32 @@
+import { sendLibraryItem } from "./helpers/library";
 import { test, expect } from "@playwright/test";
 for (const width of [1440, 390]) {
-  test(`panel dock, fichas compactas y mapas reales en ${width}px`, async ({
+  test(`panel fijo, fichas compactas y mapas reales en ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 950 });
     await page.goto("/");
     const panel = page.locator("#library-panel");
-    const edge = page.getByRole("button", {
-      name: "Mostrar panel de rutas",
-      exact: true,
-    });
-    await expect(panel).toBeHidden();
-    expect((await page.locator(".workspace-map").boundingBox()).width).toBe(
-      width,
-    );
+    await expect(panel).toBeVisible();
+    const map = await page.locator(".workspace-map").boundingBox();
+    const sidebar = await panel.boundingBox();
+    if (width <= 650) {
+      expect(map.width).toBe(width);
+      expect(sidebar.y).toBeGreaterThan(map.y + map.height);
+      expect(sidebar.width).toBe(width);
+    } else {
+      expect(map.width).toBeLessThan(width);
+      expect(map.x).toBeGreaterThanOrEqual(sidebar.x + sidebar.width - 1);
+    }
+    for (const name of [
+      "Mostrar panel de rutas",
+      "Ocultar panel de rutas",
+      "Fijar panel de rutas",
+      "Desfijar panel de rutas",
+    ])
+      await expect(page.getByRole("button", { name, exact: true })).toHaveCount(
+        0,
+      );
     await expect(page.getByLabel("Cartografía")).toHaveCount(0);
     await expect
       .poll(
@@ -29,14 +42,6 @@ for (const width of [1440, 390]) {
         { timeout: 30000 },
       )
       .toBeGreaterThan(0);
-    await edge.hover();
-    await expect(panel).toBeVisible();
-    await page.mouse.move(width - 30, 450);
-    await expect(panel).toBeHidden();
-    await edge.hover();
-    await page
-      .getByRole("button", { name: "Fijar panel de rutas", exact: true })
-      .click();
     await page.mouse.move(width - 30, 450);
     await expect(panel).toBeVisible();
     await expect(
@@ -50,19 +55,29 @@ for (const width of [1440, 390]) {
     await expect(card.locator(".profile")).toHaveCount(0);
     await expect(card.locator(".tags")).toHaveCount(0);
     await expect(card.locator(".card-actions")).toHaveCount(0);
-    await expect(card.getByRole("button")).toHaveCount(0);
+    await expect(card.getByRole("button")).toHaveCount(1);
+    await expect(
+      card.getByRole("button", { name: "Enviar al editor", exact: true }),
+    ).toBeVisible();
     await expect(card).toContainText("subida");
     await expect(card).toContainText("bajada");
     await card.getByRole("checkbox").check();
     const actions = card.locator(".catalog-actions");
-    await expect(actions.getByRole("button")).toHaveCount(3);
-    await expect(actions.getByRole("button").nth(0)).toHaveText(
-      "Editar nombre",
-    );
-    await expect(actions.getByRole("button").nth(1)).toHaveText("Borrar");
-    await expect(actions.getByRole("button").nth(2)).toHaveText(
-      "Descargar GPX",
-    );
+    await expect(actions.getByRole("button")).toHaveCount(4);
+    await expect(
+      actions.getByRole("button", { name: /^Editar nombre de/ }),
+    ).toBeVisible();
+    await expect(
+      actions.getByRole("button", { name: /^Borrar / }),
+    ).toBeVisible();
+    await expect(
+      actions.getByRole("button", { name: "Descargar GPX", exact: true }),
+    ).toBeVisible();
+    await expect(
+      actions
+        .getByRole("button", { name: "Descargar GPX", exact: true })
+        .locator("svg"),
+    ).toHaveCount(1);
     const boxes = await actions
       .getByRole("button")
       .evaluateAll((nodes) =>
@@ -71,30 +86,21 @@ for (const width of [1440, 390]) {
     expect(Math.max(...boxes) - Math.min(...boxes)).toBeLessThanOrEqual(1);
     await card.getByRole("checkbox").uncheck();
     await expect(card.locator(".card-actions")).toHaveCount(0);
-    await expect(card.getByRole("button")).toHaveCount(0);
+    await expect(card.getByRole("button")).toHaveCount(1);
+    await expect(
+      card.getByRole("button", { name: "Enviar al editor", exact: true }),
+    ).toBeVisible();
     await page.getByText(/Buscar y filtrar rutas/).click();
     await page.getByLabel("Buscar rutas por nombre").fill("no coincide");
     await expect(page.locator(".viewer-route-card")).toHaveCount(0);
     await page.getByRole("button", { name: "Limpiar filtros" }).click();
     await expect(page.locator(".viewer-route-card")).toHaveCount(1);
-    await page.getByRole("tab", { name: "Editar", exact: true }).click();
-    await expect(panel).toBeHidden();
-    await edge.click();
-    await page
-      .getByRole("button", { name: "Fijar panel de rutas", exact: true })
-      .click();
-    await page
-      .getByRole("button", { name: "Abrir segmento", exact: true })
-      .first()
-      .click();
+    await sendLibraryItem(page, "segment", 0);
+    await expect(panel).toHaveCount(0);
+    expect((await page.locator(".workspace-map").boundingBox()).width).toBe(
+      width,
+    );
     await expect(page.locator("path.draft-line")).toHaveCount(1);
-    await page
-      .getByRole("button", { name: "Desfijar panel de rutas", exact: true })
-      .click();
-    await page.mouse.move(width - 30, 450);
-    await expect(panel).toBeHidden();
-    await expect(page.locator("path.draft-line")).toHaveCount(1);
-    await edge.click();
     await expect(
       page
         .getByRole("tablist", { name: "Rutas cargadas en el editor" })
@@ -103,9 +109,6 @@ for (const width of [1440, 390]) {
     await expect(
       page.getByRole("button", { name: "Guardar ruta", exact: true }),
     ).toBeEnabled();
-    await page
-      .getByRole("button", { name: "Ocultar panel de rutas", exact: true })
-      .click();
     for (const value of ["ign_base", "mtn", "osm", "pnoa_orto"]) {
       await page
         .getByRole("button", { name: "Seleccionar mapa", exact: true })
@@ -152,7 +155,7 @@ for (const width of [1440, 390]) {
   });
 }
 
-test("abrir el borde mediante pantalla táctil y cerrar tocando el mapa", async ({
+test("biblioteca fija táctil conserva selección al tocar mapa y editor ocupa todo el ancho", async ({
   browser,
 }) => {
   const context = await browser.newContext({
@@ -160,12 +163,27 @@ test("abrir el borde mediante pantalla táctil y cerrar tocando el mapa", async 
     viewport: { width: 390, height: 844 },
   });
   const page = await context.newPage();
-  await page.goto("/");
-  await page
-    .getByRole("button", { name: "Mostrar panel de rutas", exact: true })
-    .tap();
-  await expect(page.locator("#library-panel")).toBeVisible();
-  await page.locator(".workspace-map").tap({ position: { x: 380, y: 300 } });
-  await expect(page.locator("#library-panel")).toBeHidden();
-  await context.close();
+  try {
+    await page.goto("/");
+    await expect(page.locator("#library-panel")).toBeVisible();
+    const check = page
+      .locator(".viewer-route-card")
+      .first()
+      .getByRole("checkbox");
+    await check.check();
+    const map = await page.locator(".workspace-map").boundingBox();
+    await page.mouse.click(map.x + map.width - 10, map.y + 100);
+    await expect(page.locator("#library-panel")).toBeVisible();
+    await expect(check).toBeChecked();
+    await sendLibraryItem(page, "route", 0);
+    await expect(page.locator("#library-panel")).toHaveCount(0);
+    expect((await page.locator(".workspace-map").boundingBox()).width).toBe(
+      390,
+    );
+    await page.getByRole("tab", { name: "Ver rutas", exact: true }).tap();
+    await expect(page.locator("#library-panel")).toBeVisible();
+    await expect(check).toBeChecked();
+  } finally {
+    await context.close();
+  }
 });

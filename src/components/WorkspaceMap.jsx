@@ -16,6 +16,8 @@ import { EditorTools } from "./EditorTools";
 import { EditorTraceTabs } from "./EditorTraceTabs";
 import { ElevationProfile } from "./ElevationProfile";
 import { TraceEndpoints } from "./TraceEndpoints";
+import ToolIcon from "./ToolIcon";
+import { viewerLibrary } from "../utils/viewerLibrary";
 import { editorRouteColors, editorRouteKey } from "../utils/editorRoutes";
 const positions = (points) => points.map((p) => [p.lat, p.lon]);
 
@@ -115,14 +117,11 @@ export function WorkspaceMap({
   visibleRoutes,
   onToggleRoute,
   onSendRoute,
+  onCenterSelection,
   onDropFiles,
   importing,
   bounds,
-  selected,
-  hidden,
-  hover,
-  onHover,
-  onOpenSegment,
+
   onBounds,
 
   drawing,
@@ -151,34 +150,27 @@ export function WorkspaceMap({
     setRoutePopup(null);
     setProfileHover(null);
   }, [viewing]);
+  const items = useMemo(
+    () => viewerLibrary({ routes: data.routes, segments: data.segments }),
+    [data.routes, data.segments],
+  );
   const popupRoute =
-    viewing && data.routes.find((route) => route.id === routePopup?.id);
+    viewing && items.find((route) => route.id === routePopup?.id);
   const routeColors = editorRouteColors(data.draft);
   const profileRoutes = useMemo(
     () =>
-      data.routes
+      items
         .filter((route) => visibleRoutes.includes(route.id))
         .map((route) => ({
           id: route.id,
           name: route.name,
-          color: colors[data.routes.indexOf(route) % colors.length],
+          color: colors[items.indexOf(route) % colors.length],
           elements: route.tracks.map((points, index) => ({
             id: `${route.id}-${index}`,
             points,
           })),
         })),
-    [data.routes, visibleRoutes],
-  );
-
-  const shown = useMemo(
-    () =>
-      data.segments.filter(
-        (s) =>
-          !hidden.includes(s.id) &&
-          selected.includes(s.id) &&
-          !data.draft.some((element) => element.sourceId === s.id),
-      ),
-    [data.segments, data.draft, hidden, selected],
+    [items, visibleRoutes],
   );
   return (
     <div
@@ -226,7 +218,7 @@ export function WorkspaceMap({
           onDraw={onDraw}
           focus={focus}
         />
-        {data.routes
+        {items
           .filter(
             (r) =>
               viewing &&
@@ -243,7 +235,7 @@ export function WorkspaceMap({
               key={r.id}
               route={r}
               selected={visibleRoutes.includes(r.id)}
-              color={colors[data.routes.indexOf(r) % colors.length]}
+              color={colors[items.indexOf(r) % colors.length]}
               onClick={(event) => {
                 onToggleRoute(r.id);
                 setRoutePopup({ id: r.id, position: event.latlng });
@@ -291,31 +283,7 @@ export function WorkspaceMap({
               }}
             />
           )}
-        {!viewing &&
-          shown.map((s) => (
-            <Polyline
-              key={s.id}
-              bubblingMouseEvents={false}
-              positions={positions(s.points)}
-              pathOptions={{
-                className: "editor-segment-reference",
-                color: selected.includes(s.id)
-                  ? colors[data.segments.indexOf(s) % colors.length]
-                  : "#7f8c8c",
-                weight: hover === s.id ? 8 : selected.includes(s.id) ? 6 : 3,
-                opacity: selected.includes(s.id) || hover === s.id ? 1 : 0.45,
-              }}
-              eventHandlers={{
-                mouseover: () => onHover(s.id),
-                mouseout: () => onHover(null),
-                click: () => {
-                  onOpenSegment(s.id);
-                },
-              }}
-            >
-              <Tooltip>{s.name}</Tooltip>
-            </Polyline>
-          ))}
+
         {!viewing &&
           data.draft.map((e) => (
             <DirectTrace
@@ -341,7 +309,7 @@ export function WorkspaceMap({
             />
           ))}
         {viewing &&
-          data.routes
+          items
             .filter((r) => visibleRoutes.includes(r.id))
             .flatMap((route) =>
               route.tracks.map((points, i) => (
@@ -352,14 +320,7 @@ export function WorkspaceMap({
                 />
               )),
             )}
-        {!viewing &&
-          shown.map((segment) => (
-            <TraceEndpoints
-              key={`ends-${segment.id}`}
-              points={segment.points}
-              name={segment.name}
-            />
-          ))}
+
         {issues
           ?.filter((i) => i.point)
           .map((issue, i) => (
@@ -373,6 +334,18 @@ export function WorkspaceMap({
             </CircleMarker>
           ))}
       </MapContainer>
+      {viewing && (
+        <button
+          className="center-view-selection"
+          type="button"
+          aria-label="Centrar vista en la selección"
+          title="Centrar vista en la selección"
+          disabled={!visibleRoutes.length}
+          onClick={onCenterSelection}
+        >
+          <ToolIcon name="center" />
+        </button>
+      )}
       {!viewing && (
         <EditorTools {...tools} editing={editing} mode={mode} range={crop} />
       )}

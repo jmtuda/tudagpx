@@ -1,5 +1,13 @@
 # Progreso
 
+## Biblioteca fija del visor y transferencia única
+
+La biblioteca de Ver rutas queda fija con selector Rutas/Segmentos; en móvil permanece visible debajo del mapa. Retirados dock/hover/fijación/cierre y botones de centrar/quitar selección. Un botón de diana en el mapa encuadra toda la selección, independiente de categoría y filtros. Rutas y segmentos comparten representación, perfiles y colores en el visor.
+
+Todas las fichas ofrecen Enviar al editor; seleccionadas añaden Editar nombre, Borrar y descarga GPX como icono en una línea. El popup de ambas clases también ofrece envío. El editor no tiene barra lateral ni carga originales por clic en referencias: solo recibe copias explícitas desde el visor. Cada envío crea una identidad independiente. Importación por botón/drop desde cualquier módulo añade originales y abre el visor, nunca carga copias automáticamente. Recuperación de borradores/JSON y dibujo nuevo se conservan; sin migraciones ni cambios de originales.
+
+Verificación: lint/build y 95 pruebas Chrome correctas. Incluye fichas alineadas, transferencia desde fichas y popup de ambas clases, envíos repetidos independientes, recarga, selección mixta y centrado real, importación sin carga, panel fijo táctil/escritorio, editor a todo el ancho, cartografías reales, edición/routing/recorte y originales/snapshots intactos. Descarga de segmento comprobada mediante GPX parseado con puntos exactos y estado sin cambios; Leaflet conserva su nodo al cambiar de módulo. Capturas móvil/escritorio revisadas.
+
 ## Extremos unificados entre visor y editor
 
 Rutas y segmentos del editor usan exactamente la misma fábrica de iconos que Ver rutas: inicio verde con play blanco y final rojo. Las anclas de los extremos siguen siendo arrastrables y mantienen el menú de puntos, sin ocultar el símbolo con un círculo de edición. El recorte también usa los iconos compartidos, sin textos permanentes Inicio/Final. Se mantiene la separación de extremos coincidentes en circulares. Iconos arrastrables memoizados para que las vistas previas no reinicien el gesto.

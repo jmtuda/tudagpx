@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { confirmRouteSave, pinLibraries } from "./helpers/library";
+import { confirmRouteSave, showLibrary } from "./helpers/library";
 async function state(page) {
   await expect(page.locator(".local-status > span")).toHaveText(
     "Guardado en este navegador",
@@ -66,11 +66,14 @@ for (const width of [1440, 390]) {
       await expect(
         page.getByRole("button", { name, exact: true }),
       ).toBeDisabled();
-    await pinLibraries(page);
+    await expect(page.locator("#library-panel")).toHaveCount(0);
     await expect(
       page.getByRole("navigation", { name: "Biblioteca", exact: true }),
-    ).toBeVisible();
-    await expect(page.getByLabel(/Ciclismo de/)).toHaveCount(0);
+    ).toHaveCount(0);
+    expect((await page.locator(".workspace-map").boundingBox()).width).toBe(
+      width,
+    );
+    await showLibrary(page, "route");
     const library = page.getByRole("navigation", {
       name: "Biblioteca",
       exact: true,
@@ -90,8 +93,7 @@ for (const width of [1440, 390]) {
     await expect(
       page.getByText("Mueve el mapa para explorar.", { exact: false }),
     ).toHaveCount(0);
-    await page.getByText("Buscar y filtrar", { exact: true }).click();
-    await expect(page.getByLabel("Filtrar ciclismo")).toHaveCount(0);
+    await page.getByRole("tab", { name: "Editar", exact: true }).click();
     await page.screenshot({ path: testInfo.outputPath("editor-inicial.png") });
   });
   test(`abrir segmento con clic, guardar y limpiar sin borrar originales en ${width}px`, async ({
@@ -100,25 +102,19 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 950 });
     await page.goto("/");
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
-    await pinLibraries(page);
-    await page
-      .getByRole("navigation", { name: "Biblioteca", exact: true })
-      .getByRole("button", { name: /^Segmentos/ })
-      .click();
+    await showLibrary(page, "segment");
     const before = await state(page);
-    await page.getByRole("checkbox", { name: /Seleccionar Subida/ }).check();
-    await page
-      .getByRole("button", { name: "Editar trazado", exact: true })
-      .click();
-
-    await expect(page.locator("path.editor-segment-reference")).toHaveCount(1);
-    await page
-      .getByRole("button", { name: "Ocultar panel de rutas", exact: true })
-      .click();
+    await page.getByRole("checkbox", { name: /Mostrar Subida/ }).check();
     await page
       .getByRole("button", { name: "Minimizar perfil de altitud", exact: true })
       .click();
-    await clickTrace(page, "path.editor-segment-reference");
+    await clickTrace(page, "path.viewer-route-selected");
+    const popup = page.locator(".viewer-route-popup");
+    await expect(popup).toContainText(before.segments[0].name);
+    expect((await state(page)).draft).toEqual(before.draft);
+    await popup
+      .getByRole("button", { name: "Enviar al editor", exact: true })
+      .click();
     await expect(page.locator("path.draft-line")).toHaveCount(1);
     await expect(page.locator("path.editor-segment-reference")).toHaveCount(0);
     const opened = await state(page);

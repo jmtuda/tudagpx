@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { confirmRouteSave, pinLibraries } from "./helpers/library";
+import {
+  confirmRouteSave,
+  pinLibraries,
+  sendLibraryItem,
+} from "./helpers/library";
 async function state(page) {
   await expect(page.locator(".local-status > span")).toHaveText(
     "Guardado en este navegador",
@@ -16,15 +20,10 @@ for (const width of [1440, 390]) {
     await page.goto("/");
     await pinLibraries(page);
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
-    await page
-      .getByRole("button", { name: "Abrir segmento", exact: true })
-      .first()
-      .click();
+    await sendLibraryItem(page, "segment", 0);
     await expect(
-      page
-        .getByRole("navigation", { name: "Biblioteca", exact: true })
-        .getByRole("button", { name: /^Segmentos/ }),
-    ).toHaveClass("active");
+      page.getByRole("navigation", { name: "Biblioteca", exact: true }),
+    ).toHaveCount(0);
     const before = await state(page);
     await page
       .getByRole("button", { name: "Guardar segmento", exact: true })
@@ -79,9 +78,8 @@ for (const width of [1440, 390]) {
     const firstCard = panel.locator(".library-card").first();
     expect(
       (await firstCard.boundingBox()).y - (await panel.boundingBox()).y,
-    ).toBeLessThanOrEqual(55);
+    ).toBeLessThanOrEqual(110);
     await page.screenshot({ path: testInfo.outputPath("visor.png") });
-    await page.getByRole("tab", { name: "Editar", exact: true }).click();
     const nav = page.getByRole("navigation", {
       name: "Biblioteca",
       exact: true,
@@ -91,65 +89,69 @@ for (const width of [1440, 390]) {
         nav.getByRole("button", { name: new RegExp(`^${name}`) }),
       ).toBeVisible();
     await expect(nav.getByRole("button")).toHaveCount(2);
+    await nav.getByRole("button", { name: /^Rutas/ }).click();
+    await expect(firstCard.locator(".profile")).toHaveCount(0);
+    await expect(firstCard).toContainText("bajada");
+    await expect(page.getByLabel("Buscar rutas por nombre")).toBeHidden();
+    expect((await filters.boundingBox()).height).toBe(viewHeight);
+    expect(
+      (await firstCard.boundingBox()).y - (await panel.boundingBox()).y,
+    ).toBeLessThanOrEqual(110);
+    await panel.getByText(/Buscar y filtrar rutas/).click();
+    await page.getByLabel("Buscar rutas por nombre").fill("sin coincidencia");
+    await expect(panel.locator(".library-card")).toHaveCount(0);
+    await page.getByLabel("Buscar rutas por nombre").fill("");
+    await panel.getByText(/Buscar y filtrar rutas/).click();
+    await page.getByRole("tab", { name: "Editar", exact: true }).click();
+    await expect(panel).toHaveCount(0);
+    await expect(nav).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: "Guardar versión", exact: true }),
     ).toHaveCount(0);
     await expect(
       page.getByRole("heading", { name: "Segmentos de la zona" }),
     ).toHaveCount(0);
-    await nav.getByRole("button", { name: /^Rutas/ }).click();
-    await expect(firstCard.locator(".profile")).toHaveCount(0);
-    await expect(firstCard).toContainText("bajada");
-    await expect(page.getByLabel("Buscar en la biblioteca")).toBeHidden();
-    expect((await filters.boundingBox()).height).toBe(viewHeight);
-    expect(
-      (await firstCard.boundingBox()).y - (await panel.boundingBox()).y,
-    ).toBeLessThanOrEqual(100);
-    await panel.getByText("Buscar y filtrar", { exact: true }).click();
-    await page.getByLabel("Buscar en la biblioteca").fill("sin coincidencia");
-    await expect(panel.locator(".library-card")).toHaveCount(0);
-    await page.getByLabel("Buscar en la biblioteca").fill("");
-    await panel.getByText("Buscar y filtrar", { exact: true }).click();
     await page.screenshot({ path: testInfo.outputPath("editor.png") });
   });
 }
-test("crear varios segmentos permite nombrarlos antes de guardar o cancelar", async ({
+test("guardar tramos como segmentos permite nombrar o cancelar cada copia sin cambiar originales", async ({
   page,
 }) => {
   await page.goto("/");
-  await pinLibraries(page);
-  await page.getByRole("tab", { name: "Editar", exact: true }).click();
   await page
     .locator("input[type=file]")
     .first()
     .setInputFiles(new URL("./fixtures/ruta.gpx", import.meta.url).pathname);
+  await sendLibraryItem(page, "route", -1);
   const before = await state(page);
-  const create = page
-    .getByRole("button", { name: "Crear segmentos", exact: true })
-    .last();
-  await create.click();
   const dialog = page.getByRole("dialog", {
-    name: "Guardar segmentos",
+    name: "Guardar segmento",
     exact: true,
   });
+  const save = page.getByRole("button", {
+    name: "Guardar segmento",
+    exact: true,
+  });
+  await save.click();
   await dialog.getByRole("button", { name: "Cancelar", exact: true }).click();
   expect(await state(page)).toEqual(before);
-  await create.click();
-  await dialog
-    .getByLabel("Nombre del segmento 1", { exact: true })
-    .fill("Primera subida");
-  await dialog
-    .getByLabel("Nombre del segmento 2", { exact: true })
-    .fill("Bajada del bosque");
-  await dialog
-    .getByRole("button", { name: "Guardar segmentos", exact: true })
-    .click();
+  for (const [i, name] of ["Primera subida", "Bajada del bosque"].entries()) {
+    if (i) {
+      const line = page.locator("path.draft-line").nth(i);
+      await line.dispatchEvent("click");
+    }
+    await save.click();
+    await dialog.getByLabel("Nombre del segmento", { exact: true }).fill(name);
+    await dialog
+      .getByRole("button", { name: "Guardar segmento", exact: true })
+      .click();
+  }
   const after = await state(page);
-  expect(after.segments.slice(-2).map((segment) => segment.name)).toEqual([
+  expect(after.segments.slice(-2).map((e) => e.name)).toEqual([
     "Primera subida",
     "Bajada del bosque",
   ]);
-  expect(after.segments.slice(-2).map((segment) => segment.points)).toEqual(
+  expect(after.segments.slice(-2).map((e) => e.points)).toEqual(
     before.routes.at(-1).tracks,
   );
   expect(after.routes).toEqual(before.routes);
@@ -161,10 +163,7 @@ test("avisos: cinco segundos, reinicio al repetir y cierre manual", async ({
   await page.goto("/");
   await pinLibraries(page);
   await page.getByRole("tab", { name: "Editar", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Abrir segmento", exact: true })
-    .first()
-    .click();
+  await sendLibraryItem(page, "segment", 0);
   const before = await state(page);
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
   await page.clock.pauseAt(new Date("2026-01-01T00:00:01Z"));

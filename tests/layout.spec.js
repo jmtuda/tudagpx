@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { pinLibraries } from "./helpers/library";
+import { sendLibraryItem, showLibrary } from "./helpers/library";
 
 for (const viewport of [
   { width: 1280, height: 577 },
@@ -17,10 +17,24 @@ for (const viewport of [
       .boundingBox();
     const viewerMap = await page.locator(".workspace-map").boundingBox();
     expect(viewerMap.y + viewerMap.height).toBeCloseTo(viewerProfile.y, 0);
-    expect(viewerProfile.y + viewerProfile.height).toBeCloseTo(
-      viewport.height,
-      0,
-    );
+    const viewerPanel = await page.locator("#library-panel").boundingBox();
+    if (viewport.width <= 650) {
+      expect(viewerPanel.y).toBeCloseTo(
+        viewerProfile.y + viewerProfile.height,
+        0,
+      );
+      expect(viewerPanel.y + viewerPanel.height).toBeCloseTo(
+        viewport.height,
+        0,
+      );
+      expect(viewerPanel.width).toBe(viewport.width);
+    } else {
+      expect(viewerProfile.y + viewerProfile.height).toBeCloseTo(
+        viewport.height,
+        0,
+      );
+      expect(viewerMap.x).toBeCloseTo(viewerPanel.x + viewerPanel.width, 0);
+    }
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
     await expect(page.locator("#library-panel")).toBeHidden();
     await expect(page.locator(".map-toolbar")).toHaveCount(0);
@@ -57,7 +71,13 @@ for (const viewport of [
     await expect(
       page.getByRole("button", { name: "+ Importar GPX" }),
     ).toBeVisible();
-    await pinLibraries(page);
+    await expect(
+      page.getByRole("navigation", { name: "Biblioteca", exact: true }),
+    ).toHaveCount(0);
+    expect((await page.locator(".workspace-map").boundingBox()).width).toBe(
+      viewport.width,
+    );
+    await showLibrary(page, "route");
     const nav = page.getByRole("navigation", {
       name: "Biblioteca",
       exact: true,
@@ -67,20 +87,12 @@ for (const viewport of [
       await nav
         .getByRole("button", { name: new RegExp(`^${section}`) })
         .click();
-      for (const action of [
-        "Guardar ruta",
-        "Guardar segmento",
-        "Limpiar mapa",
-      ]) {
-        await expect(
-          page.getByRole("button", { name: action, exact: true }),
-        ).toBeVisible();
-      }
+      await expect(page.locator("#library-panel")).toBeVisible();
+      await expect(
+        page.getByRole("toolbar", { name: "Herramientas del mapa" }),
+      ).toHaveCount(0);
     }
-    await page
-      .getByRole("button", { name: "Abrir segmento", exact: true })
-      .first()
-      .click();
+    await sendLibraryItem(page, "segment", 0);
     await expect(
       page
         .getByRole("tablist", { name: "Rutas cargadas en el editor" })

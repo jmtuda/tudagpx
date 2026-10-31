@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { pinLibraries } from "./helpers/library";
+import { pinLibraries, sendLibraryItem, showLibrary } from "./helpers/library";
 import { readFile } from "node:fs/promises";
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
@@ -14,8 +14,8 @@ const ready = async (page) => {
   await page.goto("/");
   await pinLibraries(page);
   await expect(
-    page.getByRole("button", { name: /^Segmentos \d+/ }),
-  ).toBeVisible();
+    page.getByRole("tab", { name: "Editar", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
 };
 const persisted = async (page) => {
   await expect(
@@ -36,8 +36,9 @@ test("arranque, cartografías reales y selección conservada", async ({
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await ready(page);
-  await page.getByRole("checkbox", { name: /Seleccionar Subida/ }).check();
-  await page.getByRole("checkbox", { name: /Seleccionar Camino/ }).check();
+  await showLibrary(page, "segment");
+  await page.getByRole("checkbox", { name: /Mostrar Subida/ }).check();
+  await page.getByRole("checkbox", { name: /Mostrar Camino/ }).check();
   for (const value of ["ign_base", "mtn", "pnoa_orto", "osm"]) {
     await page
       .getByRole("button", { name: "Seleccionar mapa", exact: true })
@@ -56,10 +57,10 @@ test("arranque, cartografías reales y selección conservada", async ({
       )
       .toBeGreaterThan(0);
     await expect(
-      page.getByRole("checkbox", { name: /Seleccionar Subida/ }),
+      page.getByRole("checkbox", { name: /Mostrar Subida/ }),
     ).toBeChecked();
     await expect(
-      page.getByRole("checkbox", { name: /Seleccionar Camino/ }),
+      page.getByRole("checkbox", { name: /Mostrar Camino/ }),
     ).toBeChecked();
   }
   const map = page.locator(".workspace-map");
@@ -69,7 +70,7 @@ test("arranque, cartografías reales y selección conservada", async ({
   await page.mouse.move(box.x + 100, box.y + box.height * 0.5, { steps: 15 });
   await page.mouse.up();
   await expect(
-    page.getByRole("checkbox", { name: /Seleccionar Subida/ }),
+    page.getByRole("checkbox", { name: /Mostrar Subida/ }),
   ).toBeChecked();
   await page.screenshot({
     path: testInfo.outputPath("pantalla.png"),
@@ -114,22 +115,30 @@ test("importa varios tramos, superpone, conserva original y recarga", async ({
   expect(await readFile(await dl.path(), "utf8")).toBe(
     await readFile(fixture, "utf8"),
   );
-  await page.getByRole("tab", { name: "Editar", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Crear segmentos", exact: true })
-    .last()
-    .click();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Guardar segmentos", exact: true })
-    .click();
+  await sendLibraryItem(page, "route", -1);
+  const imported = await state(page);
+  for (const [i, track] of imported.routes.at(-1).tracks.entries()) {
+    if (i) await page.locator("path.draft-line").nth(i).dispatchEvent("click");
+    await page
+      .getByRole("button", { name: "Guardar segmento", exact: true })
+      .click();
+    const dialog = page.getByRole("dialog", {
+      name: "Guardar segmento",
+      exact: true,
+    });
+    await dialog
+      .getByRole("button", { name: "Guardar segmento", exact: true })
+      .click();
+    expect((await state(page)).segments.at(-1).points).toEqual(track);
+  }
+  await showLibrary(page, "segment");
   await expect(
     page.getByRole("heading", { name: /Ruta de prueba & original · tramo 1/ }),
   ).toBeVisible();
   await persisted(page);
   await page.reload();
   await pinLibraries(page);
-  await page.getByRole("button", { name: /^Rutas/ }).click();
+  await showLibrary(page, "route");
   await expect(
     page.getByRole("heading", { name: "Ruta de prueba & original" }),
   ).toBeVisible();
@@ -144,10 +153,9 @@ test("editor: copias, arrastre, invertir, dividir, historial, borrador automáti
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await ready(page);
-  await page.getByRole("checkbox", { name: /Seleccionar Subida/ }).check();
-  await page
-    .getByRole("button", { name: "Abrir 1 seleccionados en el editor" })
-    .click();
+  await showLibrary(page, "segment");
+  await page.getByRole("checkbox", { name: /Mostrar Subida/ }).check();
+  await sendLibraryItem(page, "segment", 0);
   expect((await state(page)).draft).toHaveLength(1);
 
   const handle = page.getByTitle("Editar punto 1", { exact: true });
@@ -248,6 +256,7 @@ test("dibujo libre, recorte, eliminación, nuevo segmento y copia recuperable", 
   const before = await state(page);
   expect(before.segments).toHaveLength(unsaved.segments.length + 1);
   expect(before.segments.at(-1).points).toEqual(before.draft[0].points);
+  await showLibrary(page, "route");
   await page
     .locator(".sidebar-footer summary", { hasText: "Copias de seguridad" })
     .click();
@@ -288,10 +297,7 @@ test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia
 }) => {
   await ready(page);
   await page.locator("input[type=file]").first().setInputFiles(fixture);
-  await page
-    .getByRole("button", { name: "Editar copia", exact: true })
-    .last()
-    .click();
+  await sendLibraryItem(page, "route", -1);
   await persisted(page);
   // Simula datos de la versión anterior en IndexedDB, no una biblioteca vacía.
   const legacy = await page.evaluate(async () => {
@@ -319,8 +325,8 @@ test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia
   await pinLibraries(page);
   expect(await state(page)).toEqual(legacy);
   await expect(
-    page.getByRole("navigation", { name: "Biblioteca" }).getByRole("button"),
-  ).toHaveCount(2);
+    page.getByRole("navigation", { name: "Biblioteca" }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Guardar versión", exact: true }),
   ).toHaveCount(0);
@@ -338,6 +344,7 @@ test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia
   await page.reload();
   await pinLibraries(page);
   expect((await state(page)).projects).toEqual(legacy.projects);
+  await showLibrary(page, "route");
   await page
     .locator(".sidebar-footer summary", { hasText: "Copias de seguridad" })
     .click();
@@ -421,6 +428,7 @@ test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia
   await page.reload();
   await pinLibraries(page);
   expect(await state(page)).toEqual(final);
+  await showLibrary(page, "route");
   await page
     .locator(".sidebar-footer summary", { hasText: "Copias de seguridad" })
     .click();
@@ -526,13 +534,13 @@ test("un GPX inválido se rechaza sin modificar la biblioteca", async ({
   expect((await state(page)).routes).toHaveLength(1);
 });
 
-test("importación directa de segmentos y cambio geográfico conserva selección", async ({
+test("importar ruta y guardar segmento conserva selección fuera del filtro geográfico", async ({
   page,
 }) => {
   await ready(page);
-  await page.getByRole("checkbox", { name: /Seleccionar Subida/ }).check();
-  await page.getByText("Buscar y filtrar", { exact: true }).click();
-  await page.getByLabel("Destino del GPX").selectOption("segments");
+  await showLibrary(page, "segment");
+  await page.getByRole("checkbox", { name: /Mostrar Subida/ }).check();
+  const beforeImport = await state(page);
   await page
     .locator("input[type=file]")
     .first()
@@ -546,20 +554,40 @@ test("importación directa de segmentos y cambio geográfico conserva selección
   await expect(
     page.getByRole("heading", { name: "Zona lejana", exact: true }),
   ).toBeVisible();
+  expect((await state(page)).draft).toEqual(beforeImport.draft);
+  await showLibrary(page, "segment");
   await expect(
-    page.getByRole("checkbox", { name: /Seleccionar Subida/ }),
+    page.getByRole("checkbox", { name: /Mostrar Subida/ }),
   ).toBeChecked();
+  await page.getByText(/Buscar y filtrar segmentos/).click();
+  await page
+    .getByText("Más filtros: distancia, desnivel y zona", { exact: true })
+    .click();
+  await page
+    .getByRole("checkbox", {
+      name: "Solo segmentos que cruzan el mapa visible",
+    })
+    .check();
   await expect(
     page.getByRole("heading", { name: /Camino de la ladera/ }),
   ).toHaveCount(0);
-  await expect(
-    page.getByRole("heading", { name: "Zona lejana", exact: true }),
-  ).toHaveCount(1);
+  await sendLibraryItem(page, "route", -1);
+  await page
+    .getByRole("button", { name: "Guardar segmento", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Guardar segmento",
+    exact: true,
+  });
+  await dialog
+    .getByRole("button", { name: "Guardar segmento", exact: true })
+    .click();
   await persisted(page);
   const d = await state(page);
   expect(d.routes).toHaveLength(2);
   expect(d.segments).toHaveLength(4);
   expect(d.routes.at(-1).original).toContain("Zona lejana");
+  expect(d.segments.at(-1).points).toEqual(d.routes.at(-1).tracks[0]);
 });
 
 test("borrador vacío recuperable y exportación incompleta bloqueada", async ({

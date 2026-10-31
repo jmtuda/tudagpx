@@ -34,7 +34,7 @@ for (const width of [1440, 390]) {
     });
     await expect(files.getByRole("tab")).toHaveCount(1);
 
-    await page.getByRole("button", { name: "Ocultar panel de rutas" }).click();
+    await expect(page.locator("#library-panel")).toHaveCount(0);
     const box = await page
       .getByTitle("Editar punto 2", { exact: true })
       .boundingBox();

@@ -117,7 +117,7 @@ export function EditorTraceTabs({
         </div>
       ) : (
         <span className="loaded-empty">
-          Ninguna ruta cargada. Usa «Enviar al editor» o carga una copia.
+          Ninguna ruta cargada. Usa «Enviar al editor» desde «Ver rutas».
         </span>
       )}
     </div>

@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { validateChange } from "../server/workspaceTransport.js";
-import { pinLibraries } from "./helpers/library";
+import { pinLibraries, sendLibraryItem, showLibrary } from "./helpers/library";
 
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
 async function state(page) {
@@ -44,12 +44,10 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 950 });
     await openEditor(page);
     await page.locator("input[type=file]").first().setInputFiles(fixture);
-    await page
-      .getByRole("button", { name: "Editar copia", exact: true })
-      .last()
-      .click();
+    await sendLibraryItem(page, "route", -1);
     const before = await state(page);
     const original = before.routes.at(-1);
+    await showLibrary(page, "route");
     await rename(page, original.name, null);
     expect(await state(page)).toEqual(before);
     await rename(page, original.name, "   ");
@@ -124,12 +122,13 @@ for (const width of [1440, 390]) {
   }) => {
     await page.setViewportSize({ width, height: 950 });
     await openEditor(page);
-    await page
-      .getByRole("button", { name: "Abrir segmento", exact: true })
-      .first()
-      .click();
+    await sendLibraryItem(page, "segment", 0);
     const before = await state(page);
     const original = before.segments[0];
+    await showLibrary(page, "segment");
+    await page
+      .getByRole("checkbox", { name: `Mostrar ${original.name}`, exact: true })
+      .check();
     await rename(page, original.name, "Segmento renombrado");
     const renamed = await state(page);
     expect(renamed.segments[0]).toEqual({
@@ -182,10 +181,7 @@ for (const kind of ["ruta", "segmento"]) {
           '<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>Sin elevación</name><trkseg><trkpt lat="40.4168" lon="-3.7038"/><trkpt lat="40.42" lon="-3.7"/></trkseg></trk></gpx>',
         ),
       });
-    await page
-      .getByRole("button", { name: "Editar copia", exact: true })
-      .last()
-      .click();
+    await sendLibraryItem(page, "route", -1);
     const before = await state(page);
     await page
       .getByRole("button", { name: `Guardar ${kind}`, exact: true })

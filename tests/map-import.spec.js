@@ -1,3 +1,4 @@
+import { sendViewerRoute } from "./helpers/library";
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url);
@@ -51,6 +52,14 @@ test("arrastrar uno o varios GPX al visor y editor conserva originales e indepen
   ]);
   saved = await state(page);
   expect(saved.routes.length).toBe(before.routes.length + 3);
+  expect(saved.draft).toEqual(before.draft);
+  await expect(
+    page.getByRole("tab", { name: "Ver rutas", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("path.viewer-route-selected")).toHaveCount(3);
+  await sendViewerRoute(page, -2);
+  await sendViewerRoute(page, -1);
+  saved = await state(page);
   expect(saved.draft).toHaveLength(4);
   expect(new Set(saved.draft.map((e) => e.editorRouteId)).size).toBe(2);
   expect(saved.routes.slice(-2).every((r) => r.originalBase64 === base64)).toBe(
@@ -65,7 +74,7 @@ test("arrastrar uno o varios GPX al visor y editor conserva originales e indepen
     page.locator("path.viewer-route-reference, path.viewer-route-selected"),
   ).toHaveCount(0);
   await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
-  await expect(page.locator("path.viewer-route-selected")).toHaveCount(1);
+  await expect(page.locator("path.viewer-route-selected")).toHaveCount(3);
   await page.reload();
   expect((await state(page)).draft).toEqual(saved.draft);
 });

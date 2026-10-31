@@ -31,7 +31,7 @@ for (const width of [1440, 390]) {
     });
     await tabs.getByRole("tab", { name: "Abierta", exact: true }).click();
 
-    await page.getByRole("button", { name: "Ocultar panel de rutas" }).click();
+    await expect(page.locator("#library-panel")).toHaveCount(0);
     await expect(page.locator(".trace-start")).toHaveText("▶");
     const startAppearance = await page
       .locator(".trace-start")

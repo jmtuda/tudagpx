@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { pinLibraries } from "./helpers/library";
+import { pinLibraries, sendLibraryItem } from "./helpers/library";
 async function appearance(page, selector) {
   return page
     .locator(selector)
@@ -36,19 +36,8 @@ for (const width of [1440, 390]) {
       const end = await appearance(page, ".trace-end");
       await page.getByRole("tab", { name: "Editar", exact: true }).click();
       if (source === "ruta") {
-        await page
-          .getByRole("navigation", { name: "Biblioteca", exact: true })
-          .getByRole("button", { name: /^Rutas/ })
-          .click();
-        await page
-          .getByRole("button", { name: "Editar copia", exact: true })
-          .first()
-          .click();
-      } else
-        await page
-          .getByRole("button", { name: "Abrir segmento", exact: true })
-          .first()
-          .click();
+        await sendLibraryItem(page, "route", 0);
+      } else await sendLibraryItem(page, "segment", 0);
       expect(await appearance(page, ".trace-start")).toEqual(start);
       expect(await appearance(page, ".trace-end")).toEqual(end);
       await expect(page.locator(".endpoint-handle")).toHaveCount(2);

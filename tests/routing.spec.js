@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { pinLibraries } from "./helpers/library";
+import { pinLibraries, sendLibraryItem } from "./helpers/library";
 
 const gpx =
   '<?xml version="1.0"?><gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>Prueba pública Madrid</name><trkseg><trkpt lat="40.4168" lon="-3.7038"/><trkpt lat="40.4184" lon="-3.7019"/><trkpt lat="40.4200" lon="-3.7000"/></trkseg></trk></gpx>';
@@ -15,10 +15,7 @@ async function imported(page) {
       mimeType: "application/gpx+xml",
       buffer: Buffer.from(gpx),
     });
-  await page
-    .getByRole("button", { name: "Editar copia", exact: true })
-    .last()
-    .click();
+  await sendLibraryItem(page, "route", -1);
 }
 async function state(page) {
   await expect(page.locator(".local-status > span")).toHaveText(

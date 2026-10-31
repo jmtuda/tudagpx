@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { pinLibraries, sendViewerRoute } from "./helpers/library";
+import {
+  pinLibraries,
+  sendViewerRoute,
+  sendLibraryItem,
+} from "./helpers/library";
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
 async function state(page) {
   await expect(page.locator(".local-status > span")).toHaveText(
@@ -37,7 +41,7 @@ for (const viewport of [
     ).toHaveCount(0);
     await page.locator("input[type=file]").first().setInputFiles(fixture);
     await page.getByRole("checkbox", { name: /Mostrar Vuelta/ }).check();
-    await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(2);
+    await expect(page.locator("path.viewer-route-selected")).toHaveCount(2);
     const before = await state(page);
     await page.getByText(/Buscar y filtrar rutas/).click();
     await page.getByLabel("Buscar rutas por nombre").fill("ruta DE PRUEBA");
@@ -46,7 +50,7 @@ for (const viewport of [
       .getByLabel("Tipo de ciclismo", { exact: true })
       .selectOption("Gravel");
     await expect(page.locator(".library-card")).toHaveCount(0);
-    await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(2);
+    await expect(page.locator("path.viewer-route-selected")).toHaveCount(2);
     await page.getByRole("button", { name: "Limpiar filtros" }).click();
     await page
       .getByText("Más filtros: distancia, desnivel y zona", { exact: true })
@@ -79,13 +83,8 @@ for (const viewport of [
     await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
     await expect(page.locator("path.draft-line")).toHaveCount(0);
     await expect(page.locator(".anchor-handle")).toHaveCount(0);
-    await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(2);
-    await page.getByRole("button", { name: "Ocultar panel de rutas" }).click();
-    await expect
-      .poll(
-        async () => (await page.locator(".workspace-map").boundingBox()).width,
-      )
-      .toBe(viewport.width);
+    await expect(page.locator("path.viewer-route-selected")).toHaveCount(2);
+    await expect(page.locator("#library-panel")).toBeVisible();
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
     await expect(page.locator("path.draft-line")).toHaveCount(2);
     // Con el perfil también en el visor, el encuadre móvil inicial tiene menos
@@ -93,13 +92,10 @@ for (const viewport of [
     if (viewport.width <= 650)
       await page.getByRole("button", { name: "Zoom in", exact: true }).click();
     await expect(page.locator(".anchor-handle")).toHaveCount(4);
-    await page.getByRole("button", { name: "Mostrar panel de rutas" }).click();
+    await expect(page.locator("#library-panel")).toHaveCount(0);
     expect((await state(page)).draft).toEqual(draft);
-    await page.getByRole("button", { name: /^Segmentos/ }).click();
-    await page
-      .getByRole("button", { name: "Abrir segmento", exact: true })
-      .first()
-      .click();
+
+    await sendLibraryItem(page, "segment", 0);
     expect((await state(page)).draft).toHaveLength(3);
     await expect(
       page

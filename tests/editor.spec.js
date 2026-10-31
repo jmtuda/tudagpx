@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { pinLibraries } from "./helpers/library";
+import { pinLibraries, sendLibraryItem } from "./helpers/library";
 // Esta batería verifica la geometría libre; el cálculo real tiene su propia batería.
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
@@ -25,10 +25,7 @@ async function state(page) {
 async function demo(page) {
   await page.goto("/");
   await pinLibraries(page);
-  await page
-    .getByRole("button", { name: "Abrir segmento", exact: true })
-    .first()
-    .click();
+  await sendLibraryItem(page, "segment", 0);
   await expect(
     page.getByRole("toolbar", { name: "Herramientas del mapa" }),
   ).toBeVisible();
@@ -51,10 +48,7 @@ test("edición de una copia GPX, inserción por arrastre y un solo paso de desha
   await page.goto("/");
   await pinLibraries(page);
   await page.locator("input[type=file]").first().setInputFiles(fixture);
-  await page
-    .getByRole("button", { name: "Editar copia", exact: true })
-    .last()
-    .click();
+  await sendLibraryItem(page, "route", -1);
   await expect(page.getByLabel("Índice del punto")).toHaveCount(0);
   await expect(page.locator(".anchor-handle")).toHaveCount(4);
 
@@ -88,10 +82,7 @@ test("reabrir una copia importada tras recargar activa sus puntos blancos", asyn
   await page.goto("/");
   await pinLibraries(page);
   await page.locator("input[type=file]").first().setInputFiles(fixture);
-  await page
-    .getByRole("button", { name: "Editar copia", exact: true })
-    .last()
-    .click();
+  await sendLibraryItem(page, "route", -1);
   const before = await state(page);
   await page.reload();
   await expect(page.locator(".anchor-handle")).toHaveCount(4);
@@ -253,7 +244,7 @@ test("edición táctil a pantalla completa sin perder panel ni selección", asyn
   page.on("pageerror", (e) => errors.push(e.message));
   try {
     await demo(page);
-    await page.getByRole("button", { name: "Ocultar panel de rutas" }).tap();
+    await expect(page.locator("#library-panel")).toHaveCount(0);
 
     await expect(page.locator(".workspace-map")).toHaveCSS("width", "390px");
     await page.getByTitle("Insertar punto entre 1 y 2", { exact: true }).tap();
@@ -268,7 +259,7 @@ test("edición táctil a pantalla completa sin perder panel ni selección", asyn
       .tap();
     await expect(page.getByLabel("Inicio del recorte")).toBeVisible();
     await page.getByRole("button", { name: "Cancelar recorte" }).tap();
-    await page.getByRole("button", { name: "Mostrar panel de rutas" }).tap();
+    await expect(page.locator("#library-panel")).toHaveCount(0);
     await expect(
       page
         .getByRole("tablist", { name: "Rutas cargadas en el editor" })

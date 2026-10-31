@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { pinLibraries } from "./helpers/library";
+import { pinLibraries, sendLibraryItem } from "./helpers/library";
 import { readFile } from "node:fs/promises";
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
 async function state(page) {
@@ -11,7 +11,7 @@ async function state(page) {
   );
 }
 for (const width of [1440, 390]) {
-  test(`visor solo tres acciones en línea al seleccionar ${width}`, async ({
+  test(`visor envío permanente y tres acciones en línea al seleccionar ${width}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 950 });
@@ -21,12 +21,16 @@ for (const width of [1440, 390]) {
     const card = page.locator(".viewer-route-card").last();
     const check = card.getByRole("checkbox");
     await check.uncheck();
-    await expect(card.getByRole("button")).toHaveCount(0);
+    await expect(card.getByRole("button")).toHaveCount(1);
+    await expect(
+      card.getByRole("button", { name: "Enviar al editor", exact: true }),
+    ).toBeVisible();
     await check.check();
     expect(await card.getByRole("button").allTextContents()).toEqual([
+      "Enviar al editor",
       "Editar nombre",
       "Borrar",
-      "Descargar GPX",
+      "",
     ]);
     const boxes = await card
       .getByRole("button")
@@ -53,10 +57,7 @@ for (const kind of ["ruta", "segmento"]) {
     await page.goto("/");
     await pinLibraries(page);
     await page.locator("input[type=file]").first().setInputFiles(fixture);
-    await page
-      .getByRole("button", { name: "Editar copia", exact: true })
-      .last()
-      .click();
+    await sendLibraryItem(page, "route", -1);
     const before = await state(page);
     const action = page
       .getByRole("toolbar")
@@ -104,10 +105,7 @@ for (const width of [1440, 390]) {
     await page.goto("/");
     await pinLibraries(page);
     await page.locator("input[type=file]").first().setInputFiles(fixture);
-    await page
-      .getByRole("button", { name: "Editar copia", exact: true })
-      .last()
-      .click();
+    await sendLibraryItem(page, "route", -1);
     const toolbar = page.getByRole("toolbar", {
       name: "Herramientas del mapa",
     });
