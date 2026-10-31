@@ -72,7 +72,7 @@ for (const viewport of [
       .getByRole("button", { name: "Enviar al editor", exact: true })
       .last()
       .click();
-    await expect(page.getByLabel("Trazado activo").locator("option")).toHaveCount(2);
+    expect((await state(page)).draft).toHaveLength(2);
     await expect(page.getByRole("tablist", { name: "Rutas cargadas en el editor" }).getByRole("tab")).toHaveCount(1);
     const draft = (await state(page)).draft;
     await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
@@ -87,6 +87,10 @@ for (const viewport of [
       .toBe(viewport.width);
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
     await expect(page.locator("path.draft-line")).toHaveCount(2);
+    // Con el perfil también en el visor, el encuadre móvil inicial tiene menos
+    // escala. Acercar separa las cuatro anclas (>38 px) sin simplificar el GPX.
+    if (viewport.width <= 650)
+      await page.getByRole("button", { name: "Zoom in", exact: true }).click();
     await expect(page.locator(".anchor-handle")).toHaveCount(4);
     await page.getByRole("button", { name: "Mostrar panel de rutas" }).click();
     expect((await state(page)).draft).toEqual(draft);
@@ -95,7 +99,7 @@ for (const viewport of [
       .getByRole("button", { name: "Abrir segmento", exact: true })
       .first()
       .click();
-    await expect(page.getByLabel("Trazado activo").locator("option")).toHaveCount(3);
+    expect((await state(page)).draft).toHaveLength(3);
     await expect(page.getByRole("tablist", { name: "Rutas cargadas en el editor" }).getByRole("tab")).toHaveCount(2);
     const final = (await state(page)).draft;
     await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();

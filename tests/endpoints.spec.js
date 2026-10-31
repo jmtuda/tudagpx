@@ -30,7 +30,7 @@ for (const width of [1440, 390]) {
       name: "Rutas cargadas en el editor",
     });
     await tabs.getByRole("tab", { name: "Abierta", exact: true }).click();
-    await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
     await page.getByRole("button", { name: "Ocultar panel de rutas" }).click();
     await expect(page.locator(".trace-start")).toHaveText("▶");
     await expect(page.locator(".trace-end")).toHaveText("■");

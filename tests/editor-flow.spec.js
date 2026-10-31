@@ -51,9 +51,11 @@ for (const width of [1440, 390]) {
         exact: true,
       }),
     ).toHaveCount(0);
+    await page.getByLabel("Información de cálculo", { exact: true }).click();
     await expect(
       page.getByRole("button", { name: "Retirar permiso", exact: true }),
     ).toBeVisible();
+    await page.getByLabel("Información de cálculo", { exact: true }).click();
     await expect(
       page.getByRole("button", { name: "Mover mapa", exact: true }),
     ).toHaveCount(0);
@@ -110,9 +112,7 @@ for (const width of [1440, 390]) {
     await page
       .getByRole("button", { name: "Editar trazado", exact: true })
       .click();
-    await page
-      .getByRole("button", { name: "Minimizar herramientas", exact: true })
-      .click();
+
     await expect(page.locator("path.editor-segment-reference")).toHaveCount(1);
     await page.getByRole("button", { name: "Ocultar panel de rutas", exact: true }).click();
     await page.getByRole("button", { name: "Minimizar perfil de altitud", exact: true }).click();
@@ -125,9 +125,7 @@ for (const width of [1440, 390]) {
     await page
       .getByRole("button", { name: "Editar trazado", exact: true })
       .click();
-    await page
-      .getByRole("button", { name: "Minimizar herramientas", exact: true })
-      .click();
+
     await clickTrace(page, "path.draft-line");
     await expect(page.locator("path.draft-line")).toHaveCount(1);
     expect((await state(page)).draft).toEqual(opened.draft);

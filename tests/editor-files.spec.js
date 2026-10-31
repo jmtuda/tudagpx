@@ -72,7 +72,7 @@ for (const viewport of [
         nodes.map((n) => getComputedStyle(n).backgroundColor),
       );
     expect(new Set(dots).size).toBe(2);
-    await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
     await page.getByRole("button", { name: "Ocultar panel de rutas" }).click();
     await files.getByRole("tab", { name: /Ruta de prueba & original/ }).click();
     await expect(

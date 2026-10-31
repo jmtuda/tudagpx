@@ -50,7 +50,7 @@
   font-size: 10px;
 }
 .loaded-route-tabs button[aria-selected="true"] {
-  background: transparent;
+  background: #fff;
   border-color: var(--route-color);
   color: #102e2a;
   box-shadow: inset 0 -3px var(--route-color);
@@ -102,18 +102,30 @@
 .editor-loaded-routes .loaded-empty,
 .editor-loaded-routes button {
   color: #14322e;
-  text-shadow: 0 0 2px white, 1px 1px 2px white, -1px -1px 2px white,
-    1px -1px 2px white, -1px 1px 2px white;
+  text-shadow:
+    0 0 2px white,
+    1px 1px 2px white,
+    -1px -1px 2px white,
+    1px -1px 2px white,
+    -1px 1px 2px white;
 }
 .editor-loaded-routes button {
-  background: transparent;
-  border-color: transparent;
+  background: #fff;
+  border-color: #b5cac5;
   pointer-events: auto;
   min-height: 36px;
 }
-.loaded-route-tabs { pointer-events: auto; }
-.editor-loaded-routes button:hover { background: transparent; border-color: #254f49; }
-.editor-loaded-routes button:focus-visible { outline: 3px solid #007d77; outline-offset: -3px; }
+.loaded-route-tabs {
+  pointer-events: auto;
+}
+.editor-loaded-routes button:hover {
+  background: #eef5f2;
+  border-color: #254f49;
+}
+.editor-loaded-routes button:focus-visible {
+  outline: 3px solid #007d77;
+  outline-offset: -3px;
+}
 .elevation-profile {
   flex: 0 0 var(--elevation-height);
   height: var(--elevation-height);
@@ -139,8 +151,67 @@
   font-size: 11px;
   flex-shrink: 0;
 }
-.elevation-file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.elevation-reading { margin-left: auto; white-space: nowrap; }
+.elevation-file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.elevation-reading {
+  white-space: nowrap;
+}
+.elevation-metrics {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 3px 16px;
+  overflow: auto;
+  max-height: 36px;
+  min-width: 0;
+}
+.elevation-route-metric {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.elevation-route-metric strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+.elevation-route-metric > span {
+  white-space: nowrap;
+}
+.elevation-profile header button {
+  width: 32px;
+  font-size: 24px;
+}
+.elevation-crop-controls {
+  padding: 3px 22px 3px 58px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.elevation-crop-controls label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  min-width: 100px;
+}
+.elevation-crop-controls input {
+  width: 100%;
+  min-width: 0;
+}
+.elevation-profile .elevation-range-selection {
+  width: 100%;
+  height: 18px;
+  touch-action: none;
+  cursor: ew-resize;
+}
 .elevation-profile svg {
   display: block;
   width: 100%;
@@ -148,21 +219,74 @@
   touch-action: pan-y;
   cursor: crosshair;
 }
-.elevation-profile svg:focus-visible { outline: 2px solid #007d77; outline-offset: -2px; }
-.elevation-axis line { stroke: #dce6e3; stroke-width: 1; }
-.elevation-axis text { fill: #4d635e; font-size: 11px; }
-.elevation-run path { fill: none; stroke: #007d77; stroke-width: 2; vector-effect: non-scaling-stroke; }
-.elevation-run circle { fill: #007d77; }
-.elevation-cursor line { stroke: #21443e; stroke-dasharray: 3 3; }
-.elevation-cursor circle { fill: #e7a13c; stroke: #21443e; }
-.elevation-note { display: block; font-size: 10px; margin: 0 12px; color: #536a64; }
-.viewer-route-popup { display: grid; gap: 10px; min-width: 170px; }
-.viewer-route-popup small { color: #536a64; }
+.elevation-profile svg:focus-visible {
+  outline: 2px solid #007d77;
+  outline-offset: -2px;
+}
+.elevation-axis line {
+  stroke: #dce6e3;
+  stroke-width: 1;
+}
+.elevation-axis text {
+  fill: #4d635e;
+  font-size: 11px;
+}
+.elevation-run path {
+  fill: none;
+  stroke: var(--profile-color, #007d77);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.elevation-run circle {
+  fill: var(--profile-color, #007d77);
+}
+.elevation-cursor line {
+  stroke: #21443e;
+  stroke-dasharray: 3 3;
+}
+.elevation-cursor circle {
+  fill: #e7a13c;
+  stroke: #21443e;
+}
+.elevation-note {
+  display: block;
+  font-size: 10px;
+  margin: 0 12px;
+  color: #536a64;
+}
+.viewer-route-popup {
+  display: grid;
+  gap: 10px;
+  min-width: 170px;
+}
+.viewer-route-popup small {
+  color: #536a64;
+}
 @media (max-width: 650px) {
-  .elevation-file { display: none; }
-  .elevation-profile header { gap: 4px; padding: 0 8px; }
-  .elevation-profile header button { font-size: 10px; }
-  .elevation-reading { font-size: 10px; }
+  .elevation-file {
+    display: none;
+  }
+  .elevation-profile header {
+    gap: 4px;
+    padding: 0 8px;
+  }
+  .elevation-profile header button {
+    font-size: 24px;
+  }
+  .elevation-reading {
+    font-size: 10px;
+  }
+  .elevation-route-metric strong {
+    max-width: 90px;
+  }
+  .elevation-metrics {
+    gap: 2px 8px;
+    font-size: 10px;
+  }
+  .elevation-crop-controls {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
 }
 .map-shell .editor-options {
   max-height: calc(100dvh - 270px);

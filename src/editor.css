@@ -31,7 +31,9 @@
   pointer-events: auto;
 }
 .editor-toolstrip {
+  position: relative;
   display: flex;
+  align-items: center;
   flex-direction: row;
   flex-wrap: wrap;
   max-width: 100%;
@@ -59,18 +61,78 @@
 .editor-save-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 2px;
+  max-width: 100%;
+}
+.editor-toolstrip button,
+.routing-info summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  padding: 4px;
+}
+.editor-toolstrip button svg,
+.routing-info summary svg {
+  flex-shrink: 0;
+}
+.editor-toolstrip .finish-drawing {
+  width: auto;
+  gap: 4px;
+  padding: 0 7px;
+  font-size: 11px;
+}
+.routing-info {
+  pointer-events: auto;
+}
+.routing-info summary {
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  cursor: pointer;
+  list-style: none;
+}
+.routing-info summary::-webkit-details-marker {
+  display: none;
+}
+.routing-info summary:hover,
+.routing-info[open] summary {
+  background: #e1f0eb;
+  color: #007d77;
+}
+.routing-info summary:focus-visible {
+  outline: 2px solid #007d77;
+  outline-offset: 2px;
+}
+.routing-info-content {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 2;
+  width: 320px;
+  max-width: 100%;
+  max-height: min(45dvh, 260px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 10px;
   border: 1px solid #dce5e3;
   border-radius: 8px;
   background: white;
-  max-width: 100%;
-  box-shadow: 0 2px 8px #173e3926;
-}
-.editor-save-actions button {
+  box-shadow: 0 3px 16px #173e3926;
   font-size: 11px;
+  line-height: 1.5;
+}
+.routing-info-content p {
+  margin: 0 0 8px;
+}
+.editor-toolstrip .routing-info-content button {
+  width: auto;
+  height: auto;
+  min-height: 30px;
   padding: 5px 7px;
+  margin: 2px 0;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: left;
 }
 .tool-divider {
   border-left: 1px solid #dce5e3;

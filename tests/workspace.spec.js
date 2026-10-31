@@ -140,8 +140,8 @@ test("editor: copias, arrastre, invertir, dividir, historial, borrador automáti
   await page
     .getByRole("button", { name: "Abrir 1 seleccionados en el editor" })
     .click();
-  await expect(page.getByLabel("Trazado activo").locator("option")).toHaveCount(1);
-  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+  expect((await state(page)).draft).toHaveLength(1);
+
   const handle = page.getByTitle("Editar punto 1", { exact: true });
   await expect(handle).toBeVisible();
   const box = await handle.boundingBox();
@@ -155,14 +155,14 @@ test("editor: copias, arrastre, invertir, dividir, historial, borrador automáti
   expect(d.draft[0].points[0].ele).toBe(null);
   expect(d.draft[0].points[0].lat).not.toBe(d.segments[0].points[0].lat);
   const moved = structuredClone(d.draft);
-  await page.getByRole("button", { name: "Mostrar herramientas" }).click();
+
   await page.getByRole("button", { name: "Invertir trazado", exact: true }).click();
   expect((await state(page)).draft[0].points).toEqual([...moved[0].points].reverse());
   await page.getByRole("button", { name: "↶ Deshacer" }).click();
   expect((await state(page)).draft).toEqual(moved);
   await page.getByRole("button", { name: "↷ Rehacer" }).click();
   expect((await state(page)).draft[0].points).toEqual([...moved[0].points].reverse());
-  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
   await page.getByTitle("Editar punto 2", { exact: true }).click();
   await page.getByRole("button", { name: "Dividir aquí" }).click();
   expect((await state(page)).draft).toHaveLength(2);
@@ -189,7 +189,7 @@ test("editor: copias, arrastre, invertir, dividir, historial, borrador automáti
   await page.reload();
   await pinLibraries(page);
   expect((await state(page)).draft).toEqual(d.draft);
-  await expect(page.getByLabel("Trazado activo").locator("option")).toHaveCount(2);
+  expect((await state(page)).draft).toHaveLength(2);
   expect(errors).toEqual([]);
 });
 
@@ -198,13 +198,13 @@ test("dibujo libre, recorte, eliminación, nuevo segmento y copia recuperable", 
 }) => {
   await ready(page);
   await page.getByRole("button", { name: "+ Dibujar", exact: true }).click();
-  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
   const map = page.locator(".workspace-map");
   await map.click({ position: { x: 500, y: 300 } });
   await map.click({ position: { x: 550, y: 320 } });
   await map.click({ position: { x: 600, y: 340 } });
   await map.click({ position: { x: 650, y: 360 } });
-  await page.getByRole("button", { name: "Mostrar herramientas" }).click();
+
   await page.getByRole("button", { name: "Terminar dibujo" }).click();
   await persisted(page);
   expect((await state(page)).draft[0].points).toHaveLength(4);
@@ -216,7 +216,7 @@ test("dibujo libre, recorte, eliminación, nuevo segmento y copia recuperable", 
   await page
     .getByRole("button", { name: "Aplicar recorte al borrador" })
     .click();
-  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
   await page.getByTitle("Editar punto 1", { exact: true }).click();
   await page
     .getByRole("button", { name: "Eliminar punto", exact: true })
@@ -260,7 +260,7 @@ test("dibujo libre, recorte, eliminación, nuevo segmento y copia recuperable", 
   await page.reload();
   await pinLibraries(page);
   expect((await state(page)).draft).toEqual(d.draft);
-  await expect(page.getByLabel("Trazado activo").locator("option")).toHaveCount(2);
+  expect((await state(page)).draft).toHaveLength(2);
 });
 
 test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia JSON", async ({ page }) => {
@@ -337,7 +337,7 @@ test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia
     expect(new Set(collection.map((e) => e.id)).size).toBe(collection.length);
   }
   // Las copias recuperadas se abren y se pueden editar; los snapshots no cambian.
-  await expect(page.getByLabel("Trazado activo")).toHaveValue(copies[0].id);
+  await expect(page.getByLabel("Nombre del tramo", { exact: true })).toHaveValue(copies[0].name);
   await page.getByLabel("Nombre del tramo", { exact: true }).fill("Recuperada editable");
   const final = await state(page);
   expect(final.draft.find((e) => e.id === copies[0].id).name).toBe("Recuperada editable");
@@ -493,7 +493,7 @@ test("borrador vacío recuperable y exportación incompleta bloqueada", async ({
   await page.reload();
   await pinLibraries(page);
   expect((await state(page)).draft).toEqual(before.draft);
-  await expect(page.getByLabel("Trazado activo").locator("option")).toHaveCount(1);
+  expect((await state(page)).draft).toHaveLength(1);
   await page.getByRole("button", { name: "Exportar a GPX", exact: true }).click();
   await expect(page.getByText(/necesita al menos dos puntos/)).toBeVisible();
   await expect(

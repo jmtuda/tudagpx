@@ -35,7 +35,7 @@ for (const width of [1440, 390]) {
       name: "Rutas cargadas en el editor",
     });
     await expect(files.getByRole("tab")).toHaveCount(1);
-    await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
     await page.getByRole("button", { name: "Ocultar panel de rutas" }).click();
     const box = await page
       .getByTitle("Editar punto 2", { exact: true })

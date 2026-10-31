@@ -122,9 +122,11 @@ test("editar GPX por caminos real, deshacer y conservar original", async ({
     page.getByLabel("Seguir caminos", { exact: true }),
   ).toBeChecked();
   let calls = 0;
+  await page.getByLabel("Información de cálculo", { exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Retirar permiso", exact: true }),
   ).toBeVisible();
+  await page.getByLabel("Información de cálculo", { exact: true }).click();
   await expect(
     page.getByRole("button", {
       name: "Permitir cálculo con BRouter",
@@ -138,7 +140,7 @@ test("editar GPX por caminos real, deshacer y conservar original", async ({
       profiles.push(new URL(r.url()).searchParams.get("profile"));
     }
   });
-  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
   await drag(page, page.getByTitle("Editar punto 2", { exact: true }), 25, -10);
   await expect(
     page.getByRole("button", { name: "Cancelar cálculo" }),
@@ -170,19 +172,23 @@ test("editar GPX por caminos real, deshacer y conservar original", async ({
   expect(inserted.routes.at(-1)).toEqual(before.routes.at(-1));
   await page.getByRole("button", { name: "↶ Deshacer" }).click();
   expect((await state(page)).draft[0].points).toEqual(after.draft[0].points);
-  await page.getByRole("button", { name: "Mostrar herramientas" }).click();
+
+  await page.getByLabel("Información de cálculo", { exact: true }).click();
   await page
     .getByRole("button", { name: "Retirar permiso", exact: true })
     .click();
-  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+  await page.getByLabel("Información de cálculo", { exact: true }).click();
+
   const revoked = await state(page);
   await drag(page, page.getByTitle(/^Editar punto /).first(), 25, -10);
   expect((await state(page)).draft).toEqual(revoked.draft);
   expect(calls).toBe(4);
-  await page.getByRole("button", { name: "Mostrar herramientas" }).click();
+
+  await page.getByLabel("Información de cálculo", { exact: true }).click();
   await page
     .getByRole("button", { name: "Permitir cálculo con BRouter", exact: true })
     .click();
+  await page.getByLabel("Información de cálculo", { exact: true }).click();
   expect(errors).toEqual([]);
 });
 
@@ -198,7 +204,7 @@ test("crear un track por caminos con clics reales y recuperarlo al recargar", as
     .getByTitle("Editar punto 3", { exact: true })
     .boundingBox();
   await page.getByRole("button", { name: "+ Dibujar", exact: true }).click();
-  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
   await page.mouse.click(a.x + 24, a.y + 8);
   await page.mouse.click(b.x + 24, b.y + 8);
   await expect(
@@ -211,16 +217,18 @@ test("crear un track por caminos con clics reales y recuperarlo al recargar", as
   expect(data.draft.at(-1).points.length).toBeGreaterThan(2);
   await page.reload();
   expect((await state(page)).draft).toEqual(data.draft);
+  await page.getByLabel("Información de cálculo", { exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Retirar permiso", exact: true }),
   ).toBeVisible();
+  await page.getByLabel("Información de cálculo", { exact: true }).click();
 });
 
 test("fallo y cancelación conservan geometría; modo libre no llama al servicio", async ({
   page,
 }) => {
   await imported(page);
-  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
   const before = await state(page);
   await page.route("https://brouter.de/brouter?**", (r) =>
     r.fulfill({ status: 503, body: "No disponible" }),
@@ -241,9 +249,9 @@ test("fallo y cancelación conservan geometría; modo libre no llama al servicio
   await page.getByRole("button", { name: "Cancelar cálculo" }).click();
   release();
   expect((await state(page)).draft).toEqual(before.draft);
-  await page.getByRole("button", { name: "Mostrar herramientas" }).click();
+
   await page.getByLabel("Seguir caminos", { exact: true }).uncheck();
-  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
   await drag(page, page.getByTitle("Editar punto 2", { exact: true }), 25, -10);
   expect((await state(page)).draft[0].points).toHaveLength(3);
   expect((await state(page)).draft[0].points[1]).not.toEqual(
@@ -256,7 +264,7 @@ test("fallo y cancelación al preparar el perfil conservan originales y copias",
 }) => {
   await imported(page);
   const before = await state(page);
-  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
   let calculations = 0;
   page.on("request", (request) => {
     if (request.url().startsWith("https://brouter.de/brouter?")) calculations++;

@@ -56,7 +56,7 @@ async function mountWorkspace(page) {
     }
     createRoot(host).render(React.createElement(Harness));
   }, tracks);
-  await expect(page.locator(".elevation-profile")).toBeVisible();
+  await expect(page.locator("#elevation-test-workspace .elevation-profile")).toBeVisible();
 }
 
 test("distancias geodésicas sin saltos y elevación ausente sin interpolar", async ({ page }) => {
@@ -66,8 +66,8 @@ test("distancias geodésicas sin saltos y elevación ausente sin interpolar", as
     const meters = elements.slice(0, 2).reduce((total, track) => total + track.points.slice(1).reduce((sum, p, i) => sum + distance(track.points[i], p), 0), 0);
     return (meters / 1000).toLocaleString("es", { maximumFractionDigits: 2 }) + " km";
   }, tracks);
-  await expect(page.locator(".elevation-reading")).toHaveText(expected);
-  const runs = page.locator(".elevation-run");
+  await expect(page.locator("#elevation-test-workspace .elevation-reading")).toHaveText(expected);
+  const runs = page.locator("#elevation-test-workspace .elevation-run");
   await expect(runs).toHaveCount(3);
   await expect(runs.nth(1).locator("circle")).toHaveCount(1);
   const ranges = await runs.locator("path").evaluateAll((paths) => paths.map((path) => {
@@ -88,7 +88,7 @@ test("distancias geodésicas sin saltos y elevación ausente sin interpolar", as
 });
 
 for (const width of [1440, 390]) {
-  test(`perfil accesible, minimización persistente y pestañas transparentes ${width}px`, async ({ page }) => {
+  test(`perfil accesible, minimización persistente y pestañas opacas sobre contenedor transparente ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 844 });
     await mountWorkspace(page);
     const profile = page.getByRole("region", { name: "Perfil de altitud" });
@@ -98,7 +98,7 @@ for (const width of [1440, 390]) {
     await slider.focus();
     await page.keyboard.press("Home");
     await expect(slider).toHaveAttribute("aria-valuetext", /100 metros/);
-    await expect(page.locator(".elevation-map-marker")).toHaveCount(1);
+    await expect(page.locator("#elevation-test-workspace .elevation-map-marker")).toHaveCount(1);
     await page.keyboard.press("ArrowRight");
     await expect(slider).toHaveAttribute("aria-valuetext", /120 metros/);
     await page.keyboard.press("ArrowRight");
@@ -109,10 +109,11 @@ for (const width of [1440, 390]) {
     // Pointer/touch follows the same read-only inspection path.
     await slider.dispatchEvent("pointerdown", { pointerType: "touch", clientX: box.x + box.width - 23, clientY: box.y + 40 });
     await expect(profile.locator("output")).toContainText("210 m");
-    const tabs = page.locator(".editor-loaded-routes");
+    const tabs = page.locator("#elevation-test-workspace .editor-loaded-routes");
     expect(await tabs.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
-    for (const button of await tabs.locator("button").all()) {
-      expect(await button.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
+    for (const button of await tabs.getByRole("button").or(tabs.getByRole("tab")).all()) {
+      const background = await button.evaluate((node) => getComputedStyle(node).backgroundColor);
+      expect(background).toMatch(/^rgb\(/);
     }
     const profileBox = await profile.boundingBox();
     const attribution = await page.locator(".leaflet-control-attribution").last().boundingBox();
@@ -131,7 +132,7 @@ for (const width of [1440, 390]) {
     expect(await page.evaluate(() => window.elevationTest.elements)).toEqual(tracks);
     expect(await page.evaluate(() => window.elevationTest.draws)).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.screenshot({ path: `test-results/elevation/profile-${width}.png` });
+    await page.screenshot({ path: testInfo.outputPath(`profile-${width}.png`) });
   });
 }
 
@@ -160,14 +161,14 @@ test("clic izquierdo conserva toggle, abre popup y envía solo explícitamente u
   await clickRoute();
   await popup.getByRole("button", { name: "Enviar al editor", exact: true }).click();
   await expect(popup).toHaveCount(0);
-  await expect(page.locator(".elevation-profile")).toBeVisible();
+  await expect(page.locator("#elevation-test-workspace .elevation-profile")).toBeVisible();
   const sent = await page.evaluate(() => window.elevationTest);
   expect(sent.transfers).toHaveLength(1);
   expect(JSON.stringify(sent.transfers[0])).toBe(sent.original);
   expect(sent.elements).toEqual(tracks);
 });
 
-test("integración real: popup desde referencia abre copia sin cambiar biblioteca", async ({ page }) => {
+test("integración real: popup desde referencia abre copia sin cambiar biblioteca", async ({ page }, testInfo) => {
   await page.goto("/");
   async function saved() {
     await expect(page.locator(".local-status > span")).toHaveText("Guardado en este navegador");
@@ -195,5 +196,5 @@ test("integración real: popup desde referencia abre copia sin cambiar bibliotec
   expect(copies.map((element) => element.points)).toEqual(original.tracks);
   expect(new Set(copies.map((element) => element.editorRouteId)).size).toBe(1);
   await expect(page.locator(".elevation-profile")).toContainText(original.name);
-  await page.screenshot({ path: "test-results/elevation/real-integration.png" });
+  await page.screenshot({ path: testInfo.outputPath("real-integration.png") });
 });

@@ -1,5 +1,13 @@
 # Progreso
 
+## Barra de iconos y perfiles compartidos
+
+Una sola barra de herramientas: guardar ruta/segmento, exportar GPX y limpiar aparecen como iconos SVG a continuación de las herramientas existentes, con etiquetas accesibles y ayuda. Invertir y aplicar/cancelar recorte también se realizan arriba. El cuadro de dibujo/edición conserva solo nombre y Seguir caminos; el de recorte solo el nombre nuevo. Información de BRouter y retirada de permiso accesibles desde el icono de información.
+
+Perfil inferior en visor y editor, sin el antiguo pie del visor. Las rutas activas del visor superponen perfiles con ejes comunes de distancia real y altitud; sus nombres, distancias y subidas acumuladas aparecen arriba a la derecha con los mismos colores del mapa. El editor muestra el archivo activo; al recortar, el gráfico y las métricas corresponden exclusivamente a la selección. Inicio/Final y franja de selección están abajo; el dominio completo de la franja evita desplazamientos al repetir gestos. Se respetan tramos separados y altitudes ausentes. Minimización mediante chevron sin texto visible. Botones de archivos sólidos sobre contenedor transparente.
+
+Verificado: lint/build y 77 pruebas Chrome correctas, incluidos colores exactos mapa/perfil/métricas, superposición, recorte estable, guardados validados y originales intactos. Revisado en escritorio, móvil y ventana baja.
+
 ## Fichas, guardado validado y perfil del editor
 
 Botones Editar nombre y Borrar en cada ficha de ruta/segmento. Nombre de catálogo independiente del GPX original. Confirmación antes de todo borrado; deletedAt retira el registro de listas y mapas, conservando bytes, geometría, snapshots y copias abiertas. Validación del marcador y protección del servidor contra cambios en tracks de rutas y points de segmentos.

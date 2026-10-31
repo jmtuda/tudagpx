@@ -11,9 +11,11 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await page.goto("/");
-    const viewerFooter = await page.locator(".bottom-bar").boundingBox();
-    expect(viewerFooter.height).toBeLessThanOrEqual(48);
-    expect(viewerFooter.y + viewerFooter.height).toBeCloseTo(viewport.height, 0);
+    await expect(page.locator(".bottom-bar")).toHaveCount(0);
+    const viewerProfile = await page.getByRole("region", { name: "Perfil de altitud", exact: true }).boundingBox();
+    const viewerMap = await page.locator(".workspace-map").boundingBox();
+    expect(viewerMap.y + viewerMap.height).toBeCloseTo(viewerProfile.y, 0);
+    expect(viewerProfile.y + viewerProfile.height).toBeCloseTo(viewport.height, 0);
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
     await expect(page.locator("#library-panel")).toBeHidden();
     await expect(page.locator(".map-toolbar")).toHaveCount(0);
@@ -27,7 +29,7 @@ for (const viewport of [
     expect(profile.y + profile.height).toBeCloseTo(viewport.height, 0);
     await page.getByRole("button", { name: "Minimizar perfil de altitud", exact: true }).click();
     const expandedMap = await page.locator(".workspace-map").boundingBox();
-    const output = page.getByRole("group", { name: "Guardar y limpiar", exact: true });
+    const output = page.getByRole("toolbar", { name: "Herramientas del mapa" }).getByRole("group", { name: "Guardar y limpiar", exact: true });
     await expect(output.getByRole("button", { name: "Exportar a GPX", exact: true })).toBeVisible();
     expect((await output.boundingBox()).y).toBeLessThan(expandedMap.y + expandedMap.height / 2);
     if (viewport.width > 650)

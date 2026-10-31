@@ -11,7 +11,8 @@ La implementación anterior de Supabase sigue en src/App.jsx, src/components y s
 - LocalApp.jsx: biblioteca, selección, historial del borrador, importación, comparación básica, proyectos y revisión.
 - components/WorkspaceMap.jsx: capas de rutas/segmentos/borrador, límites de vista y coordinación del mapa.
 - components/DirectTrace.jsx: anclas visibles según zoom, previsualización del arrastre, inserción y menú de puntos.
-- components/EditorTools.jsx: barra de herramientas, selección del trazado, recorte con sliders y perfil interactivo.
+- components/EditorTools.jsx: barra única de iconos, acciones de edición/guardado/recorte y cuadros mínimos de nombre/modo caminos. Información de cálculo en un desplegable independiente.
+- components/ElevationProfile.jsx: perfil compartido visor/editor, superposición por distancia real, métricas y colores por ruta, inspección y selección de recorte inferior. No une tracks ni inventa cotas ausentes.
 - utils/editorGeometry.js: muestreo visual, proyección sobre aristas, división y distancias acumuladas del perfil de recorte.
 - utils/routing.js: cliente BRouter sin claves, perfiles comprobados en el servidor oficial y sustitución local de geometría entre anclas vecinas.
 - utils/workspace.js: geometría, métricas, parser GPX, serialización GPX, revisión y validación de copias.
@@ -43,7 +44,7 @@ El estado «Guardando…» se establece al solicitar un cambio y la revisión se
 
 Las comprobaciones detectan borrador vacío, tramos con menos de dos puntos, coordenadas inválidas, huecos mayores de 30 m entre elementos, elevación ausente y aristas iguales a seis decimales, también invertidas. Los avisos geográficos se marcan en el mapa. Las advertencias requieren aceptación; los errores bloquean exportación. Se serializa GPX 1.1 con escape XML y un trkseg por elemento; se vuelve a parsear antes de descargar. Nunca se trazan conectores automáticamente.
 
-No es todavía un validador exhaustivo: solapamientos parciales, saltos dentro de un tramo y sentido/orden incorrectos requieren revisión visual. El perfil comparativo inicial se presenta por ruta y usa los puntos como eje horizontal, no distancia acumulada.
+No es todavía un validador exhaustivo: solapamientos parciales, saltos dentro de un tramo y sentido/orden incorrectos requieren revisión visual. El perfil comparativo usa distancia geodésica acumulada, ejes comunes y colores idénticos a las líneas del mapa; no añade distancia entre tracks ni subida a través de datos de elevación ausentes. En recorte el gráfico y las métricas usan exclusivamente la selección, con una franja de dominio completo estable para modificar sus extremos.
 
 ## Privacidad y límites
 

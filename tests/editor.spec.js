@@ -57,7 +57,7 @@ test("edición de una copia GPX, inserción por arrastre y un solo paso de desha
     .click();
   await expect(page.getByLabel("Índice del punto")).toHaveCount(0);
   await expect(page.locator(".anchor-handle")).toHaveCount(4);
-  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
   const before = await state(page),
     middle = page.getByTitle("Insertar punto entre 1 y 2", { exact: true });
   const b = await middle.boundingBox(),
@@ -98,7 +98,7 @@ test("reabrir una copia importada tras recargar activa sus puntos blancos", asyn
   await expect(
     page.getByRole("button", { name: "Editar trazado", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
   await drag(page, page.getByTitle("Editar punto 2", { exact: true }), 30, -20);
   const after = await state(page);
   expect(after.draft[0].points[1]).not.toEqual(before.draft[0].points[1]);
@@ -109,7 +109,7 @@ test("puntos arrastrables y menú contextual sin añadir puntos accidentales", a
   page,
 }) => {
   await demo(page);
-  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
   const original = (await state(page)).draft[0].points;
   await drag(page, page.getByTitle("Editar punto 2", { exact: true }), 35, -15);
   let d = await state(page);
@@ -173,18 +173,19 @@ test("selección arrastrada sobre perfil, extremos válidos y cancelación", asy
   await page
     .getByRole("button", { name: "Recortar trazado", exact: true })
     .click();
-  const chart = page.getByRole("img", {
+  const profile = page.getByRole("region", { name: "Perfil de altitud", exact: true });
+  const chart = profile.getByRole("img", {
       name: /Perfil para seleccionar el recorte/,
     }),
     box = await chart.boundingBox();
-  await page.mouse.move(box.x + box.width - 2, box.y + 30);
+  await page.mouse.move(box.x + box.width - 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.up();
   await expect(page.getByLabel("Inicio del recorte")).toHaveValue("2");
   await expect(page.getByLabel("Final del recorte")).toHaveValue("3");
-  await page.mouse.move(box.x + box.width * 0.95, box.y + 30);
+  await page.mouse.move(box.x + box.width * 0.95, box.y + box.height / 2);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width * 0.2, box.y + 30, { steps: 10 });
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2, { steps: 10 });
   await page.mouse.up();
   expect(
     Number(await page.getByLabel("Inicio del recorte").inputValue()),
@@ -207,7 +208,7 @@ test("tijeras dividen sobre la línea, deshacer conserva el trazado completo", a
   await page
     .getByRole("button", { name: "Dividir trazado", exact: true })
     .click();
-  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
   await page.mouse.move(marker.x + 7, marker.y + 7);
   await expect(page.getByTitle("Dividir en este lugar")).toBeVisible();
   await page.getByTitle("Dividir en este lugar").click();
@@ -241,7 +242,7 @@ test("edición táctil a pantalla completa sin perder panel ni selección", asyn
   try {
     await demo(page);
     await page.getByRole("button", { name: "Ocultar panel de rutas" }).tap();
-    await page.getByRole("button", { name: "Minimizar herramientas" }).tap();
+
     await expect(page.locator(".workspace-map")).toHaveCSS("width", "390px");
     await page.getByTitle("Insertar punto entre 1 y 2", { exact: true }).tap();
     expect((await state(page)).draft[0].points).toHaveLength(5);
@@ -269,11 +270,11 @@ test("terminar dibujo y mover mapa no añaden puntos al trazado", async ({
 }) => {
   await demo(page);
   await page.getByRole("button", { name: "+ Dibujar", exact: true }).click();
-  await page.getByRole("button", { name: "Minimizar herramientas" }).click();
+
   const map = page.locator(".workspace-map");
   await map.click({ position: { x: 800, y: 400 } });
   await map.click({ position: { x: 850, y: 450 } });
-  await page.getByRole("button", { name: "Mostrar herramientas" }).click();
+
   await page.getByRole("button", { name: "Terminar dibujo" }).click();
   await expect(
     page.getByRole("button", { name: "Editar trazado", exact: true }),

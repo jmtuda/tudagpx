@@ -1446,16 +1446,6 @@ export default function LocalApp({ onLogout }) {
             }}
             issues={issues}
           />
-          {workspace === "view" && (
-            <div className="bottom-bar">
-              <>
-                <strong>{visibleRoutes.length} rutas superpuestas</strong>
-                <span className="hint">
-                  Solo visualización · originales protegidos
-                </span>
-              </>
-            </div>
-          )}
         </main>
       </div>
       {notice && (
