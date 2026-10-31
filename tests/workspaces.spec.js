@@ -43,18 +43,29 @@ for (const viewport of [
     await page.getByRole("checkbox", { name: /Mostrar Vuelta/ }).check();
     await expect(page.locator("path.viewer-route-selected")).toHaveCount(2);
     const before = await state(page);
+    await expect(
+      page.getByLabel("Distancia mínima (km)", { exact: true }),
+    ).toBeHidden();
     await page.getByText(/Buscar y filtrar rutas/).click();
+    for (const label of [
+      "Distancia mínima (km)",
+      "Distancia máxima (km)",
+      "Desnivel mínimo (m)",
+      "Desnivel máximo (m)",
+    ]) {
+      await expect(page.getByLabel(label, { exact: true })).toBeVisible();
+    }
+    await expect(page.locator(".all-route-filters details")).toHaveCount(0);
+    await expect(page.locator(".all-route-filters select")).toHaveCount(0);
+    await expect(page.getByText(/que cruzan el mapa visible/)).toHaveCount(0);
+    await expect(page.getByText(/El desnivel es el acumulado/)).toHaveCount(0);
     await page.getByLabel("Buscar rutas por nombre").fill("ruta DE PRUEBA");
     await expect(page.locator(".library-card")).toHaveCount(1);
-    await page
-      .getByLabel("Tipo de ciclismo", { exact: true })
-      .selectOption("Gravel");
+    await page.getByLabel("Buscar rutas por nombre").fill("inexistente");
     await expect(page.locator(".library-card")).toHaveCount(0);
     await expect(page.locator("path.viewer-route-selected")).toHaveCount(2);
     await page.getByRole("button", { name: "Limpiar filtros" }).click();
-    await page
-      .getByText("Más filtros: distancia, desnivel y zona", { exact: true })
-      .click();
+
     for (const label of ["Distancia mínima (km)", "Desnivel mínimo (m)"]) {
       await page.getByLabel(label, { exact: true }).fill("1000000");
       await expect(page.locator(".library-card")).toHaveCount(0);
@@ -185,16 +196,13 @@ test("filtros geográficos por cruce, límites numéricos y selección fuera del
   });
   await page.getByRole("checkbox", { name: /Mostrar Vuelta/ }).check();
   await page.getByText(/Buscar y filtrar rutas/).click();
-  await page
-    .getByText("Más filtros: distancia, desnivel y zona", { exact: true })
-    .click();
-  await page
-    .getByRole("checkbox", { name: "Solo rutas que cruzan el mapa visible" })
-    .check();
+  await page.getByLabel("Buscar rutas por nombre").fill("inexistente");
   await page
     .getByRole("button", { name: "Seleccionar mapa", exact: true })
     .click();
   await page.getByLabel("Cartografía").selectOption("osm");
+  await expect(page.locator("path.viewer-route-selected")).toHaveCount(1);
+  await page.getByRole("button", { name: "Limpiar filtros" }).click();
   await expect(
     page.getByRole("checkbox", { name: /Mostrar Vuelta/ }),
   ).toBeChecked();

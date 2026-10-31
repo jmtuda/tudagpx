@@ -539,7 +539,7 @@ test("un GPX inválido se rechaza sin modificar la biblioteca", async ({
   expect((await state(page)).routes).toHaveLength(1);
 });
 
-test("importar ruta y guardar segmento conserva selección fuera del filtro geográfico", async ({
+test("importar ruta y guardar segmento conserva selección fuera del filtro de nombre", async ({
   page,
 }) => {
   await ready(page);
@@ -565,17 +565,19 @@ test("importar ruta y guardar segmento conserva selección fuera del filtro geog
     page.getByRole("checkbox", { name: /Mostrar Subida/ }),
   ).toBeChecked();
   await page.getByText(/Buscar y filtrar segmentos/).click();
-  await page
-    .getByText("Más filtros: distancia, desnivel y zona", { exact: true })
-    .click();
-  await page
-    .getByRole("checkbox", {
-      name: "Solo segmentos que cruzan el mapa visible",
-    })
-    .check();
+  await expect(
+    page.getByLabel("Distancia mínima (km)", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".all-route-filters select")).toHaveCount(0);
+  await expect(page.getByText(/que cruzan el mapa visible/)).toHaveCount(0);
+  await page.getByLabel("Buscar segmentos por nombre").fill("inexistente");
   await expect(
     page.getByRole("heading", { name: /Camino de la ladera/ }),
   ).toHaveCount(0);
+  await page.getByRole("button", { name: "Limpiar filtros" }).click();
+  await expect(
+    page.getByRole("checkbox", { name: /Mostrar Subida/ }),
+  ).toBeChecked();
   await sendLibraryItem(page, "route", -1);
   await page
     .getByRole("button", { name: "Guardar segmento", exact: true })

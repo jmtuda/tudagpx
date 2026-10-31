@@ -1,5 +1,9 @@
 # Progreso
 
+## Filtros del visor en una sola apertura
+
+Buscar y filtrar rutas/segmentos muestra de una vez nombre y límites mínimo/máximo de distancia y desnivel, sin un segundo desplegable. Retirados el selector de tipo de recorrido, la opción de limitar al mapa visible y su leyenda inferior. Limpiar filtros y selección independiente conservados. Sin cambios de datos ni originales. Verificado con lint/build, 100 pruebas Chrome y revisión visual del panel expandido; cobertura de apertura única en escritorio/móvil y segmentos.
+
 ## Inicio en visor y GPX externos del editor
 
 Al abrir o recargar se inicia siempre en Ver rutas, ignorando la preferencia anterior de pestaña y sin borrar el trabajo previo. Al volver a Editar se recupera el borrador.
