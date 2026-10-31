@@ -1,5 +1,11 @@
 # Progreso
 
+## Nombres y referencias sobre PNOA
+
+Verificación final: lint/build correctos y 102 pruebas Chrome aprobadas, incluidas cartografías reales y conservación de originales.
+
+Añadida superposición oficial IGNBaseOrto (PNG transparente) sin sustituir las ortofotos PNOA. Activada inicialmente, con casilla Mostrar nombres y referencias en el selector del mapa y preferencia conservada al recargar. Compartida por visor/editor, solo sobre PNOA y debajo de rutas y anclas. Conserva atribución IGN y advierte errores de referencias por separado. Control desplegado por encima de la diana, sin interferir con dibujo o selección. Pruebas Chrome con teselas reales en escritorio/móvil: activar/desactivar, recarga, otras bases, teclado y biblioteca/borrador intactos; capturas revisadas. Sin cambios de datos ni migraciones.
+
 ## Filtros del visor en una sola apertura
 
 Buscar y filtrar rutas/segmentos muestra de una vez nombre y límites mínimo/máximo de distancia y desnivel, sin un segundo desplegable. Retirados el selector de tipo de recorrido, la opción de limitar al mapa visible y su leyenda inferior. Limpiar filtros y selección independiente conservados. Sin cambios de datos ni originales. Verificado con lint/build, 100 pruebas Chrome y revisión visual del panel expandido; cobertura de apertura única en escritorio/móvil y segmentos.

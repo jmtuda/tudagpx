@@ -4,6 +4,8 @@
 
 Se mantienen React, Vite, Leaflet y react-leaflet. MapaBase.jsx conserva los cuatro servicios de teselas originales y las atribuciones. Se han corregido el selector accesible, una propiedad de estilo y el sobrezoom.
 
+PNOA incorpora la capa PNG transparente IGNBaseOrto del WMTS oficial de IGN Base, por encima de la fotografía pero debajo de rutas/anclas. Mostrar nombres y referencias está activado inicialmente y se puede desactivar desde el selector; preferencia local tudagpx-pnoa-references. No se aplica a las otras bases. No modifica la ortofoto, los GPX ni el almacenamiento de biblioteca/borrador. Los errores de referencias se avisan por separado sin retirar las fotos.
+
 La implementación anterior de Supabase sigue en src/App.jsx, src/components y src/utils/gpxParser.js, recuperable también en main. No se ejecuta desde main.jsx: evita cuentas, llamadas al backend anterior y cambios sobre datos existentes. No se han consultado credenciales ni conectado servicios de producción.
 
 ## Aplicación local

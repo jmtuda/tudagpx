@@ -4,6 +4,14 @@ import { TileLayer } from "react-leaflet";
 
 export function SelectorMapaBase({ onTileError = () => {} }) {
   const [tipoMapa, setTipoMapa] = useState("pnoa_orto");
+  const [showReferences, setShowReferences] = useState(() => {
+    try {
+      return localStorage.getItem("tudagpx-pnoa-references") !== "false";
+    } catch {
+      return true;
+    }
+  });
+  const [referencesError, setReferencesError] = useState(false);
   const [open, setOpen] = useState(false);
   const control = useRef(null);
   useEffect(() => {
@@ -54,6 +62,18 @@ export function SelectorMapaBase({ onTileError = () => {} }) {
         keepBuffer={4}
       />
 
+      {tipoMapa === "pnoa_orto" && showReferences && (
+        <TileLayer
+          url="https://www.ign.es/wmts/ign-base?layer=IGNBaseOrto&style=default&tilematrixset=GoogleMapsCompatible&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix={z}&TileRow={y}&TileCol={x}"
+          attribution='Nombres y referencias: &copy; <a href="https://www.ign.es">IGN</a>'
+          maxZoom={20}
+          maxNativeZoom={18}
+          zIndex={250}
+          keepBuffer={4}
+          eventHandlers={{ tileerror: () => setReferencesError(true) }}
+        />
+      )}
+
       {/* Desplegable flotante */}
       <div
         ref={control}
@@ -61,7 +81,7 @@ export function SelectorMapaBase({ onTileError = () => {} }) {
           position: "absolute",
           top: "10px",
           right: "10px",
-          zIndex: 1000,
+          zIndex: 1001,
           background: "white",
           padding: "6px 10px",
           borderRadius: "6px",
@@ -69,7 +89,7 @@ export function SelectorMapaBase({ onTileError = () => {} }) {
           border: "1px solid #ccc",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
+          alignItems: "flex-end",
           gap: "6px",
         }}
         onMouseDown={(e) => e.stopPropagation()}
@@ -102,34 +122,74 @@ export function SelectorMapaBase({ onTileError = () => {} }) {
           </svg>
         </button>
         {open && (
-          <select
-            size={4}
-            aria-label="Cartografía"
-            value={tipoMapa}
-            onChange={(e) => {
-              setTipoMapa(e.target.value);
-              onTileError(false);
-              setOpen(false);
-            }}
-            style={{
-              padding: "4px 8px",
-              fontSize: "12px",
-              fontWeight: "bold",
-              cursor: "pointer",
-              background: "#f8f9fa",
-              color: "#333",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              outline: "none",
-            }}
-          >
-            <option value="ign_base">🗺️ IGN Base (Topográfico)</option>
-            <option value="mtn">⛰️ MTN (Mapa Topográfico Nacional)</option>
-            <option value="pnoa_orto">
-              🛰️ PNOA (Ortofotografía / Satélite)
-            </option>
-            <option value="osm">🌐 OpenStreetMap (Estándar)</option>
-          </select>
+          <>
+            <select
+              size={4}
+              aria-label="Cartografía"
+              value={tipoMapa}
+              onChange={(e) => {
+                setTipoMapa(e.target.value);
+                onTileError(false);
+                setOpen(false);
+              }}
+              style={{
+                padding: "4px 8px",
+                fontSize: "12px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                background: "#f8f9fa",
+                color: "#333",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                outline: "none",
+              }}
+            >
+              <option value="ign_base">🗺️ IGN Base (Topográfico)</option>
+              <option value="mtn">⛰️ MTN (Mapa Topográfico Nacional)</option>
+              <option value="pnoa_orto">
+                🛰️ PNOA (Ortofotografía / Satélite)
+              </option>
+              <option value="osm">🌐 OpenStreetMap (Estándar)</option>
+            </select>
+            {tipoMapa === "pnoa_orto" && (
+              <>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    style={{ width: "auto" }}
+                    checked={showReferences}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setShowReferences(checked);
+                      setReferencesError(false);
+                      try {
+                        localStorage.setItem(
+                          "tudagpx-pnoa-references",
+                          String(checked),
+                        );
+                      } catch {
+                        // La opción sigue funcionando si el navegador impide guardarla.
+                      }
+                    }}
+                  />
+                  Mostrar nombres y referencias
+                </label>
+                {showReferences && referencesError && (
+                  <span role="status" style={{ maxWidth: 220, fontSize: 12 }}>
+                    No se han podido cargar algunas referencias del IGN. Las
+                    ortofotos siguen disponibles.
+                  </span>
+                )}
+              </>
+            )}
+          </>
         )}
       </div>
     </>
