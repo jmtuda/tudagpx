@@ -168,7 +168,7 @@ for (const width of [1440, 390]) {
   });
 }
 for (const kind of ["ruta", "segmento"]) {
-  test(`guardar ${kind} valida GPX y exige aceptar avisos sin cambiar el original`, async ({
+  test(`guardar ${kind} valida GPX automáticamente sin pedir aceptación de avisos ni cambiar el original`, async ({
     page,
   }) => {
     await openEditor(page);
@@ -190,25 +190,32 @@ for (const kind of ["ruta", "segmento"]) {
     await page
       .getByRole("button", { name: `Guardar ${kind}`, exact: true })
       .click();
-    if (kind === "segmento")
-      await page
-        .getByRole("dialog", { name: "Guardar segmento", exact: true })
-        .getByRole("button", { name: "Guardar segmento", exact: true })
-        .click();
+    const nameDialog = page.getByRole("dialog", {
+      name: `Guardar ${kind}`,
+      exact: true,
+    });
+    await expect(
+      nameDialog.getByLabel(
+        kind === "ruta" ? "Nombre de la ruta" : "Nombre del segmento",
+        { exact: true },
+      ),
+    ).toBeVisible();
     const dialog = page.getByRole("dialog", {
       name: "Revisión GPX",
       exact: true,
     });
-    await expect(dialog).toBeVisible();
-    await expect(dialog).toContainText("sin elevación");
-    const save = dialog.getByRole("button", {
-      name: `Guardar ${kind} revisad${kind === "ruta" ? "a" : "o"}`,
-      exact: true,
-    });
-    await expect(save).toBeDisabled();
+    await expect(dialog).toHaveCount(0);
     expect(await state(page)).toEqual(before);
-    await dialog.getByRole("checkbox").check();
-    await save.click();
+    await nameDialog
+      .getByRole("button", { name: `Guardar ${kind}`, exact: true })
+      .click();
+    await expect(nameDialog).toBeHidden();
+    await expect
+      .poll(
+        async () =>
+          (await state(page))[kind === "ruta" ? "routes" : "segments"].length,
+      )
+      .toBe(before[kind === "ruta" ? "routes" : "segments"].length + 1);
     const after = await state(page);
     expect(after.draft).toEqual(before.draft);
     expect(after.routes.slice(0, before.routes.length)).toEqual(before.routes);
@@ -256,19 +263,29 @@ test("un trazado sin recorrido se bloquea antes de guardar o exportar; trabajo e
   });
   await page.reload();
   const before = await state(page);
-  await page.getByRole("button", { name: "Guardar ruta", exact: true }).click();
   const dialog = page.getByRole("dialog", {
     name: "Revisión GPX",
     exact: true,
   });
-  await expect(dialog).toContainText("no hay un recorrido utilizable");
-  await expect(
-    dialog.getByRole("button", { name: "Guardar ruta revisada", exact: true }),
-  ).toBeDisabled();
-  expect(await state(page)).toEqual(before);
-  await dialog
-    .getByRole("button", { name: "Cerrar revisión", exact: true })
-    .click();
+  for (const kind of ["ruta", "segmento"]) {
+    await page
+      .getByRole("button", { name: `Guardar ${kind}`, exact: true })
+      .click();
+    await expect(dialog).toContainText("no hay un recorrido utilizable");
+    await expect(
+      page.getByRole("dialog", { name: `Guardar ${kind}`, exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      dialog.getByRole("button", {
+        name: `Guardar ${kind} revisad${kind === "ruta" ? "a" : "o"}`,
+        exact: true,
+      }),
+    ).toBeDisabled();
+    expect(await state(page)).toEqual(before);
+    await dialog
+      .getByRole("button", { name: "Cerrar revisión", exact: true })
+      .click();
+  }
   await page
     .getByRole("button", { name: "Exportar a GPX", exact: true })
     .click();

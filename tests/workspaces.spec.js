@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { pinLibraries } from "./helpers/library";
+import { pinLibraries, sendViewerRoute } from "./helpers/library";
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
 async function state(page) {
   await expect(page.locator(".local-status > span")).toHaveText(
@@ -68,12 +68,13 @@ for (const viewport of [
     await expect(page.locator("path.draft-line")).toHaveCount(0);
     await expect(page.getByText(/Ninguna ruta cargada/)).toBeVisible();
     await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
-    await page
-      .getByRole("button", { name: "Enviar al editor", exact: true })
-      .last()
-      .click();
+    await sendViewerRoute(page, -1);
     expect((await state(page)).draft).toHaveLength(2);
-    await expect(page.getByRole("tablist", { name: "Rutas cargadas en el editor" }).getByRole("tab")).toHaveCount(1);
+    await expect(
+      page
+        .getByRole("tablist", { name: "Rutas cargadas en el editor" })
+        .getByRole("tab"),
+    ).toHaveCount(1);
     const draft = (await state(page)).draft;
     await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
     await expect(page.locator("path.draft-line")).toHaveCount(0);
@@ -100,7 +101,11 @@ for (const viewport of [
       .first()
       .click();
     expect((await state(page)).draft).toHaveLength(3);
-    await expect(page.getByRole("tablist", { name: "Rutas cargadas en el editor" }).getByRole("tab")).toHaveCount(2);
+    await expect(
+      page
+        .getByRole("tablist", { name: "Rutas cargadas en el editor" })
+        .getByRole("tab"),
+    ).toHaveCount(2);
     const final = (await state(page)).draft;
     await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
     await page.reload();

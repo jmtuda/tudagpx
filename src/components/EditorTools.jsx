@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import ToolIcon from "./ToolIcon";
 
 export function EditorTools({
@@ -8,14 +8,14 @@ export function EditorTools({
   onMode,
   elements,
   active,
-  onName,
+
   onNew,
-  onOpenLibrary,
+
   onClear,
   canClear,
   drawing,
   onFinish,
-  onExit,
+
   onUndo,
   onRedo,
   canUndo,
@@ -31,13 +31,14 @@ export function EditorTools({
   onCenter,
   routing,
   onRouting,
-  routingConsent,
+
   onConsent,
   onRevokeConsent,
   routingBusy,
   onCancelRouting,
+  range,
+  onRange,
 }) {
-  const [segmentName, setSegmentName] = useState({ active: null, value: "" });
   useEffect(() => {
     if (!editing) return;
     const handler = (e) => {
@@ -55,7 +56,9 @@ export function EditorTools({
   }, [editing, onUndo, onRedo, onFinish]);
   const element = elements.find((e) => e.id === active);
   const canSave = !routingBusy && (element?.points.length || 0) > 1;
-  const cropName = segmentName.active === active ? segmentName.value : "";
+  const routingInfo =
+    "BRouter envía solo coordenadas de anclas o extremos para calcular caminos; nunca el GPX completo ni nombres. Datos © OpenStreetMap, requiere internet y no garantiza ciclabilidad. Desmarca para retirar el permiso y cancelar cálculos; marca para permitirlos.";
+
   if (!editing)
     return (
       <button
@@ -73,12 +76,8 @@ export function EditorTools({
         role="toolbar"
         aria-label="Herramientas del mapa"
       >
-        <button
-          aria-label="Abrir rutas y segmentos"
-          title="Abrir rutas y segmentos de la biblioteca"
-          onClick={onOpenLibrary}
-        >
-          <ToolIcon name="library" />
+        <button aria-label="+ Dibujar" title="Nuevo trazado" onClick={onNew}>
+          <ToolIcon name="plus" />
         </button>
         {[
           ["edit", "edit", "Editar trazado"],
@@ -158,9 +157,6 @@ export function EditorTools({
         >
           <ToolIcon name="redo" />
         </button>
-        <button aria-label="+ Dibujar" title="Nuevo trazado" onClick={onNew}>
-          <ToolIcon name="plus" />
-        </button>
         {drawing && (
           <button
             className="finish-drawing primary"
@@ -171,71 +167,20 @@ export function EditorTools({
             <ToolIcon name="check" /> Terminar dibujo
           </button>
         )}
-        <details className="routing-info">
-          <summary
-            aria-label="Información de cálculo"
-            title="Información de cálculo"
-          >
-            <ToolIcon name="info" />
-          </summary>
-          <div className="routing-info-content">
-            <p>
-              BRouter · asfalto, pistas y senderos, sin preferencia por firme ·
-              datos © OpenStreetMap. Puede incluir caminos peatonales; no
-              garantiza ciclabilidad.
-            </p>
-            <p>
-              Para calcular por caminos se envían las coordenadas de las anclas
-              del tramo editado, no el archivo GPX completo ni sus nombres.
-              Requiere internet.
-            </p>
-            <p>
-              Al unir rutas se conserva su sentido y el orden numerado de la
-              barra inferior. Para conectar huecos se envían solo sus extremos a
-              BRouter y se sigue el camino más corto.
-            </p>
-            {!routing && (
-              <p>
-                Modo libre: líneas rectas, sin enviar coordenadas al servicio de
-                cálculo al dibujar o editar. La unión de huecos sí utiliza
-                BRouter.
-              </p>
-            )}
-            {routingConsent ? (
-              <button onClick={onRevokeConsent}>Retirar permiso</button>
-            ) : (
-              <>
-                <button onClick={onConsent}>
-                  Permitir cálculo con BRouter
-                </button>
-                {mergeSelection.length > 1 && (
-                  <button
-                    aria-label="Permitir conexiones con BRouter"
-                    onClick={onConsent}
-                  >
-                    Permitir conexiones con BRouter
-                  </button>
-                )}
-                <button onClick={() => onRouting(false)}>
-                  Usar modo libre sin enviar coordenadas
-                </button>
-              </>
-            )}
-          </div>
-        </details>
         <button
-          aria-label="Salir del editor"
-          title="Salir del editor"
-          onClick={onExit}
+          aria-label="Limpiar mapa"
+          title="Limpiar mapa sin borrar la biblioteca (se puede deshacer)"
+          onClick={onClear}
+          disabled={!canClear}
         >
-          <ToolIcon name="close" />
+          <ToolIcon name="clear" />
         </button>
-        <span className="tool-divider" aria-hidden="true" />
         <div
           className="editor-save-actions"
           role="group"
-          aria-label="Guardar y limpiar"
+          aria-label="Guardar y exportar"
         >
+          <span className="tool-divider" aria-hidden="true" />
           <button
             aria-label="Guardar ruta"
             title="Guardar el archivo activo como nueva ruta"
@@ -255,14 +200,7 @@ export function EditorTools({
                 ? "Guardar selección como segmento"
                 : "Guardar el trazado activo como nuevo segmento"
             }
-            onClick={
-              mode === "crop"
-                ? () =>
-                    onSaveSelection(
-                      cropName.trim() || `${element.name} · segmento`,
-                    )
-                : onSaveSegment
-            }
+            onClick={mode === "crop" ? () => onSaveSelection() : onSaveSegment}
             disabled={!canSave}
           >
             <ToolIcon name="segment" />
@@ -275,14 +213,6 @@ export function EditorTools({
           >
             <ToolIcon name="export" />
           </button>
-          <button
-            aria-label="Limpiar mapa"
-            title="Limpiar mapa sin borrar la biblioteca (se puede deshacer)"
-            onClick={onClear}
-            disabled={!canClear}
-          >
-            <ToolIcon name="clear" />
-          </button>
         </div>
       </div>
       {routingBusy && (
@@ -293,36 +223,47 @@ export function EditorTools({
       )}
       {mode === "edit" && (
         <section className="editor-options" aria-label="Opciones del editor">
-          {element && (
-            <label className="trace-name">
-              Nombre del tramo
-              <input
-                aria-label="Nombre del tramo"
-                value={element.name}
-                onChange={(event) => onName(event.target.value)}
-              />
-            </label>
-          )}
-          <label className="routing-toggle">
+          <label className="routing-toggle" title={routingInfo}>
             <input
               type="checkbox"
               checked={routing}
-              onChange={(e) => onRouting(e.target.checked)}
+              aria-description={routingInfo}
+              onChange={(e) => {
+                const enabled = e.target.checked;
+                if (enabled) onConsent?.();
+                else onRevokeConsent?.();
+                onRouting(enabled);
+              }}
             />
             Seguir caminos
           </label>
         </section>
       )}
-      {mode === "crop" && element?.points.length > 1 && (
+      {mode === "crop" && element?.points.length > 1 && range && onRange && (
         <section className="editor-options" aria-label="Opciones del editor">
-          <label className="trace-name">
-            Nombre del nuevo segmento
+          <label className="crop-slider">
+            Inicio
             <input
-              aria-label="Nombre del nuevo segmento"
-              placeholder={`${element.name} · segmento`}
-              value={cropName}
-              onChange={(e) =>
-                setSegmentName({ active, value: e.target.value })
+              aria-label="Inicio del recorte"
+              type="range"
+              min="0"
+              max={Math.min(element.points.length - 2, range.end - 1)}
+              value={range.start}
+              onChange={(event) =>
+                onRange({ ...range, start: Number(event.target.value) })
+              }
+            />
+          </label>
+          <label className="crop-slider">
+            Final
+            <input
+              aria-label="Final del recorte"
+              type="range"
+              min={range.start + 1}
+              max={element.points.length - 1}
+              value={range.end}
+              onChange={(event) =>
+                onRange({ ...range, end: Number(event.target.value) })
               }
             />
           </label>

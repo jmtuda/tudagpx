@@ -1,5 +1,15 @@
 # Progreso
 
+## Guardado automático y simplificación final de controles
+
+En el visor, fichas sin botones si no están seleccionadas; al seleccionar solo Editar nombre, Borrar y Descargar GPX en una línea. Transferencia al editor conservada en el popup del mapa. Descarga conserva los bytes originales.
+
+Barra: nuevo trazado primero; retirados abrir biblioteca, información y salir. Limpiar antes del grupo de guardados y separador vertical inmediato a Guardar ruta. Cuadro editar con solo Seguir caminos; desmarcar retira permiso y cancela cálculo, marcar permite calcular. Ayuda BRouter en el control. Cuadro recorte con Inicio/Final, sin nombre; perfil y métricas inferiores siguen mostrando solo la selección. Todos los trazados continuos, incluidas copias inactivas. Inicio cuadrado verde con play blanco, similar al final rojo.
+
+Guardar ruta/segmento valida automáticamente geometría y round-trip GPX antes de pedir nombre. Solo los errores bloquean; sin error, abre el nombre y guarda una entrada nueva. Cancelar no modifica biblioteca ni trabajo. Los avisos no interrumpen el guardado; exportación conserva su revisión y aceptación de advertencias. Aplicado también al guardado de selección y creación de segmentos desde rutas.
+
+Verificación: lint/build y 83 pruebas Chrome correctas. Incluye selección y acciones en una línea en móvil/escritorio, descarga byte a byte, nombres/cancelación, errores antes del nombre, guardados sin confirmación de avisos, recorte, trazados sólidos, marcadores, snapshots y originales intactos. Revisión visual de escritorio/móvil.
+
 ## Barra de iconos y perfiles compartidos
 
 Una sola barra de herramientas: guardar ruta/segmento, exportar GPX y limpiar aparecen como iconos SVG a continuación de las herramientas existentes, con etiquetas accesibles y ayuda. Invertir y aplicar/cancelar recorte también se realizan arriba. El cuadro de dibujo/edición conserva solo nombre y Seguir caminos; el de recorte solo el nombre nuevo. Información de BRouter y retirada de permiso accesibles desde el icono de información.

@@ -77,6 +77,14 @@
   font-size: 11px;
   padding: 4px 7px;
 }
+.viewer-catalog-actions {
+  flex-wrap: nowrap;
+}
+.viewer-catalog-actions button {
+  white-space: nowrap;
+  padding: 4px 6px;
+  font-size: 10px;
+}
 .dock-controls {
   display: flex;
   align-items: flex-start;

@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { pinLibraries } from "./helpers/library";
+import { confirmRouteSave } from "./helpers/library";
+import { pinLibraries, sendViewerRoute } from "./helpers/library";
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
 async function state(page) {
   await expect(page.locator(".local-status > span")).toHaveText(
@@ -26,10 +27,7 @@ for (const width of [1440, 390]) {
         exact: true,
       }),
     ).toBeVisible();
-    await page
-      .getByRole("button", { name: "Enviar al editor", exact: true })
-      .last()
-      .click();
+    await sendViewerRoute(page, -1);
     const before = await state(page);
     const files = page.getByRole("tablist", {
       name: "Rutas cargadas en el editor",
@@ -62,8 +60,11 @@ for (const width of [1440, 390]) {
     await page
       .getByRole("button", { name: "Guardar ruta", exact: true })
       .click();
+    await confirmRouteSave(page);
     await expect(
-      page.getByText("Nueva ruta guardada en la biblioteca.", { exact: false }),
+      page.getByText(
+        /Ruta «.+» guardada\. El original y las copias del editor se conservan\./,
+      ),
     ).toBeVisible();
     await page
       .getByRole("button", { name: "Guardar segmento", exact: true })

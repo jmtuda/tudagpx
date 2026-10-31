@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { confirmRouteSave, pinLibraries } from "./helpers/library";
 async function state(page) {
   await expect(page.locator(".local-status > span")).toHaveText(
     "Guardado en este navegador",
@@ -51,11 +52,12 @@ for (const width of [1440, 390]) {
         exact: true,
       }),
     ).toHaveCount(0);
-    await page.getByLabel("Información de cálculo", { exact: true }).click();
     await expect(
-      page.getByRole("button", { name: "Retirar permiso", exact: true }),
-    ).toBeVisible();
-    await page.getByLabel("Información de cálculo", { exact: true }).click();
+      page.getByLabel("Seguir caminos", { exact: true }),
+    ).toBeChecked();
+    await expect(
+      page.getByLabel("Seguir caminos", { exact: true }),
+    ).toHaveAttribute("aria-description", /BRouter.*coordenadas.*nunca el GPX/);
     await expect(
       page.getByRole("button", { name: "Mover mapa", exact: true }),
     ).toHaveCount(0);
@@ -64,9 +66,7 @@ for (const width of [1440, 390]) {
       await expect(
         page.getByRole("button", { name, exact: true }),
       ).toBeDisabled();
-    await page
-      .getByRole("button", { name: "Abrir rutas y segmentos", exact: true })
-      .click();
+    await pinLibraries(page);
     await expect(
       page.getByRole("navigation", { name: "Biblioteca", exact: true }),
     ).toBeVisible();
@@ -100,9 +100,7 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 950 });
     await page.goto("/");
     await page.getByRole("tab", { name: "Editar", exact: true }).click();
-    await page
-      .getByRole("button", { name: "Abrir rutas y segmentos", exact: true })
-      .click();
+    await pinLibraries(page);
     await page
       .getByRole("navigation", { name: "Biblioteca", exact: true })
       .getByRole("button", { name: /^Segmentos/ })
@@ -114,8 +112,12 @@ for (const width of [1440, 390]) {
       .click();
 
     await expect(page.locator("path.editor-segment-reference")).toHaveCount(1);
-    await page.getByRole("button", { name: "Ocultar panel de rutas", exact: true }).click();
-    await page.getByRole("button", { name: "Minimizar perfil de altitud", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Ocultar panel de rutas", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Minimizar perfil de altitud", exact: true })
+      .click();
     await clickTrace(page, "path.editor-segment-reference");
     await expect(page.locator("path.draft-line")).toHaveCount(1);
     await expect(page.locator("path.editor-segment-reference")).toHaveCount(0);
@@ -132,8 +134,9 @@ for (const width of [1440, 390]) {
     await page
       .getByRole("button", { name: "Guardar ruta", exact: true })
       .click();
+    await confirmRouteSave(page);
     await expect(page.locator(".notice")).toContainText(
-      "Nueva ruta guardada en la biblioteca.",
+      /Ruta «.+» guardada\. El original y las copias del editor se conservan\./,
     );
     const savedRoute = await state(page);
     expect(savedRoute.routes).toHaveLength(before.routes.length + 1);

@@ -60,7 +60,8 @@
 }
 .editor-save-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 2px;
   max-width: 100%;
 }
@@ -136,7 +137,16 @@
 }
 .tool-divider {
   border-left: 1px solid #dce5e3;
+  height: 24px;
+  flex-shrink: 0;
   margin: 3px;
+}
+/* Trace styles stay solid across selection, editing and crop transitions. */
+.workspace-map path.leaflet-interactive,
+.workspace-map .draft-line,
+.workspace-map .crop-line {
+  stroke-dasharray: none !important;
+  stroke-dashoffset: 0 !important;
 }
 .editor-options {
   width: 274px;

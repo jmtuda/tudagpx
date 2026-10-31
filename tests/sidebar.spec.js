@@ -50,18 +50,28 @@ for (const width of [1440, 390]) {
     await expect(card.locator(".profile")).toHaveCount(0);
     await expect(card.locator(".tags")).toHaveCount(0);
     await expect(card.locator(".card-actions")).toHaveCount(0);
-    await expect(card.getByRole("button", { name: /^Editar nombre de / })).toBeVisible();
-    await expect(card.getByRole("button", { name: /^Borrar / })).toBeVisible();
+    await expect(card.getByRole("button")).toHaveCount(0);
     await expect(card).toContainText("subida");
     await expect(card).toContainText("bajada");
     await card.getByRole("checkbox").check();
-    await expect(
-      card.getByRole("button", { name: "Enviar al editor" }),
-    ).toBeVisible();
+    const actions = card.locator(".catalog-actions");
+    await expect(actions.getByRole("button")).toHaveCount(3);
+    await expect(actions.getByRole("button").nth(0)).toHaveText(
+      "Editar nombre",
+    );
+    await expect(actions.getByRole("button").nth(1)).toHaveText("Borrar");
+    await expect(actions.getByRole("button").nth(2)).toHaveText(
+      "Descargar GPX",
+    );
+    const boxes = await actions
+      .getByRole("button")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => node.getBoundingClientRect().y),
+      );
+    expect(Math.max(...boxes) - Math.min(...boxes)).toBeLessThanOrEqual(1);
     await card.getByRole("checkbox").uncheck();
     await expect(card.locator(".card-actions")).toHaveCount(0);
-    await expect(card.getByRole("button", { name: /^Editar nombre de / })).toBeVisible();
-    await expect(card.getByRole("button", { name: /^Borrar / })).toBeVisible();
+    await expect(card.getByRole("button")).toHaveCount(0);
     await page.getByText(/Buscar y filtrar rutas/).click();
     await page.getByLabel("Buscar rutas por nombre").fill("no coincide");
     await expect(page.locator(".viewer-route-card")).toHaveCount(0);
@@ -85,8 +95,14 @@ for (const width of [1440, 390]) {
     await expect(panel).toBeHidden();
     await expect(page.locator("path.draft-line")).toHaveCount(1);
     await edge.click();
-    await expect(page.getByRole("tablist", { name: "Rutas cargadas en el editor" }).getByRole("tab")).toHaveCount(1);
-    await expect(page.getByRole("button", { name: "Guardar ruta", exact: true })).toBeEnabled();
+    await expect(
+      page
+        .getByRole("tablist", { name: "Rutas cargadas en el editor" })
+        .getByRole("tab"),
+    ).toHaveCount(1);
+    await expect(
+      page.getByRole("button", { name: "Guardar ruta", exact: true }),
+    ).toBeEnabled();
     await page
       .getByRole("button", { name: "Ocultar panel de rutas", exact: true })
       .click();

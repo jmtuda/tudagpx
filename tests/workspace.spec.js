@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { acceptSaveWarnings, pinLibraries } from "./helpers/library";
+import { pinLibraries } from "./helpers/library";
 import { readFile } from "node:fs/promises";
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
@@ -100,7 +100,16 @@ test("importa varios tramos, superpone, conserva original y recarga", async ({
   ).toBeChecked();
   await expect(page.locator("path.viewer-route-selected")).toHaveCount(2);
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Original GPX ↓" }).click();
+  await page
+    .locator(".viewer-route-card")
+    .filter({
+      has: page.getByRole("heading", {
+        name: "Ruta de prueba & original",
+        exact: true,
+      }),
+    })
+    .getByRole("button", { name: "Descargar GPX", exact: true })
+    .click();
   const dl = await downloadPromise;
   expect(await readFile(await dl.path(), "utf8")).toBe(
     await readFile(fixture, "utf8"),
@@ -114,7 +123,6 @@ test("importa varios tramos, superpone, conserva original y recarga", async ({
     .getByRole("dialog")
     .getByRole("button", { name: "Guardar segmentos", exact: true })
     .click();
-  await acceptSaveWarnings(page);
   await expect(
     page.getByRole("heading", { name: /Ruta de prueba & original · tramo 1/ }),
   ).toBeVisible();
@@ -156,17 +164,25 @@ test("editor: copias, arrastre, invertir, dividir, historial, borrador automáti
   expect(d.draft[0].points[0].lat).not.toBe(d.segments[0].points[0].lat);
   const moved = structuredClone(d.draft);
 
-  await page.getByRole("button", { name: "Invertir trazado", exact: true }).click();
-  expect((await state(page)).draft[0].points).toEqual([...moved[0].points].reverse());
+  await page
+    .getByRole("button", { name: "Invertir trazado", exact: true })
+    .click();
+  expect((await state(page)).draft[0].points).toEqual(
+    [...moved[0].points].reverse(),
+  );
   await page.getByRole("button", { name: "↶ Deshacer" }).click();
   expect((await state(page)).draft).toEqual(moved);
   await page.getByRole("button", { name: "↷ Rehacer" }).click();
-  expect((await state(page)).draft[0].points).toEqual([...moved[0].points].reverse());
+  expect((await state(page)).draft[0].points).toEqual(
+    [...moved[0].points].reverse(),
+  );
 
   await page.getByTitle("Editar punto 2", { exact: true }).click();
   await page.getByRole("button", { name: "Dividir aquí" }).click();
   expect((await state(page)).draft).toHaveLength(2);
-  await page.getByRole("button", { name: "Exportar a GPX", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Exportar a GPX", exact: true })
+    .click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("checkbox", { name: /Acepto las advertencias/ }).check();
   const promise = page.waitForEvent("download");
@@ -229,12 +245,12 @@ test("dibujo libre, recorte, eliminación, nuevo segmento y copia recuperable", 
     .getByRole("dialog")
     .getByRole("button", { name: "Guardar segmento", exact: true })
     .click();
-  expect((await state(page)).segments).toEqual(unsaved.segments);
-  await acceptSaveWarnings(page);
   const before = await state(page);
   expect(before.segments).toHaveLength(unsaved.segments.length + 1);
   expect(before.segments.at(-1).points).toEqual(before.draft[0].points);
-  await page.locator(".sidebar-footer summary", { hasText: "Copias de seguridad" }).click();
+  await page
+    .locator(".sidebar-footer summary", { hasText: "Copias de seguridad" })
+    .click();
   const promise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Descargar copia completa" }).click();
   const download = await promise;
@@ -254,8 +270,12 @@ test("dibujo libre, recorte, eliminación, nuevo segmento y copia recuperable", 
   expect(d.routes.slice(0, before.routes.length)).toEqual(before.routes);
   expect(d.routes).toHaveLength(before.routes.length + backup.routes.length);
   expect(d.segments.slice(0, before.segments.length)).toEqual(before.segments);
-  expect(d.segments).toHaveLength(before.segments.length + backup.segments.length);
-  expect(d.projects).toHaveLength(before.projects.length + backup.projects.length + 1);
+  expect(d.segments).toHaveLength(
+    before.segments.length + backup.segments.length,
+  );
+  expect(d.projects).toHaveLength(
+    before.projects.length + backup.projects.length + 1,
+  );
   expect(d.projects.at(-1).elements[0].points).toEqual(backup.draft[0].points);
   await page.reload();
   await pinLibraries(page);
@@ -263,18 +283,34 @@ test("dibujo libre, recorte, eliminación, nuevo segmento y copia recuperable", 
   expect((await state(page)).draft).toHaveLength(2);
 });
 
-test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia JSON", async ({ page }) => {
+test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia JSON", async ({
+  page,
+}) => {
   await ready(page);
   await page.locator("input[type=file]").first().setInputFiles(fixture);
-  await page.getByRole("button", { name: "Editar copia", exact: true }).last().click();
+  await page
+    .getByRole("button", { name: "Editar copia", exact: true })
+    .last()
+    .click();
   await persisted(page);
   // Simula datos de la versión anterior en IndexedDB, no una biblioteca vacía.
   const legacy = await page.evaluate(async () => {
-    const { loadWorkspace, saveWorkspace } = await import("/src/utils/localStore.js");
+    const { loadWorkspace, saveWorkspace } =
+      await import("/src/utils/localStore.js");
     const data = await loadWorkspace();
     data.projects = [
-      { id: "snapshot-antiguo", name: "Versión multitramos", createdAt: "2025-01-01T10:00:00.000Z", elements: structuredClone(data.draft) },
-      { id: "snapshot-incompleto", name: "Versión sin terminar", createdAt: "2025-01-02T10:00:00.000Z", elements: [{ id: "tramo-incompleto", name: "Pendiente", points: [] }] },
+      {
+        id: "snapshot-antiguo",
+        name: "Versión multitramos",
+        createdAt: "2025-01-01T10:00:00.000Z",
+        elements: structuredClone(data.draft),
+      },
+      {
+        id: "snapshot-incompleto",
+        name: "Versión sin terminar",
+        createdAt: "2025-01-02T10:00:00.000Z",
+        elements: [{ id: "tramo-incompleto", name: "Pendiente", points: [] }],
+      },
     ];
     await saveWorkspace(data);
     return data;
@@ -282,9 +318,15 @@ test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia
   await page.reload();
   await pinLibraries(page);
   expect(await state(page)).toEqual(legacy);
-  await expect(page.getByRole("navigation", { name: "Biblioteca" }).getByRole("button")).toHaveCount(2);
-  await expect(page.getByRole("button", { name: "Guardar versión", exact: true })).toHaveCount(0);
-  await page.getByLabel("Nombre del tramo", { exact: true }).fill("Copia modificada");
+  await expect(
+    page.getByRole("navigation", { name: "Biblioteca" }).getByRole("button"),
+  ).toHaveCount(2);
+  await expect(
+    page.getByRole("button", { name: "Guardar versión", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Invertir trazado", exact: true })
+    .click();
   const edited = await state(page);
   expect(edited.projects).toEqual(legacy.projects);
   expect(edited.routes).toEqual(legacy.routes);
@@ -296,59 +338,97 @@ test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia
   await page.reload();
   await pinLibraries(page);
   expect((await state(page)).projects).toEqual(legacy.projects);
-  await page.locator(".sidebar-footer summary", { hasText: "Copias de seguridad" }).click();
+  await page
+    .locator(".sidebar-footer summary", { hasText: "Copias de seguridad" })
+    .click();
   const pending = page.waitForEvent("download");
   await page.getByRole("button", { name: "Descargar copia completa" }).click();
   const download = await pending;
   const backup = JSON.parse(await readFile(await download.path(), "utf8"));
   expect(backup.projects).toEqual(legacy.projects);
   expect(backup.draft).toEqual(edited.draft);
-  await page.locator("input[type=file]").nth(1).setInputFiles(await download.path());
+  await page
+    .locator("input[type=file]")
+    .nth(1)
+    .setInputFiles(await download.path());
   await expect(page.getByText(/Copia añadida sin borrar/)).toBeVisible();
   const restored = await state(page);
-  expect(restored.projects.slice(0, legacy.projects.length)).toEqual(legacy.projects);
-  expect(restored.projects).toHaveLength(legacy.projects.length + backup.projects.length + 1);
+  expect(restored.projects.slice(0, legacy.projects.length)).toEqual(
+    legacy.projects,
+  );
+  expect(restored.projects).toHaveLength(
+    legacy.projects.length + backup.projects.length + 1,
+  );
   expect(restored.routes.slice(0, backup.routes.length)).toEqual(backup.routes);
-  expect(restored.segments.slice(0, backup.segments.length)).toEqual(backup.segments);
+  expect(restored.segments.slice(0, backup.segments.length)).toEqual(
+    backup.segments,
+  );
   expect(restored.routes).toHaveLength(backup.routes.length * 2);
   expect(restored.segments).toHaveLength(backup.segments.length * 2);
   expect(restored.draft.slice(0, backup.draft.length)).toEqual(backup.draft);
   expect(restored.draft).toHaveLength(backup.draft.length * 2);
   const importedRoute = restored.routes.at(-1);
   expect(importedRoute.id).not.toBe(backup.routes.at(-1).id);
-  expect(importedRoute.originalBase64).toBe(backup.routes.at(-1).originalBase64);
+  expect(importedRoute.originalBase64).toBe(
+    backup.routes.at(-1).originalBase64,
+  );
   expect(importedRoute.tracks).toEqual(backup.routes.at(-1).tracks);
   const copies = restored.draft.slice(backup.draft.length);
-  expect(copies.map((e) => e.points)).toEqual(backup.draft.map((e) => e.points));
+  expect(copies.map((e) => e.points)).toEqual(
+    backup.draft.map((e) => e.points),
+  );
   expect(copies.every((e) => e.sourceRouteId === importedRoute.id)).toBe(true);
   expect(new Set(copies.map((e) => e.editorRouteId)).size).toBe(1);
   expect(copies[0].editorRouteId).not.toBe(backup.draft[0].editorRouteId);
   const addedProjects = restored.projects.slice(legacy.projects.length);
   for (const [i, project] of addedProjects.entries()) {
-    const source = i < backup.projects.length ? backup.projects[i].elements : backup.draft;
-    expect(project.elements.map((e) => e.points)).toEqual(source.map((e) => e.points));
-    expect(project.elements.map((e) => e.name)).toEqual(source.map((e) => e.name));
+    const source =
+      i < backup.projects.length ? backup.projects[i].elements : backup.draft;
+    expect(project.elements.map((e) => e.points)).toEqual(
+      source.map((e) => e.points),
+    );
+    expect(project.elements.map((e) => e.name)).toEqual(
+      source.map((e) => e.name),
+    );
     for (const [j, element] of project.elements.entries()) {
       expect(element.id).not.toBe(source[j].id);
-      if (source[j].sourceRouteId) expect(element.sourceRouteId).toBe(importedRoute.id);
+      if (source[j].sourceRouteId)
+        expect(element.sourceRouteId).toBe(importedRoute.id);
     }
   }
-  for (const collection of [restored.routes, restored.segments, restored.projects, restored.draft]) {
+  for (const collection of [
+    restored.routes,
+    restored.segments,
+    restored.projects,
+    restored.draft,
+  ]) {
     expect(new Set(collection.map((e) => e.id)).size).toBe(collection.length);
   }
   // Las copias recuperadas se abren y se pueden editar; los snapshots no cambian.
-  await expect(page.getByLabel("Nombre del tramo", { exact: true })).toHaveValue(copies[0].name);
-  await page.getByLabel("Nombre del tramo", { exact: true }).fill("Recuperada editable");
+  await expect(
+    page
+      .getByRole("tablist", { name: "Rutas cargadas en el editor" })
+      .getByRole("tab", { selected: true }),
+  ).toContainText(copies[0].name.replace(/ · tramo \d+$/, ""));
+  await page
+    .getByRole("button", { name: "Invertir trazado", exact: true })
+    .click();
   const final = await state(page);
-  expect(final.draft.find((e) => e.id === copies[0].id).name).toBe("Recuperada editable");
+  expect(final.draft.find((e) => e.id === copies[0].id).points).toEqual(
+    [...copies[0].points].reverse(),
+  );
   expect(final.projects).toEqual(restored.projects);
   await page.reload();
   await pinLibraries(page);
   expect(await state(page)).toEqual(final);
-  await page.locator(".sidebar-footer summary", { hasText: "Copias de seguridad" }).click();
+  await page
+    .locator(".sidebar-footer summary", { hasText: "Copias de seguridad" })
+    .click();
   const roundtrip = page.waitForEvent("download");
   await page.getByRole("button", { name: "Descargar copia completa" }).click();
-  expect(JSON.parse(await readFile(await (await roundtrip).path(), "utf8"))).toEqual(final);
+  expect(
+    JSON.parse(await readFile(await (await roundtrip).path(), "utf8")),
+  ).toEqual(final);
 });
 
 test("modelo: cruces geográficos, GPX inválido, namespaces, huecos y duplicados", async ({
@@ -472,7 +552,9 @@ test("importación directa de segmentos y cambio geográfico conserva selección
   await expect(
     page.getByRole("heading", { name: /Camino de la ladera/ }),
   ).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Zona lejana", exact: true })).toHaveCount(1);
+  await expect(
+    page.getByRole("heading", { name: "Zona lejana", exact: true }),
+  ).toHaveCount(1);
   await persisted(page);
   const d = await state(page);
   expect(d.routes).toHaveLength(2);
@@ -494,7 +576,9 @@ test("borrador vacío recuperable y exportación incompleta bloqueada", async ({
   await pinLibraries(page);
   expect((await state(page)).draft).toEqual(before.draft);
   expect((await state(page)).draft).toHaveLength(1);
-  await page.getByRole("button", { name: "Exportar a GPX", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Exportar a GPX", exact: true })
+    .click();
   await expect(page.getByText(/necesita al menos dos puntos/)).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Descargar GPX", exact: true }),
@@ -528,8 +612,22 @@ test("originales UTF-8 con BOM y UTF-16 conservan exactamente sus bytes", async 
     await expect(
       page.getByRole("heading", { name: "Original con codificación" }),
     ).toHaveCount(i + 1);
+    await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
+    await pinLibraries(page);
+    const card = page
+      .locator(".viewer-route-card")
+      .filter({
+        has: page.getByRole("heading", {
+          name: "Original con codificación",
+          exact: true,
+        }),
+      })
+      .last();
+    await card.getByRole("checkbox").check();
     const promise = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Original GPX ↓" }).last().click();
+    await card
+      .getByRole("button", { name: "Descargar GPX", exact: true })
+      .click();
     const dl = await promise;
     expect(await readFile(await dl.path())).toEqual(bytes);
   }

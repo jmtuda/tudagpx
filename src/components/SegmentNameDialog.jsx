@@ -1,10 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-export function SegmentNameDialog({ segments, onSave, onCancel }) {
+export function SegmentNameDialog({
+  segments,
+  onSave,
+  onCancel,
+  kind = "segment",
+}) {
   const dialog = useRef(null);
   const [names, setNames] = useState(() =>
     segments.map((segment) => segment.name),
   );
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const singular = kind === "route" ? "ruta" : "segmento";
+  const action = `Guardar ${singular}${segments.length === 1 ? "" : "s"}`;
   useEffect(() => {
     const element = dialog.current;
     element.showModal();
@@ -22,26 +30,30 @@ export function SegmentNameDialog({ segments, onSave, onCancel }) {
       }}
     >
       <form
-        onSubmit={(event) => {
+        onSubmit={async (event) => {
           event.preventDefault();
+          if (saving) return;
           const trimmed = names.map((name) => name.trim());
           if (trimmed.some((name) => !name)) {
-            setError("Escribe un nombre para cada segmento.");
+            setError(`Escribe un nombre para cada ${singular}.`);
             return;
           }
-          onSave(
-            segments.map((segment, i) => ({ ...segment, name: trimmed[i] })),
-          );
+          setSaving(true);
+          try {
+            await onSave(
+              segments.map((segment, i) => ({ ...segment, name: trimmed[i] })),
+            );
+          } finally {
+            setSaving(false);
+          }
         }}
       >
-        <h2 id="segment-name-title">
-          {segments.length === 1 ? "Guardar segmento" : "Guardar segmentos"}
-        </h2>
+        <h2 id="segment-name-title">{action}</h2>
         {names.map((name, i) => (
           <label key={segments[i].id}>
             {segments.length === 1
-              ? "Nombre del segmento"
-              : `Nombre del segmento ${i + 1}`}
+              ? `Nombre ${kind === "route" ? "de la ruta" : "del segmento"}`
+              : `Nombre del ${singular} ${i + 1}`}
             <input
               required
               value={name}
@@ -57,11 +69,11 @@ export function SegmentNameDialog({ segments, onSave, onCancel }) {
         ))}
         {error && <p role="alert">{error}</p>}
         <div className="tools">
-          <button type="button" onClick={onCancel}>
+          <button type="button" onClick={onCancel} disabled={saving}>
             Cancelar
           </button>
-          <button className="primary" type="submit">
-            {segments.length === 1 ? "Guardar segmento" : "Guardar segmentos"}
+          <button className="primary" type="submit" disabled={saving}>
+            {action}
           </button>
         </div>
       </form>

@@ -117,6 +117,7 @@ export default function LocalApp({ onLogout }) {
     return () => clearTimeout(timer);
   }, [notification]);
   const [segmentRequest, setSegmentRequest] = useState(null);
+  const [routeRequest, setRouteRequest] = useState(null);
   const [outputRequest, setOutputRequest] = useState(null);
   const [importing, setImporting] = useState(false),
     [importKind, setImportKind] = useState("routes");
@@ -234,10 +235,12 @@ export default function LocalApp({ onLogout }) {
     } catch (error) {
       findings.push({ blocking: true, message: error.message });
     }
-    if (findings.length || alwaysReview) {
+    const relevant =
+      kind === "export" ? findings : findings.filter((issue) => issue.blocking);
+    if (relevant.length || alwaysReview) {
       setDrawing(false);
       setOutputRequest({ kind, execute });
-      setIssues(findings);
+      setIssues(relevant);
       setAccept(false);
     } else execute();
   }
@@ -376,7 +379,9 @@ export default function LocalApp({ onLogout }) {
       points: clone(points),
       sourceRouteId: route.id,
     }));
-    setSegmentRequest({ segments: additions, select: true });
+    requestOutput("segment", additions, route.name, () =>
+      setSegmentRequest({ segments: additions, select: true }),
+    );
   }
   function startDraw() {
     switchWorkspace("edit");
@@ -443,7 +448,7 @@ export default function LocalApp({ onLogout }) {
       .some((e, i) => !sameEndpoint(elements[i].points.at(-1), e.points[0]));
     if (needsRoads && !routingConsent) {
       setNotice(
-        "Para conectar los huecos por el camino más corto, permite las conexiones con BRouter: solo se enviarán sus extremos. Después pulsa Unir trazados.",
+        "Para conectar los huecos por el camino más corto, activa Seguir caminos en Editar trazado: solo se enviarán sus extremos a BRouter. Después pulsa Unir trazados.",
       );
       return;
     }
@@ -709,8 +714,7 @@ export default function LocalApp({ onLogout }) {
         : `${segments.length} segmentos guardados. Los originales y el borrador se conservan.`,
     );
   }
-  function saveSegment(points, name, askName = true) {
-    if (points.length < 2) return;
+  function saveSegment(points, name) {
     const element = data.draft.find((e) => e.id === active);
     const segment = {
       id: uid(),
@@ -720,32 +724,34 @@ export default function LocalApp({ onLogout }) {
       sourceRouteId: element?.sourceRouteId,
       createdAt: new Date().toISOString(),
     };
-    if (!askName && name.trim())
-      commitSegments([{ ...segment, name: name.trim() }]);
-    else setSegmentRequest({ segments: [segment], select: false });
+    requestOutput("segment", [segment], name, () =>
+      setSegmentRequest({ segments: [segment], select: false }),
+    );
   }
-  async function saveEditorRoute() {
+  function saveEditorRoute() {
     const element = data.draft.find((e) => e.id === active);
     if (!element) return;
     const key = element.editorRouteId || element.id;
     const elements = data.draft.filter(
       (e) => (e.editorRouteId || e.id) === key,
     );
+    const snapshot = clone(elements);
+    const name = element.editorRouteName || element.name;
+    requestOutput("route", snapshot, name, () =>
+      setRouteRequest({ elements: snapshot, name }),
+    );
+  }
+  async function commitRoute(name) {
     try {
-      const name =
-        elements.length === 1
-          ? element.name
-          : element.editorRouteName || element.name;
-      const xml = exportGPX(elements, name);
+      const xml = exportGPX(routeRequest.elements, name);
       const route = await readGPXFile(
         new File([xml], `${name}.gpx`, { type: "application/gpx+xml" }),
       );
-      requestOutput("route", clone(elements), name, () => {
-        update((d) => ({ ...d, routes: [...d.routes, route] }));
-        setNotice(
-          "Nueva ruta guardada en la biblioteca. El original y las copias del editor se conservan.",
-        );
-      });
+      update((d) => ({ ...d, routes: [...d.routes, route] }));
+      setRouteRequest(null);
+      setNotice(
+        `Ruta «${name}» guardada. El original y las copias del editor se conservan.`,
+      );
     } catch (error) {
       setNotice(`No se pudo guardar la ruta: ${error.message}`);
     }
@@ -1201,31 +1207,40 @@ export default function LocalApp({ onLogout }) {
                         )}
                       </span>
 
-                      <div className="catalog-actions">
-                        <button
-                          aria-label={`Editar nombre de ${r.name}`}
-                          onClick={() => renameItem("routes", r)}
-                        >
-                          Editar nombre
-                        </button>
-                        <button
-                          aria-label={`Borrar ${r.name}`}
-                          onClick={() => deleteItem("routes", r)}
-                        >
-                          Borrar
-                        </button>
-                      </div>
                       {(workspace === "edit" ||
                         visibleRoutes.includes(r.id)) && (
+                        <div
+                          className={`catalog-actions${workspace === "view" ? " viewer-catalog-actions" : ""}`}
+                        >
+                          <button
+                            aria-label={`Editar nombre de ${r.name}`}
+                            onClick={() => renameItem("routes", r)}
+                          >
+                            Editar nombre
+                          </button>
+                          <button
+                            aria-label={`Borrar ${r.name}`}
+                            onClick={() => deleteItem("routes", r)}
+                          >
+                            Borrar
+                          </button>
+                          {workspace === "view" && (
+                            <button
+                              onClick={() =>
+                                download(originalContent(r), r.filename)
+                              }
+                            >
+                              Descargar GPX
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {workspace === "edit" && (
                         <div className="card-actions">
                           <button onClick={() => focusPoints(r.tracks.flat())}>
                             Centrar
                           </button>
-                          {workspace === "view" && (
-                            <button onClick={() => editRoute(r)}>
-                              Enviar al editor
-                            </button>
-                          )}
+
                           {workspace === "edit" && (
                             <button onClick={() => routeSegments(r)}>
                               Crear segmentos
@@ -1416,14 +1431,13 @@ export default function LocalApp({ onLogout }) {
                 setEditorMode("edit");
                 setPointIndex(0);
               },
-              onSaveSelection: (name) =>
+              onSaveSelection: () =>
                 saveSegment(
                   activeElement.points.slice(
                     cropRange.start,
                     cropRange.end + 1,
                   ),
-                  name,
-                  false,
+                  `${activeElement.name} · segmento`,
                 ),
               onSaveSegment: () =>
                 activeElement &&
@@ -1455,6 +1469,14 @@ export default function LocalApp({ onLogout }) {
             ×
           </button>
         </div>
+      )}
+      {routeRequest && (
+        <SegmentNameDialog
+          kind="route"
+          segments={[{ id: "new-route", name: routeRequest.name }]}
+          onCancel={() => setRouteRequest(null)}
+          onSave={(entries) => commitRoute(entries[0].name)}
+        />
       )}
       {segmentRequest && (
         <SegmentNameDialog

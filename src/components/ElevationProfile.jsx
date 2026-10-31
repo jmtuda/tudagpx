@@ -392,32 +392,6 @@ export function ElevationProfile({
                 fill={profiles[0]?.color}
               />
             </svg>
-            <label>
-              Inicio{" "}
-              <input
-                aria-label="Inicio del recorte"
-                type="range"
-                min="0"
-                max={Math.min(fullProfile.samples.length - 2, crop.end - 1)}
-                value={crop.start}
-                onChange={(event) =>
-                  onRange({ ...crop, start: Number(event.target.value) })
-                }
-              />
-            </label>
-            <label>
-              Final{" "}
-              <input
-                aria-label="Final del recorte"
-                type="range"
-                min={crop.start + 1}
-                max={fullProfile.samples.length - 1}
-                value={crop.end}
-                onChange={(event) =>
-                  onRange({ ...crop, end: Number(event.target.value) })
-                }
-              />
-            </label>
           </div>
         )}
       </div>

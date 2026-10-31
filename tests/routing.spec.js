@@ -122,11 +122,12 @@ test("editar GPX por caminos real, deshacer y conservar original", async ({
     page.getByLabel("Seguir caminos", { exact: true }),
   ).toBeChecked();
   let calls = 0;
-  await page.getByLabel("Información de cálculo", { exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Retirar permiso", exact: true }),
-  ).toBeVisible();
-  await page.getByLabel("Información de cálculo", { exact: true }).click();
+    page.getByLabel("Seguir caminos", { exact: true }),
+  ).toBeChecked();
+  await expect(
+    page.getByLabel("Seguir caminos", { exact: true }),
+  ).toHaveAttribute("aria-description", /BRouter.*coordenadas.*nunca el GPX/);
   await expect(
     page.getByRole("button", {
       name: "Permitir cálculo con BRouter",
@@ -173,22 +174,16 @@ test("editar GPX por caminos real, deshacer y conservar original", async ({
   await page.getByRole("button", { name: "↶ Deshacer" }).click();
   expect((await state(page)).draft[0].points).toEqual(after.draft[0].points);
 
-  await page.getByLabel("Información de cálculo", { exact: true }).click();
-  await page
-    .getByRole("button", { name: "Retirar permiso", exact: true })
-    .click();
-  await page.getByLabel("Información de cálculo", { exact: true }).click();
+  await page.getByLabel("Seguir caminos", { exact: true }).uncheck();
 
   const revoked = await state(page);
   await drag(page, page.getByTitle(/^Editar punto /).first(), 25, -10);
-  expect((await state(page)).draft).toEqual(revoked.draft);
+  const freeEdited = await state(page);
+  expect(freeEdited.draft).not.toEqual(revoked.draft);
+  expect(freeEdited.routes).toEqual(revoked.routes);
   expect(calls).toBe(4);
 
-  await page.getByLabel("Información de cálculo", { exact: true }).click();
-  await page
-    .getByRole("button", { name: "Permitir cálculo con BRouter", exact: true })
-    .click();
-  await page.getByLabel("Información de cálculo", { exact: true }).click();
+  await page.getByLabel("Seguir caminos", { exact: true }).check();
   expect(errors).toEqual([]);
 });
 
@@ -217,11 +212,12 @@ test("crear un track por caminos con clics reales y recuperarlo al recargar", as
   expect(data.draft.at(-1).points.length).toBeGreaterThan(2);
   await page.reload();
   expect((await state(page)).draft).toEqual(data.draft);
-  await page.getByLabel("Información de cálculo", { exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Retirar permiso", exact: true }),
-  ).toBeVisible();
-  await page.getByLabel("Información de cálculo", { exact: true }).click();
+    page.getByLabel("Seguir caminos", { exact: true }),
+  ).toBeChecked();
+  await expect(
+    page.getByLabel("Seguir caminos", { exact: true }),
+  ).toHaveAttribute("aria-description", /BRouter.*coordenadas.*nunca el GPX/);
 });
 
 test("fallo y cancelación conservan geometría; modo libre no llama al servicio", async ({

@@ -127,10 +127,18 @@ async function mount(page) {
           crop,
           pointIndex: 0,
           onSelect: setActive,
-          editing: false,
+          editing: !viewing,
           drawing: false,
           onDraw: (point) => window.overlayTest.draws.push(point),
           tools: {
+            mode,
+            range: crop,
+            onMode: setMode,
+            onNew: noop,
+            onUndo: noop,
+            onRedo: noop,
+            onFinish: noop,
+            onRouting: noop,
             elements: draft,
             active,
             onSelectFile: setActive,
@@ -344,7 +352,9 @@ for (const width of [1440, 390]) {
     await page
       .getByRole("button", { name: "Minimizar perfil de altitud" })
       .click();
-    await expect(start).toBeHidden();
+    await expect(start).toBeVisible();
+    await expect(end).toBeVisible();
+    await expect(strip).toBeHidden();
     expect(
       await page.evaluate(() => JSON.stringify(window.overlayTest.data)),
     ).toBe(original);

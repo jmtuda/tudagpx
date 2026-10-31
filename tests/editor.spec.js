@@ -142,10 +142,17 @@ test("recorte visual reversible y creación directa de segmento sin cambiar borr
   await page.getByLabel("Final del recorte").press("ArrowLeft");
   expect((await state(page)).draft[0].points).toEqual(original);
   await page
-    .getByLabel("Nombre del nuevo segmento")
-    .fill("Mi subida seleccionada");
-  await page
     .getByRole("button", { name: "Guardar selección como segmento" })
+    .click();
+  const saveDialog = page.getByRole("dialog", {
+    name: "Guardar segmento",
+    exact: true,
+  });
+  await saveDialog
+    .getByLabel("Nombre del segmento", { exact: true })
+    .fill("Mi subida seleccionada");
+  await saveDialog
+    .getByRole("button", { name: "Guardar segmento", exact: true })
     .click();
   let d = await state(page);
   expect(d.segments.at(-1).name).toBe("Mi subida seleccionada");
@@ -173,7 +180,10 @@ test("selección arrastrada sobre perfil, extremos válidos y cancelación", asy
   await page
     .getByRole("button", { name: "Recortar trazado", exact: true })
     .click();
-  const profile = page.getByRole("region", { name: "Perfil de altitud", exact: true });
+  const profile = page.getByRole("region", {
+    name: "Perfil de altitud",
+    exact: true,
+  });
   const chart = profile.getByRole("img", {
       name: /Perfil para seleccionar el recorte/,
     }),
@@ -185,7 +195,9 @@ test("selección arrastrada sobre perfil, extremos válidos y cancelación", asy
   await expect(page.getByLabel("Final del recorte")).toHaveValue("3");
   await page.mouse.move(box.x + box.width * 0.95, box.y + box.height / 2);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2, { steps: 10 });
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2, {
+    steps: 10,
+  });
   await page.mouse.up();
   expect(
     Number(await page.getByLabel("Inicio del recorte").inputValue()),
@@ -257,7 +269,11 @@ test("edición táctil a pantalla completa sin perder panel ni selección", asyn
     await expect(page.getByLabel("Inicio del recorte")).toBeVisible();
     await page.getByRole("button", { name: "Cancelar recorte" }).tap();
     await page.getByRole("button", { name: "Mostrar panel de rutas" }).tap();
-    await expect(page.getByRole("tablist", { name: "Rutas cargadas en el editor" }).getByRole("tab")).toHaveCount(1);
+    await expect(
+      page
+        .getByRole("tablist", { name: "Rutas cargadas en el editor" })
+        .getByRole("tab"),
+    ).toHaveCount(1);
     expect((await state(page)).draft[0].points).toHaveLength(4);
     expect(errors).toEqual([]);
   } finally {

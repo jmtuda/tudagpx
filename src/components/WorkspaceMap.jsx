@@ -187,7 +187,7 @@ export function WorkspaceMap({
         "--elevation-height": profileMinimized
           ? "38px"
           : !viewing && mode === "crop"
-            ? "246px"
+            ? "210px"
             : "176px",
       }}
       onDragOver={(event) => {

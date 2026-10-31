@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { pinLibraries } from "./helpers/library";
+import { pinLibraries, sendViewerRoute } from "./helpers/library";
 const fixture = new URL("./fixtures/ruta.gpx", import.meta.url).pathname;
 async function savedState(page) {
   await expect(page.locator(".local-status > span")).toHaveText(
@@ -36,10 +36,7 @@ for (const viewport of [
       0,
     );
     await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
-    await page
-      .getByRole("button", { name: "Enviar al editor", exact: true })
-      .last()
-      .click();
+    await sendViewerRoute(page, -1);
     const files = page.getByRole("tablist", {
       name: "Rutas cargadas en el editor",
     });
@@ -49,10 +46,7 @@ for (const viewport of [
     ).toHaveAttribute("aria-selected", "true");
     await expect(page.locator("path.draft-line")).toHaveCount(2);
     await page.getByRole("tab", { name: "Ver rutas", exact: true }).click();
-    await page
-      .getByRole("button", { name: "Enviar al editor", exact: true })
-      .first()
-      .click();
+    await sendViewerRoute(page, 0);
     await expect(files.getByRole("tab")).toHaveCount(2);
     await expect(
       files.getByRole("tab", { name: /Vuelta por la sierra/ }),

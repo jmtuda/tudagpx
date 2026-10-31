@@ -33,6 +33,26 @@ for (const width of [1440, 390]) {
 
     await page.getByRole("button", { name: "Ocultar panel de rutas" }).click();
     await expect(page.locator(".trace-start")).toHaveText("▶");
+    const startAppearance = await page
+      .locator(".trace-start")
+      .evaluate((node) => ({
+        width: node.getBoundingClientRect().width,
+        height: node.getBoundingClientRect().height,
+        radius: getComputedStyle(node).borderRadius,
+        background: getComputedStyle(node).backgroundColor,
+      }));
+    expect(startAppearance.width).toBe(startAppearance.height);
+    expect(startAppearance.radius).toBe("4px");
+    expect(startAppearance.background).toBe("rgb(0, 125, 73)");
+    expect(
+      await page
+        .locator("path.draft-line")
+        .evaluateAll((paths) =>
+          paths.every(
+            (path) => getComputedStyle(path).strokeDasharray === "none",
+          ),
+        ),
+    ).toBe(true);
     await expect(page.locator(".trace-end")).toHaveText("■");
     await expect(page.locator(".trace-endpoint-label")).toHaveCount(0);
     await expect(
@@ -40,11 +60,25 @@ for (const width of [1440, 390]) {
     ).toHaveCount(1);
     const start = await page.locator(".trace-start").getAttribute("style");
     const end = await page.locator(".trace-end").getAttribute("style");
-    const edit = page.getByRole("button", { name: "Editar trazado", exact: true });
+    const edit = page.getByRole("button", {
+      name: "Editar trazado",
+      exact: true,
+    });
     await expect(edit).toHaveAttribute("aria-pressed", "true");
     await edit.click();
     await expect(edit).toHaveAttribute("aria-pressed", "false");
     await expect(page.locator(".anchor-handle")).toHaveCount(0);
+    expect(
+      await page
+        .locator("path.draft-line")
+        .evaluateAll(
+          (paths) =>
+            paths.length > 0 &&
+            paths.every(
+              (path) => getComputedStyle(path).strokeDasharray === "none",
+            ),
+        ),
+    ).toBe(true);
     await expect(page.locator(".trace-start")).toBeVisible();
     await expect(page.locator(".trace-end")).toBeVisible();
     await page

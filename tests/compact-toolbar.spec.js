@@ -24,11 +24,32 @@ for (const viewport of [
       name: "Herramientas del mapa",
     });
     const options = page.getByRole("region", { name: "Opciones del editor" });
+    await expect(toolbar.getByRole("button").first()).toHaveAccessibleName(
+      "+ Dibujar",
+    );
+    for (const name of [
+      "Abrir rutas y segmentos",
+      "Información de cálculo",
+      "Salir del editor",
+    ])
+      await expect(
+        toolbar.getByRole("button", { name, exact: true }),
+      ).toHaveCount(0);
+    expect(
+      await toolbar.evaluate((node) => {
+        const clear = node.querySelector('[aria-label="Limpiar mapa"]');
+        const group = clear.nextElementSibling;
+        return (
+          group.classList.contains("editor-save-actions") &&
+          group.firstElementChild.classList.contains("tool-divider") &&
+          group.querySelector("button").getAttribute("aria-label") ===
+            "Guardar ruta"
+        );
+      }),
+    ).toBe(true);
     await expect(options.locator("select")).toHaveCount(0);
-    await expect(options.locator("input")).toHaveCount(2);
-    await expect(
-      options.getByLabel("Nombre del tramo", { exact: true }),
-    ).toBeVisible();
+    await expect(options.locator("input")).toHaveCount(1);
+    await expect(options.locator('input[type="text"]')).toHaveCount(0);
     await expect(
       options.getByLabel("Seguir caminos", { exact: true }),
     ).toBeVisible();
@@ -47,22 +68,19 @@ for (const viewport of [
     await toolbar
       .getByRole("button", { name: "Recortar trazado", exact: true })
       .click();
-    await expect(options.locator("select, svg, input[type=range]")).toHaveCount(
+    await expect(options.locator("select, svg, input[type=text]")).toHaveCount(
       0,
     );
-    await expect(
-      options.getByLabel("Nombre del nuevo segmento", { exact: true }),
-    ).toBeVisible();
+    await expect(options.locator("input[type=range]")).toHaveCount(2);
     await expect(options.locator(".crop-metrics")).toHaveCount(0);
-    const profile = page.getByRole("region", {
-      name: "Perfil de altitud",
-      exact: true,
-    });
     await expect(
-      profile.getByLabel("Inicio del recorte", { exact: true }),
+      page.getByRole("region", { name: "Perfil de altitud", exact: true }),
     ).toBeVisible();
     await expect(
-      profile.getByLabel("Final del recorte", { exact: true }),
+      options.getByLabel("Inicio del recorte", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      options.getByLabel("Final del recorte", { exact: true }),
     ).toBeVisible();
     const before = await page.evaluate(async () =>
       (await import("/src/utils/localStore.js")).loadWorkspace(),
@@ -71,7 +89,7 @@ for (const viewport of [
       .getByRole("button", { name: "Cancelar recorte", exact: true })
       .click();
     await expect(
-      profile.getByLabel("Inicio del recorte", { exact: true }),
+      options.getByLabel("Inicio del recorte", { exact: true }),
     ).toHaveCount(0);
     const after = await page.evaluate(async () =>
       (await import("/src/utils/localStore.js")).loadWorkspace(),

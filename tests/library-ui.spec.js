@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { acceptSaveWarnings, pinLibraries } from "./helpers/library";
+import { confirmRouteSave, pinLibraries } from "./helpers/library";
 async function state(page) {
   await expect(page.locator(".local-status > span")).toHaveText(
     "Guardado en este navegador",
@@ -20,10 +20,12 @@ for (const width of [1440, 390]) {
       .getByRole("button", { name: "Abrir segmento", exact: true })
       .first()
       .click();
-    await expect(page.getByRole("navigation", { name: "Biblioteca", exact: true }).getByRole("button", { name: /^Segmentos/ })).toHaveClass("active");
-    await page.getByLabel("Nombre del tramo", { exact: true }).fill("Copia editable del mirador");
+    await expect(
+      page
+        .getByRole("navigation", { name: "Biblioteca", exact: true })
+        .getByRole("button", { name: /^Segmentos/ }),
+    ).toHaveClass("active");
     const before = await state(page);
-    expect(before.draft[0].name).toBe("Copia editable del mirador");
     await page
       .getByRole("button", { name: "Guardar segmento", exact: true })
       .click();
@@ -62,10 +64,7 @@ for (const width of [1440, 390]) {
     await page.reload();
     const reloaded = await state(page);
     expect(reloaded.draft).toEqual(before.draft);
-    await expect(page.getByLabel("Nombre del tramo", { exact: true })).toHaveValue("Copia editable del mirador");
-    expect(reloaded.segments.at(-1).name).toBe(
-      "Mi subida al mirador 🏔",
-    );
+    expect(reloaded.segments.at(-1).name).toBe("Mi subida al mirador 🏔");
   });
   test(`cabecera compacta compartida y navegación conservada en ${width}px`, async ({
     page,
@@ -92,8 +91,12 @@ for (const width of [1440, 390]) {
         nav.getByRole("button", { name: new RegExp(`^${name}`) }),
       ).toBeVisible();
     await expect(nav.getByRole("button")).toHaveCount(2);
-    await expect(page.getByRole("button", { name: "Guardar versión", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: "Segmentos de la zona" })).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Guardar versión", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Segmentos de la zona" }),
+    ).toHaveCount(0);
     await nav.getByRole("button", { name: /^Rutas/ }).click();
     await expect(firstCard.locator(".profile")).toHaveCount(0);
     await expect(firstCard).toContainText("bajada");
@@ -141,8 +144,6 @@ test("crear varios segmentos permite nombrarlos antes de guardar o cancelar", as
   await dialog
     .getByRole("button", { name: "Guardar segmentos", exact: true })
     .click();
-  expect(await state(page)).toEqual(before);
-  await acceptSaveWarnings(page);
   const after = await state(page);
   expect(after.segments.slice(-2).map((segment) => segment.name)).toEqual([
     "Primera subida",
@@ -173,19 +174,25 @@ test("avisos: cinco segundos, reinicio al repetir y cierre manual", async ({
   });
   const notice = page.locator(".notice");
   await save.click();
-  await expect(notice).toContainText("Nueva ruta guardada en la biblioteca.");
+  await confirmRouteSave(page);
+  await expect(notice).toContainText(
+    /Ruta «.+» guardada\. El original y las copias del editor se conservan\./,
+  );
   await page.clock.runFor(4999);
   await expect(notice).toBeVisible();
   await page.clock.runFor(1);
   await expect(notice).toHaveCount(0);
   await save.click();
+  await confirmRouteSave(page);
   await page.clock.runFor(3000);
   await save.click();
+  await confirmRouteSave(page);
   await page.clock.runFor(2001);
   await expect(notice).toBeVisible();
   await page.clock.runFor(2999);
   await expect(notice).toHaveCount(0);
   await save.click();
+  await confirmRouteSave(page);
   await page.getByRole("button", { name: "Cerrar aviso", exact: true }).click();
   await expect(notice).toHaveCount(0);
   const after = await state(page);

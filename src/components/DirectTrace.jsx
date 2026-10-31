@@ -103,9 +103,11 @@ export function DirectTrace({
           color,
           weight: active ? 5 : 4,
           opacity: isCrop ? 0.3 : 1,
-          dashArray: active && editing ? undefined : "10 7",
+          dashArray: "",
           className:
-            editing && mode === "split" ? "split-cursor" : "draft-line",
+            editing && mode === "split"
+              ? "draft-line split-cursor"
+              : "draft-line",
         }}
         eventHandlers={{
           mousemove: (e) => {
@@ -154,7 +156,12 @@ export function DirectTrace({
           <Polyline
             positions={positions(element.points.slice(from, to + 1))}
             interactive={false}
-            pathOptions={{ color, weight: 7 }}
+            pathOptions={{
+              color,
+              weight: 7,
+              dashArray: "",
+              className: "crop-line",
+            }}
           />
           {[from, to].map((index, i) => (
             <Marker
