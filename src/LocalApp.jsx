@@ -13,6 +13,7 @@ import {
   cloudEnabled,
   loadCloudWorkspace,
   saveCloudWorkspace,
+  stageCloudWorkspace,
 } from "./utils/cloudStore";
 import { readGPXFile, originalContent } from "./utils/gpxFiles";
 import { splitTrace } from "./utils/editorGeometry";
@@ -128,9 +129,12 @@ export default function LocalApp({ onLogout }) {
       .catch(() => {})
       .then(async () => {
         await saveWorkspace(data);
-        if (cloudEnabled) await saveCloudWorkspace(data);
+        if (cloudEnabled) await stageCloudWorkspace(data);
+        if (cloudEnabled && revision.current === rev)
+          setSaved("Guardado local · pendiente de Neon");
       });
     queue.current
+      .then(() => (cloudEnabled ? saveCloudWorkspace(data) : undefined))
       .then(() => {
         if (revision.current === rev)
           setSaved(

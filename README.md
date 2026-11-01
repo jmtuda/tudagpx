@@ -2,6 +2,8 @@
 
 Biblioteca geográfica y editor de rutas con React, Vite y Leaflet. Web privada en https://tudagpx.vercel.app con correo/contraseña y almacenamiento Neon. La modalidad local conserva los datos en IndexedDB, sin cuenta.
 
+En la web, el trabajo se protege primero en este navegador y se sincronizan solo los cambios tras una pausa breve (3 segundos; máximo 15 segundos mientras sigues editando, más el tiempo de red). Espera a «Guardado en Neon» antes de continuar en otro dispositivo. La copia local evita descargar otra vez la biblioteca al recargar si la versión remota no ha cambiado. Los originales y el historial se conservan; los conflictos entre dispositivos no se resuelven sobrescribiendo tu trabajo. Si aparece un error, descarga una copia antes de resolverlo o borrar datos del navegador.
+
 ## Abrir la aplicación
 
 En este Mac, abre http://127.0.0.1:5173 en tu navegador habitual.

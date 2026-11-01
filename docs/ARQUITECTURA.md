@@ -1,5 +1,15 @@
 # Arquitectura de la primera versión local
 
+## Sincronización privada incremental (vigente)
+
+La web mantiene una base confirmada y trabajo pendiente en IndexedDB, ligados al owner autenticado. Los pendientes se aíslan por pestaña; una confirmación de otra pestaña no los pisa. La primera actualización conserva además una copia aditiva cloud-before-incremental del estado local anterior. En una recarga se consulta metadata (versión/owner/partes); si la versión no cambia se reutiliza la caché, sin descargar la biblioteca. Un conflicto conserva el trabajo exportable y bloquea la sobreescritura, sin mezcla silenciosa.
+
+workspacePatch.js compara campos y envía solo cambios de registros por id y/o draft/draftName; no reenvía originales intactos ni snapshots previos. syncScheduler.js agrupa durante 3 s de pausa, con plazo máximo de 15 s, una petición en curso y solo el último estado pendiente. Guardado local inmediato independiente de la red; estado pendiente no equivale a Guardado en Neon. No se escribe al hidratar sin cambios.
+
+Migración aditiva 003_incremental_sync.sql: los PUT completos antiguos y patch v2 invocan tudagpx_save_workspace. Ensamblado multipart, validación, comparación de originales y commit quedan dentro de PostgreSQL. Bloqueo por owner y revisión optimista; retorna solo la versión confirmada. No se descargan payload anterior ni fragmentos al servidor al guardar. Las revisiones append-only anteriores y los bytes originales se conservan: se reduce tráfico, no se elimina almacenamiento histórico. La primera apertura en un dispositivo sin caché, o una revisión remota nueva, todavía necesita descargar el estado completo por partes; no hay descarga diferencial entre dispositivos en esta entrega.
+
+Verificación: node --test scripts/test-sync-client.mjs server/incrementalSync.test.js; node scripts/test-incremental-cloud.mjs (fixture sintética pequeña real); scripts/inspect-cloud-size.mjs solo retorna agregados y verifica definiciones SQL exactas. No ejecutar el antiguo test grande contra producción para revisar este ahorro. Ninguna prueba nueva descarga la biblioteca propietaria.
+
 ## Reutilización
 
 Se mantienen React, Vite, Leaflet y react-leaflet. MapaBase.jsx conserva los cuatro servicios de teselas originales y las atribuciones. Se han corregido el selector accesible, una propiedad de estilo y el sobrezoom.

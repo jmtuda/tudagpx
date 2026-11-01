@@ -1,5 +1,15 @@
 # Progreso
 
+## Reducción de transferencia Neon
+
+Verificación final: lint/build, 103 pruebas Chrome y 18 pruebas Node correctas; integración pequeña contra Neon real y readback exacto de las tres funciones de migración. Pendientes aislados entre pestañas y recuperados también tras cerrar/reabrir una pestaña; confirmación de caché condicionada en transacción para no pisar ediciones nuevas.
+
+Sincronización por patch de campos/registros, sin reenviar biblioteca/originales al editar. Guardado local inmediato; red agrupada tras 3 s, máximo 15 s y sin cola de estados intermedios. Caché confirmada por cuenta y pendientes por pestaña, recuperación tras recarga y rechazo seguro de conflictos. Recarga sin cambios consulta solo metadata; la hidratación no genera guardado.
+
+Backend calcula y protege dentro de PostgreSQL, incluso para clientes antiguos: sin descargar a Vercel el estado previo ni los chunks subidos. Migración 003 aditiva aplicada y verificada, sin tocar biblioteca/historial del propietario. Se conservan snapshots completos internos, no se promete reducción del almacenamiento ya ocupado ni devolución de cuota consumida. Dispositivo nuevo o versión remota distinta todavía descarga el estado completo una vez.
+
+Prueba real con estado sintético de 18.601 B: renombrar envía 81 B; editar borrador 125 B; cada commit devuelve 192 B desde Neon y 13 B al cliente (cuerpos HTTP, sin cabeceras/TLS). Transporte frontend real contra Neon: renombrado 90 B y recarga en caliente solo metadata (313 B Neon). Pruebas verifican originales/proyectos inmutables, Unicode, multipart incompleto, concurrencia y limpieza exclusiva de datos sintéticos. Inspección agregada sin descargar contenido: estado real 13.202.196 B, 8 rutas, 15 segmentos, 202 snapshots; almacenamiento físico 357.277.696 B en el momento de la inspección. No son métricas del consumo mensual.
+
 ## Fichas sin bajada y acciones solo al seleccionar
 
 Las fichas de rutas y segmentos del visor muestran nombre, distancia y desnivel positivo, sin bajada. Enviar al editor aparece únicamente al seleccionar, en la misma fila que editar nombre, borrar y descargar GPX. Sin selección no se reserva fila de acciones. Envío por popup conservado. Verificado con lint/build y 102 pruebas Chrome, incluidas selección/deselección, alineación móvil/escritorio, copias independientes y conservación de originales.

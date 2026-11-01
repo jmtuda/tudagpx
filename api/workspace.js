@@ -1,11 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { prepare, owner } from "../server/private.js";
-import {
-  PART_SIZE,
-  stagePart,
-  assembleUpload,
-  validateChange,
-} from "../server/workspaceTransport.js";
+import { PART_SIZE, stagePart } from "../server/workspaceTransport.js";
 
 export async function handleWorkspace(req, res, sql, user) {
   try {
@@ -26,6 +21,7 @@ export async function handleWorkspace(req, res, sql, user) {
       return res.status(200).json({
         version: Number(rows[0]?.version || 0),
         parts: rows[0]?.parts || 0,
+        ownerId: user.id,
       });
     }
     if (req.method === "GET" && req.query?.part !== undefined) {
@@ -45,71 +41,70 @@ export async function handleWorkspace(req, res, sql, user) {
         .status(rows.length ? 200 : 404)
         .json(rows[0] || { error: "Versión no encontrada." });
     }
-    const rows =
-      await sql`SELECT version, payload FROM tudagpx_workspace_versions WHERE owner_id = ${user.id} ORDER BY version DESC LIMIT 1`;
-    const current = rows[0];
-    if (
-      req.method === "GET" &&
-      current &&
-      Buffer.byteLength(JSON.stringify(current.payload)) > 3_000_000
-    )
-      return res.status(413).json({
-        error:
-          "Actualiza la aplicación para descargar la biblioteca por partes. Descarga antes una copia local si hay cambios pendientes.",
-      });
-    if (req.method === "GET")
+    if (req.method === "GET") {
+      // Guard legacy reads in SQL, before Neon sends a potentially huge payload.
+      const rows =
+        await sql`SELECT version, octet_length(payload::text) > 3000000 AS oversized,
+        CASE WHEN octet_length(payload::text) <= 3000000 THEN payload ELSE NULL END AS payload
+        FROM tudagpx_workspace_versions WHERE owner_id = ${user.id} ORDER BY version DESC LIMIT 1`;
+      if (rows[0]?.oversized)
+        return res.status(413).json({
+          error:
+            "Actualiza la aplicación para descargar la biblioteca por partes. Descarga antes una copia local si hay cambios pendientes.",
+        });
       return res.status(200).json({
-        version: Number(current?.version || 0),
-        data: current?.payload || null,
+        version: Number(rows[0]?.version || 0),
+        data: rows[0]?.payload || null,
       });
+    }
     if (req.method !== "PUT") return res.status(405).end();
-    const { version, upload, total } = req.body || {};
-    let data = req.body?.data;
-    if (Buffer.byteLength(JSON.stringify(req.body || {})) > 3_000_000)
+    const body = req.body || {};
+    if (Buffer.byteLength(JSON.stringify(body)) > 3_000_000)
       return res.status(413).json({
         error:
           "Carga demasiado grande. Actualiza la aplicación para enviarla por partes; no se ha borrado ningún dato.",
       });
-    try {
-      if (upload) data = await assembleUpload(sql, user.id, upload, total);
-      validateChange(data, current?.payload);
-    } catch (error) {
-      return res
-        .status(400)
-        .json({ error: error.message || "Datos no válidos." });
-    }
-    if (
-      !Number.isSafeInteger(version) ||
-      version !== Number(current?.version || 0)
-    )
+    const { version, upload, total, protocol } = body;
+    if (!Number.isSafeInteger(version) || version < 0)
       return res.status(409).json({
-        error:
-          "Hay cambios en otra pestaña o dispositivo. Descarga tu copia antes de recargar.",
+        error: "Conflicto de versiones. Descarga tu copia antes de recargar.",
       });
-
+    const isPatch = Object.hasOwn(body, "patch") || protocol === 2;
+    if (
+      (protocol !== undefined && protocol !== 2) ||
+      (upload !== undefined &&
+        (typeof upload !== "string" ||
+          !/^[a-f0-9-]{36}$/.test(upload) ||
+          !Number.isInteger(total) ||
+          total < 1 ||
+          total > 1024)) ||
+      (upload === undefined &&
+        protocol === 2 &&
+        !Object.hasOwn(body, "patch")) ||
+      (Object.hasOwn(body, "patch") && Object.hasOwn(body, "data"))
+    )
+      return res.status(400).json({ error: "Carga no válida." });
     try {
-      await sql`INSERT INTO tudagpx_workspace_versions (owner_id, version, payload) VALUES (${user.id}, ${version + 1}, ${JSON.stringify(data)}::jsonb)`;
+      const document = isPatch ? body.patch : body.data;
+      // One atomic call: latest payload, staged chunks, validation and immutable
+      // revision readback all remain in Postgres, for both v2 and legacy saves.
+      const saved = await sql`SELECT version FROM tudagpx_save_workspace(
+        ${user.id}::text, ${version}::bigint, ${JSON.stringify(document ?? null)}::jsonb,
+        ${isPatch}::boolean, ${upload ?? null}::text, ${total ?? null}::int)`;
+      if (!saved.length) throw new Error("Missing saved revision");
+      return res.status(200).json({ version: Number(saved[0].version) });
     } catch (error) {
-      if (error.code === "23505")
+      if (error.code === "40001" || error.code === "23505")
         return res.status(409).json({
-          error: "Conflicto de versiones. Descarga tu copia antes de recargar.",
+          error:
+            "Hay cambios en otra pestaña o dispositivo. Descarga tu copia antes de recargar.",
         });
+      if (error.code === "22023" || error.code === "22P02")
+        return res
+          .status(400)
+          .json({ error: error.message || "Datos no válidos." });
       throw error;
     }
-    // Read back the exact immutable revision before acknowledging a save.
-    const saved =
-      await sql`SELECT version FROM tudagpx_workspace_versions WHERE owner_id = ${user.id} AND version = ${version + 1}`;
-    if (!saved.length) throw new Error("Missing saved revision");
-    if (upload) {
-      try {
-        await sql`DELETE FROM tudagpx_upload_parts WHERE owner_id = ${user.id} AND upload_id = ${upload}`;
-      } catch {
-        console.warn(
-          "Temporary upload cleanup deferred; revision already committed.",
-        );
-      }
-    }
-    return res.status(200).json({ version: Number(saved[0].version) });
   } catch (error) {
     console.error(
       "Workspace storage operation failed",
