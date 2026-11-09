@@ -8,7 +8,13 @@ import {
   exportGPX,
   validateWorkspace,
 } from "./utils/workspace";
-import { loadWorkspace, saveWorkspace, download } from "./utils/localStore";
+import {
+  loadWorkspace,
+  saveWorkspace,
+  download,
+  migrateCurrentOnlyStorage,
+} from "./utils/localStore";
+import { currentWorkspace } from "./utils/currentWorkspace";
 import {
   cloudEnabled,
   loadCloudWorkspace,
@@ -102,10 +108,15 @@ export default function LocalApp({ onLogout }) {
     revision = useRef(0);
   useEffect(() => {
     let alive = true;
-    (cloudEnabled ? loadCloudWorkspace() : loadWorkspace())
+    migrateCurrentOnlyStorage()
+      .then(() => (cloudEnabled ? loadCloudWorkspace() : loadWorkspace()))
       .then((value) => {
         if (alive) {
-          setData(value ? validateWorkspace(value) : initialWorkspace());
+          setData(
+            value
+              ? currentWorkspace(validateWorkspace(value))
+              : initialWorkspace(),
+          );
           setSaved("Guardado local");
         }
       })
@@ -174,22 +185,17 @@ export default function LocalApp({ onLogout }) {
   function deleteItem(collection, item) {
     if (
       !window.confirm(
-        `¿Borrar «${item.name}» de la biblioteca? Las copias abiertas en el editor se conservarán.`,
+        `¿Borrar definitivamente «${item.name}» de la biblioteca? No habrá papelera ni historial para recuperarlo. Las copias abiertas en el editor se conservarán.`,
       )
     )
       return;
-    // Logical deletion preserves original bytes and historical cloud revisions.
     update((d) => ({
       ...d,
-      [collection]: d[collection].map((entry) =>
-        entry.id === item.id
-          ? { ...entry, deletedAt: new Date().toISOString() }
-          : entry,
-      ),
+      [collection]: d[collection].filter((entry) => entry.id !== item.id),
     }));
     setVisibleRoutes((ids) => ids.filter((id) => id !== item.id));
     setNotice(
-      "Elemento borrado de la biblioteca. Las copias abiertas y el historial se conservan.",
+      "Elemento eliminado definitivamente de la biblioteca. Las copias abiertas se conservan.",
     );
   }
   function requestOutput(kind, elements, name, execute, alwaysReview = false) {
@@ -669,7 +675,9 @@ export default function LocalApp({ onLogout }) {
     event.target.value = "";
     if (!file) return;
     try {
-      const source = validateWorkspace(JSON.parse(await file.text()));
+      const source = currentWorkspace(
+        validateWorkspace(JSON.parse(await file.text())),
+      );
       const idMap = new Map(
         [...source.routes, ...source.segments].map((e) => [e.id, uid()]),
       );
@@ -691,26 +699,14 @@ export default function LocalApp({ onLogout }) {
         id: idMap.get(s.id),
         sourceRouteId: idMap.get(s.sourceRouteId) || s.sourceRouteId,
       }));
-      const projects = [
-        ...source.projects.map((p) => ({
-          ...p,
-          id: uid(),
-          elements: p.elements.map(copy),
-        })),
-        {
-          id: uid(),
-          name: source.draftName + " · copia importada",
-          createdAt: new Date().toISOString(),
-          elements: source.draft.map(copy),
-        },
-      ];
+
       const restored = source.draft.map(copy);
       if (restored.length) edit([...data.draft, ...restored]);
       update((d) => ({
         ...d,
         routes: [...d.routes, ...routes],
         segments: [...d.segments, ...segments],
-        projects: [...d.projects, ...projects],
+        projects: [],
       }));
       setNotice(
         "Copia añadida sin borrar ni reemplazar datos actuales. Los trazados recuperados están abiertos en el editor.",

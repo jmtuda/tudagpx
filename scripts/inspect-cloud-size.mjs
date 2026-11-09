@@ -18,17 +18,19 @@ const url = execFileSync(
   { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
 ).trim();
 const sql = neon(url);
-const migration = readFileSync(
-  new URL("../migrations/003_incremental_sync.sql", import.meta.url),
-  "utf8",
-);
-const definitions = [
-  ...migration.matchAll(
+const definitions = new Map();
+for (const file of ["003_incremental_sync.sql", "004_current_only.sql"]) {
+  const migration = readFileSync(
+    new URL(`../migrations/${file}`, import.meta.url),
+    "utf8",
+  );
+  for (const [, name, body] of migration.matchAll(
     /CREATE OR REPLACE FUNCTION\s+(\w+)[\s\S]*?AS \$\$([\s\S]*?)\$\$;/g,
-  ),
-];
-assert.equal(definitions.length, 3);
-for (const [, name, body] of definitions) {
+  ))
+    definitions.set(name, body);
+}
+assert.equal(definitions.size, 6);
+for (const [name, body] of definitions) {
   const [verified] =
     await sql`SELECT count(*)::int AS matches FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname = ${name} AND p.prosrc = ${body}`;
   assert.equal(verified.matches, 1, name);

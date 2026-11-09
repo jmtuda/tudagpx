@@ -44,6 +44,7 @@ function harness() {
       return Response.json({
         version: db.version,
         ownerId: db.ownerId,
+        policy: "current-only-v1",
         parts: splitWorkspace(JSON.stringify(db.data)).length,
       });
     if (query.has("part"))
@@ -54,6 +55,7 @@ function harness() {
       });
     if (db.fail) throw new Error("offline");
     const body = JSON.parse(options.body);
+    assert.equal(body.policy, "current-only-v1");
     if (options.method === "POST") {
       const parts = uploads.get(body.upload) || [];
       parts[body.part] = body.chunk;
@@ -63,7 +65,15 @@ function harness() {
     if (body.version !== db.version)
       return Response.json({ error: "conflict" }, { status: 409 });
     const patch = body.patch || JSON.parse(uploads.get(body.upload).join(""));
-    for (const collection of ["routes", "segments", "projects"])
+    for (const collection of ["routes", "segments"])
+      db.data[collection] = db.data[collection].filter(
+        (item) => !(patch.remove?.[collection] || []).includes(item.id),
+      );
+    assert.ok(
+      !patch.projects,
+      "current-only clients must not add hidden projects",
+    );
+    for (const collection of ["routes", "segments"])
       for (const item of patch[collection] || []) {
         const old = db.data[collection].find((entry) => entry.id === item.id);
         if (old) Object.assign(old, item.fields);
@@ -87,6 +97,7 @@ test("warm reload requests metadata only; initial load never writes", async () =
   const remote = h.remote();
   const data = await remote.load();
   await remote.save(data);
+  assert.equal(h.stored.get(h.db.ownerId).policy, "current-only-v1");
   assert.equal(h.requests.filter((r) => r.method !== "GET").length, 0);
   h.requests.length = 0;
   assert.deepEqual(await h.remote().load(), data);
@@ -114,6 +125,40 @@ test("rename and draft patches omit unchanged GPX and library", async () => {
   assert.equal(h.db.version, 3);
   assert.deepEqual(h.db.data.routes, original);
   assert.ok(Buffer.byteLength(JSON.stringify(rename)) < 200);
+});
+
+test("an obsolete cache policy cannot restore an old library", async () => {
+  const h = harness();
+  await h.remote().load();
+  h.stored.get(h.db.ownerId).policy = "old-policy";
+  h.stored.get(h.db.ownerId).data.routes[0].name = "Obsoleto";
+  h.requests.length = 0;
+  const loaded = await h.remote().load();
+  assert.equal(loaded.routes[0].name, "Original");
+  assert.ok(h.requests.some((request) => request.url.includes("&part=")));
+  assert.equal(h.stored.get(h.db.ownerId).policy, "current-only-v1");
+});
+
+test("a replaced head during multipart reading retries the new revision", async () => {
+  const h = harness();
+  let replaced = false;
+  const fetcher = async (url, options) => {
+    if (url.includes("&part=") && !replaced) {
+      replaced = true;
+      h.db.version++;
+      h.db.data.draftName = "Cambio concurrente";
+      return Response.json({ error: "Versión no encontrada" }, { status: 404 });
+    }
+    return h.fetcher(url, options);
+  };
+  const remote = createRemoteStore(fetcher, { cache: h.cache });
+  const loaded = await remote.load();
+  assert.equal(loaded.draftName, "Cambio concurrente");
+  assert.equal(h.stored.get(h.db.ownerId).version, 2);
+  assert.equal(
+    h.requests.filter((request) => request.url.includes("metadata=1")).length,
+    2,
+  );
 });
 
 test("cache belongs to the authenticated owner", async () => {
@@ -207,15 +252,50 @@ test("large patches retain bounded Unicode-safe parts and protocol 2", async () 
   assert.equal(h.db.data.draftName, data.draftName);
 });
 
-test("diff preserves record identity and refuses physical removal", () => {
+test("diff emits explicit permanent removals and preserves unrelated identity", () => {
   const initial = fixture();
+  initial.segments = [{ id: "s", name: "Segmento", points: [] }];
   const changed = copy(initial);
   changed.routes = [];
+  changed.segments = [];
+  assert.deepEqual(createWorkspacePatch(initial, changed), {
+    remove: { routes: ["r"], segments: ["s"] },
+  });
+  assert.equal(createWorkspacePatch(initial, copy(initial)), null);
+});
+
+test("permanent removal syncs without originals and keeps open working copies", async () => {
+  const h = harness();
+  h.db.data.segments = [{ id: "s", name: "Segmento", points: [] }];
+  h.db.data.draft = [
+    { id: "d", name: "Copia", points: copy(h.db.data.routes[0].tracks[0]) },
+  ];
+  const remote = h.remote();
+  const data = await remote.load();
+  const draft = copy(data.draft);
+  data.routes = [];
+  data.segments = [];
+  await remote.save(data);
+  assert.deepEqual(JSON.parse(h.requests.at(-1).body), {
+    version: 1,
+    policy: "current-only-v1",
+    patch: { remove: { routes: ["r"], segments: ["s"] } },
+  });
+  assert.deepEqual(h.db.data, data);
+  assert.deepEqual(h.db.data.draft, draft);
+  h.requests.length = 0;
+  assert.deepEqual(await h.remote().load(), data);
+  assert.equal(h.requests.length, 1);
+});
+
+test("diff refuses new hidden projects instead of creating automatic history", () => {
+  const initial = fixture();
+  const changed = copy(initial);
+  changed.projects = [{ id: "hidden", name: "Versión", elements: [] }];
   assert.throws(
     () => createWorkspacePatch(initial, changed),
-    /eliminar originales/,
+    /historial oculto/,
   );
-  assert.equal(createWorkspacePatch(initial, copy(initial)), null);
 });
 
 function clock() {

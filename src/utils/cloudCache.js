@@ -42,11 +42,7 @@ export function createCloudCache({
         if (pending) return pending;
       }
       const shared = await load(sharedKey(ownerId));
-      if (!shared && !own) {
-        // Additive safety copy on first upgrade; never discard pre-v2 local work.
-        const legacy = await load();
-        if (legacy) await save(legacy, `cloud-before-incremental:${ownerId}`);
-      }
+
       return shared && (!own || shared.version >= own.version) ? shared : own;
     },
     async save(ownerId, envelope) {
@@ -57,9 +53,8 @@ export function createCloudCache({
           await save(envelope, sharedKey(ownerId));
         for (const { key, value } of await entries(`${sharedKey(ownerId)}:`)) {
           if (
-            value.pending &&
             value.version <= envelope.version &&
-            sameValue(value.pending, envelope.data)
+            (!value.pending || sameValue(value.pending, envelope.data))
           )
             await acknowledge(key, envelope);
         }

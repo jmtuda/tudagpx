@@ -38,10 +38,38 @@ export async function assembleUpload(sql, userId, upload, total) {
     );
   return JSON.parse(parts.map((entry) => entry.chunk).join(""));
 }
-export function validateChange(data, previous) {
+export function validateChange(data, previous, { remove = {} } = {}) {
   validateWorkspace(data);
+  if (
+    data.projects.length ||
+    [...data.routes, ...data.segments].some((item) =>
+      Object.hasOwn(item, "deletedAt"),
+    )
+  )
+    throw new Error(
+      "Solo se permite guardar el estado actual, sin papelera ni proyectos ocultos.",
+    );
+  for (const category of Object.keys(remove)) {
+    if (
+      !["routes", "segments"].includes(category) ||
+      !Array.isArray(remove[category]) ||
+      new Set(remove[category]).size !== remove[category].length
+    )
+      throw new Error("Borrado explícito no válido.");
+    for (const id of remove[category]) {
+      if (
+        typeof id !== "string" ||
+        !previous?.[category].some((item) => item.id === id) ||
+        data[category].some((item) => item.id === id)
+      )
+        throw new Error(
+          "El borrado debe identificar un registro existente que se elimina.",
+        );
+    }
+  }
   for (const original of previous?.routes || []) {
     const next = data.routes.find((route) => route.id === original.id);
+    if (!next && remove.routes?.includes(original.id)) continue;
     if (
       !next ||
       next.original !== original.original ||
@@ -52,6 +80,7 @@ export function validateChange(data, previous) {
   }
   for (const original of previous?.segments || []) {
     const next = data.segments.find((segment) => segment.id === original.id);
+    if (!next && remove.segments?.includes(original.id)) continue;
     if (!next || !isDeepStrictEqual(next.points, original.points))
       throw new Error(
         "Los segmentos originales no se pueden sobrescribir. Edita y guarda una copia.",

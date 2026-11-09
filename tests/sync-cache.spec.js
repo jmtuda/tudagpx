@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("caché IndexedDB conserva pendientes por pestaña y copia previa al actualizar", async ({
+test("caché conserva pendientes por pestaña sin archivos históricos ocultos", async ({
   page,
 }) => {
   await page.goto("/");
@@ -11,6 +11,11 @@ test("caché IndexedDB conserva pendientes por pestaña y copia previa al actual
     const store = await import("/src/utils/localStore.js");
     const cache = (await import("/src/utils/cloudCache.js")).createCloudCache();
     const previous = await store.loadWorkspace();
+    await store.saveWorkspace(
+      previous,
+      "cloud-before-incremental:sync-test-owner",
+    );
+    await store.migrateCurrentOnlyStorage();
     await cache.load("sync-test-owner");
     return {
       previous,
@@ -19,7 +24,7 @@ test("caché IndexedDB conserva pendientes por pestaña y copia previa al actual
       ),
     };
   });
-  expect(legacy.backup).toEqual(legacy.previous);
+  expect(legacy.backup).toBeUndefined();
   const other = await page.context().newPage();
   await other.goto("/");
   await expect(other.locator(".local-status > span")).toHaveText(
@@ -28,8 +33,12 @@ test("caché IndexedDB conserva pendientes por pestaña y copia previa al actual
   await page.evaluate(async () => {
     const cache = (await import("/src/utils/cloudCache.js")).createCloudCache();
     await cache.save("sync-test-owner", {
+      policy: "current-only-v1",
       version: 1,
-      data: { draftName: "Confirmado" },
+      data: {
+        ...(await import("/src/utils/workspacePatch.js")).emptyCloudWorkspace(),
+        draftName: "Confirmado",
+      },
       pending: null,
     });
   });
@@ -38,14 +47,18 @@ test("caché IndexedDB conserva pendientes por pestaña y copia previa al actual
     const confirmed = await cache.load("sync-test-owner");
     await cache.save("sync-test-owner", {
       ...confirmed,
-      pending: { draftName: "Trabajo de segunda pestaña" },
+      pending: { ...confirmed.data, draftName: "Trabajo de segunda pestaña" },
     });
   });
   await page.evaluate(async () => {
     const cache = (await import("/src/utils/cloudCache.js")).createCloudCache();
     await cache.save("sync-test-owner", {
+      policy: "current-only-v1",
       version: 2,
-      data: { draftName: "Cambio de primera pestaña" },
+      data: {
+        ...(await import("/src/utils/workspacePatch.js")).emptyCloudWorkspace(),
+        draftName: "Cambio de primera pestaña",
+      },
       pending: null,
     });
   });
@@ -82,6 +95,7 @@ test("caché IndexedDB conserva pendientes por pestaña y copia previa al actual
   await reopened.evaluate(async (entry) => {
     const cache = (await import("/src/utils/cloudCache.js")).createCloudCache();
     await cache.save("sync-test-owner", {
+      policy: "current-only-v1",
       version: 3,
       data: entry.pending,
       pending: null,

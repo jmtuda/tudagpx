@@ -1,5 +1,15 @@
 # Progreso
 
+## Estado actual únicamente y borrado definitivo (política vigente)
+
+El propietario confirmó eliminar definitivamente 4 rutas y 6 segmentos marcados como borrados y aplicar en adelante una política sin papelera ni historial automático oculto. Migración 004 instalada con readback exacto de funciones: cada guardado mantiene un único head con versión monotónica, borrado explícito por id, inmutabilidad de los originales supervivientes y rechazo de clientes antiguos sin policy=current-only-v1. Los fragmentos completados se eliminan y los abandonados caducan por última actividad de su grupo.
+
+Transición propietaria ejecutada con guardas: 8/15 registros previos, 4/6 tombstones exactos, 4/9 visibles y 0 proyectos. La revisión 202 pasó a 203; solo queda una revisión con 4 rutas y 9 segmentos. Hash de todo el estado esperado comprobado dentro de PostgreSQL antes/después y tras compactar: originales conservados y trabajo abierto intactos. JSON actual 12.251.845 B, tabla app 2.179.072 B y base 10.649.600 B al terminar. No se descargó el payload del propietario para esta operación.
+
+Aplicación local: borrado confirmado físico sin deletedAt, cachés históricas internas purgadas, pendientes de edición protegidos y copias antiguas recuperadas como trabajo visible, nunca projects ocultos. Confirmaciones de sincronización actualizan cachés confirmadas antiguas. Descarga de JSON solo del estado actual; los archivos que el usuario haya descargado a su ordenador no se modifican. La retención de recuperación propia del proveedor Neon es independiente de las tablas de la aplicación.
+
+Verificación: 106 pruebas Chrome, 25 Node, lint/build y pruebas pequeñas con Neon real correctas, incluidas eliminación explícita, conflictos, una sola fila tras varios commits, geometría/bytes inmutables de los supervivientes, multipart y limpieza sintética. Readback de las seis definiciones SQL vigentes. Un aviso aislado de profundidad de actualización en la batería no se reprodujo en seis repeticiones focales posteriores.
+
 ## Compactación puntual autorizada de Neon
 
 El propietario confirmó expresamente borrar las 201 revisiones automáticas anteriores, conservar solo la actual, limpiar cargas temporales antiguas y compactar. Ejecutado mediante scripts/compact-cloud-storage.mjs con contador esperado 202, transacción y bloqueo breve de tablas. Eliminadas 201 revisiones y 5.640 fragmentos de 216 cargas incompletas de más de 24 h. Conservada íntegra la revisión 202, sin renumerarla: hash del payload completo comprobado antes/después y tras VACUUM FULL. Biblioteca actual intacta: 8 rutas, 15 segmentos, 0 proyectos; JSON 13.202.196 B.

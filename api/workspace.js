@@ -1,12 +1,29 @@
 import { neon } from "@neondatabase/serverless";
 import { prepare, owner } from "../server/private.js";
-import { PART_SIZE, stagePart } from "../server/workspaceTransport.js";
+import { PART_SIZE, checkUpload } from "../server/workspaceTransport.js";
+
+const POLICY = "current-only-v1";
 
 export async function handleWorkspace(req, res, sql, user) {
   try {
+    // Fence old tabs before any Neon query or temporary upload write.
+    if (["POST", "PUT"].includes(req.method) && req.body?.policy !== POLICY)
+      return res.status(409).json({
+        error:
+          "Actualiza la aplicación antes de guardar. Conserva tu trabajo y descarga una copia.",
+      });
     if (req.method === "POST") {
       try {
-        await stagePart(sql, user.id, req.body || {});
+        const { upload, part, total, chunk } = req.body || {};
+        if (
+          !checkUpload(upload, part, total) ||
+          typeof chunk !== "string" ||
+          chunk.length > PART_SIZE + 1
+        )
+          throw new Error("Parte no válida");
+        const staged =
+          await sql`SELECT part FROM tudagpx_stage_workspace_part(${user.id}::text, ${upload}::text, ${part}::int, ${total}::int, ${chunk}::text)`;
+        if (!staged.length) throw new Error("Parte incompatible");
       } catch {
         return res.status(400).json({
           error:
@@ -22,6 +39,7 @@ export async function handleWorkspace(req, res, sql, user) {
         version: Number(rows[0]?.version || 0),
         parts: rows[0]?.parts || 0,
         ownerId: user.id,
+        policy: POLICY,
       });
     }
     if (req.method === "GET" && req.query?.part !== undefined) {
@@ -86,8 +104,8 @@ export async function handleWorkspace(req, res, sql, user) {
       return res.status(400).json({ error: "Carga no válida." });
     try {
       const document = isPatch ? body.patch : body.data;
-      // One atomic call: latest payload, staged chunks, validation and immutable
-      // revision readback all remain in Postgres, for both v2 and legacy saves.
+      // One atomic current-only commit: assembly, validation, immutable originals
+      // and removal of prior heads all stay in Postgres, including full saves.
       const saved = await sql`SELECT version FROM tudagpx_save_workspace(
         ${user.id}::text, ${version}::bigint, ${JSON.stringify(document ?? null)}::jsonb,
         ${isPatch}::boolean, ${upload ?? null}::text, ${total ?? null}::int)`;

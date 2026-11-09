@@ -2,7 +2,7 @@
 
 Biblioteca geográfica y editor de rutas con React, Vite y Leaflet. Web privada en https://tudagpx.vercel.app con correo/contraseña y almacenamiento Neon. La modalidad local conserva los datos en IndexedDB, sin cuenta.
 
-En la web, el trabajo se protege primero en este navegador y se sincronizan solo los cambios tras una pausa breve (3 segundos; máximo 15 segundos mientras sigues editando, más el tiempo de red). Espera a «Guardado en Neon» antes de continuar en otro dispositivo. La copia local evita descargar otra vez la biblioteca al recargar si la versión remota no ha cambiado. Los originales y el historial se conservan; los conflictos entre dispositivos no se resuelven sobrescribiendo tu trabajo. Si aparece un error, descarga una copia antes de resolverlo o borrar datos del navegador.
+En la web, el trabajo se protege primero en este navegador y se sincronizan solo los cambios tras una pausa breve (3 segundos; máximo 15 segundos mientras sigues editando, más el tiempo de red). Espera a «Guardado en Neon» antes de continuar en otro dispositivo. La copia local evita descargar otra vez la biblioteca si la versión no ha cambiado. Solo se conserva el estado actual: biblioteca visible y trabajo abierto, sin papelera ni historial automático oculto. Los conflictos no se resuelven sobrescribiendo tu trabajo. Si aparece un error, descarga una copia antes de resolverlo o borrar datos del navegador.
 
 ## Abrir la aplicación
 
@@ -25,7 +25,7 @@ Las rutas cargadas en el editor aparecen en botones de fondo sólido sobre un co
 
 El perfil inferior está disponible tanto en el visor como en el editor y se minimiza mediante el chevron de su borde. En el visor se superponen los perfiles de todas las rutas seleccionadas, con ejes comunes de distancia real y altitud. Cada perfil y sus datos de distancia/subida acumulada comparten el color de la ruta en el mapa. No se inventan elevaciones ni se conectan los huecos entre tramos.
 
-Todas las fichas del visor tienen «Enviar al editor», aunque no estén seleccionadas. Seleccionadas añaden «Editar nombre», «Borrar» y un icono de descarga GPX, en la misma línea. No hay botones de centrar ni quitar selección en la biblioteca. Renombrar solo cambia el catálogo, no el original. Borrar siempre pide confirmación y conserva copias abiertas, historial y originales mediante borrado lógico. La descarga de rutas mantiene sus bytes exactos; los segmentos se serializan como GPX validado.
+Solo las fichas seleccionadas muestran «Enviar al editor», «Editar nombre», «Borrar» y un icono de descarga GPX, en la misma línea. No hay botones de centrar ni quitar selección en la biblioteca. Renombrar solo cambia el catálogo, no el original. Borrar pide confirmación y elimina definitivamente el registro, sin papelera ni versión oculta; las copias independientes que sigan abiertas en el editor se conservan. Los originales de la biblioteca que mantengas siguen siendo inmutables. La descarga de rutas mantiene sus bytes exactos; los segmentos se serializan como GPX validado.
 
 Cambiar entre pestañas conserva el borrador, historial, filtros y selecciones de la sesión, sin recrear el mapa. Al abrir o recargar, la página empieza siempre en «Ver rutas», aunque antes estuvieras editando. El borrador y la biblioteca se conservan: pulsa «Editar» para continuar. Los GPX externos también se recuperan como trabajo abierto, pero no aparecen en la biblioteca hasta guardarlos expresamente. Las superposiciones y filtros no se restauran tras cerrar o recargar.
 
@@ -35,7 +35,7 @@ Cambiar entre pestañas conserva el borrador, historial, filtros y selecciones d
 4. Pulsa «Enviar al editor» en la ficha de un segmento. Trabajas sobre una copia, no sobre el original. Vuelve al visor para enviar más rutas o segmentos.
 5. Edita directamente sobre el mapa: arrastra los puntos blancos para moverlos; arrastra los pequeños «+» para insertar nuevos puntos. Pulsa un punto (o haz clic derecho) para eliminarlo, dividir o marcar los límites de un recorte. La barra superior contiene lápiz, recorte, tijeras, deshacer y rehacer. El lápiz permite activar/desactivar la edición; no hay botón «Mover mapa».
 6. El primer botón «+» inicia un trazado. En modo lápiz, pulsar el mapa prolonga el trazado activo. «Seguir caminos» y el permiso BRouter están activados inicialmente por petición del propietario. El perfil genérico trata por igual asfalto, pistas y senderos; puede incluir pasos peatonales y no garantiza ciclabilidad. Desmarca «Seguir caminos» para usar líneas rectas, retirar el permiso y cancelar cálculos pendientes; marcarlo de nuevo permite calcular. Los guardados crean copias con el nombre elegido. «Limpiar» vacía el mapa sin borrar la biblioteca y permite deshacer. El trabajo abierto se conserva al cambiar de pestaña o recargar.
-7. El trabajo en curso se guarda automáticamente, incluso incompleto; los proyectos anteriores siguen conservados en los datos y en las copias JSON.
+7. El trabajo actual se guarda automáticamente, incluso incompleto. No se almacenan versiones automáticas anteriores. Los proyectos de copias JSON antiguas se recuperan como trazados visibles en el editor.
 8. Guardar ruta/segmento comprueba automáticamente el GPX antes de pedir nombre. Si hay un error, informa y bloquea el guardado; si no, pide el nombre y crea una entrada nueva sin exigir aceptación de avisos. Cancelar el nombre no modifica la biblioteca. «Exportar a GPX» conserva su revisión y aceptación de advertencias antes de descargar. Se mantienen tramos separados sin inventar conexiones. Esta revisión básica no garantiza seguridad ni transitabilidad sobre el terreno.
 
 Para añadir datos a tu biblioteca, pulsa «Importar GPX» o arrástralos sobre el mapa de «Ver rutas». Después usa «Enviar al editor». Si solo quieres trabajar un archivo externo, abre «Editar» y arrástralo sobre su mapa: no entra en la biblioteca. Para incorporarlo más tarde, pulsa «Guardar ruta» o «Guardar segmento», valida y elige un nombre. El guardado automático protege el trabajo en curso, pero no añade rutas a la biblioteca. El icono «Descargar GPX» de una ficha seleccionada descarga el archivo importado sin modificaciones.
@@ -46,9 +46,9 @@ El lápiz permite desactivar la edición y ocultar su cuadro, manteniendo las he
 
 ## Proteger el trabajo
 
-Al pie de la biblioteca, abre «Copias de seguridad». «Descargar copia completa» guarda biblioteca, originales, trabajo abierto y versiones anteriores en un JSON. Hazlo periódicamente y antes de borrar datos del navegador. «Añadir copia de seguridad» añade esa información sin borrar datos actuales; sus trazados abiertos se recuperan como copias adicionales en el editor, con identidades nuevas.
+Al pie de la biblioteca, abre «Copias de seguridad». «Descargar copia completa» guarda biblioteca actual, originales conservados y trabajo abierto en un JSON descargado por ti, sin añadir un archivo oculto en la aplicación. Hazlo periódicamente y antes de borrar datos del navegador. «Añadir copia de seguridad» incorpora los elementos no borrados y abre el trabajo recuperado en el editor, con identidades nuevas. Los snapshots de copias antiguas también se abren en el editor, no se guardan ocultos.
 
-Los originales y snapshots anteriores no se borran automáticamente. El sistema avanzado de versiones y dependencias entre rutas y segmentos sigue pendiente.
+No hay papelera ni historial persistente para deshacer una eliminación de biblioteca confirmada. Deshacer/rehacer del editor sigue disponible durante la sesión. Si quieres conservar una versión antigua, descárgala expresamente a tu ordenador.
 
 ## Límites de esta entrega
 

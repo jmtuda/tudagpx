@@ -1,4 +1,5 @@
 // The network protocol contains changed fields only, never unchanged originals.
+export const CURRENT_POLICY = "current-only-v1";
 export function sameValue(a, b) {
   if (a === b) return true;
   if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
@@ -30,11 +31,15 @@ export function createWorkspacePatch(previous, next) {
   for (const collection of ["routes", "segments", "projects"]) {
     const old = new Map(base[collection].map((item) => [item.id, item]));
     const current = new Set(next[collection].map((item) => item.id));
-    if ([...old.keys()].some((id) => !current.has(id))) {
-      throw new Error(
-        "No se permite eliminar originales ni versiones. Usa el borrado confirmado de la biblioteca.",
-      );
+    const removed = [...old.keys()].filter((id) => !current.has(id));
+    if (collection === "projects") {
+      if (next.projects.length)
+        throw new Error(
+          "Los proyectos recuperados deben abrirse en el editor, no guardarse como historial oculto.",
+        );
+      continue;
     }
+    if (removed.length) (patch.remove ||= {})[collection] = removed;
     const changes = [];
     for (const item of next[collection]) {
       const existing = old.get(item.id);

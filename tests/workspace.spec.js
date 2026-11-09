@@ -286,17 +286,14 @@ test("dibujo libre, recorte, eliminación, nuevo segmento y copia recuperable", 
   expect(d.segments).toHaveLength(
     before.segments.length + backup.segments.length,
   );
-  expect(d.projects).toHaveLength(
-    before.projects.length + backup.projects.length + 1,
-  );
-  expect(d.projects.at(-1).elements[0].points).toEqual(backup.draft[0].points);
+  expect(d.projects).toEqual([]);
   await page.reload();
   await pinLibraries(page);
   expect((await state(page)).draft).toEqual(d.draft);
   expect((await state(page)).draft).toHaveLength(2);
 });
 
-test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia JSON", async ({
+test("versiones antiguas recuperadas como trabajo visible; copia JSON aditiva sin proyectos ocultos", async ({
   page,
 }) => {
   await ready(page);
@@ -328,7 +325,23 @@ test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia
   await page.reload();
   await page.getByRole("tab", { name: "Editar", exact: true }).click();
   await pinLibraries(page);
-  expect(await state(page)).toEqual(legacy);
+  const recovered = await state(page);
+  expect(recovered.projects).toEqual([]);
+  expect(recovered.routes).toEqual(legacy.routes);
+  expect(recovered.segments).toEqual(legacy.segments);
+  expect(recovered.draft.slice(0, legacy.draft.length)).toEqual(legacy.draft);
+  const legacyElements = legacy.projects.flatMap((project) => project.elements);
+  const recoveredCopies = recovered.draft.slice(legacy.draft.length);
+  expect(recoveredCopies.map((element) => element.points)).toEqual(
+    legacyElements.map((element) => element.points),
+  );
+  for (const [index, element] of recoveredCopies.entries())
+    expect(element.id).not.toBe(legacyElements[index].id);
+  await expect(
+    page
+      .getByRole("tablist", { name: "Rutas cargadas en el editor" })
+      .getByRole("tab"),
+  ).toHaveCount(3);
   await expect(
     page.getByRole("navigation", { name: "Biblioteca" }),
   ).toHaveCount(0);
@@ -339,16 +352,16 @@ test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia
     .getByRole("button", { name: "Invertir trazado", exact: true })
     .click();
   const edited = await state(page);
-  expect(edited.projects).toEqual(legacy.projects);
+  expect(edited.projects).toEqual([]);
   expect(edited.routes).toEqual(legacy.routes);
   await page.getByRole("button", { name: "Limpiar mapa", exact: true }).click();
   expect((await state(page)).draft).toEqual([]);
-  expect((await state(page)).projects).toEqual(legacy.projects);
+  expect((await state(page)).projects).toEqual([]);
   await page.getByRole("button", { name: "↶ Deshacer" }).click();
   expect((await state(page)).draft).toEqual(edited.draft);
   await page.reload();
   await pinLibraries(page);
-  expect((await state(page)).projects).toEqual(legacy.projects);
+  expect((await state(page)).projects).toEqual([]);
   await showLibrary(page, "route");
   await page
     .locator(".sidebar-footer summary", { hasText: "Copias de seguridad" })
@@ -357,7 +370,7 @@ test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia
   await page.getByRole("button", { name: "Descargar copia completa" }).click();
   const download = await pending;
   const backup = JSON.parse(await readFile(await download.path(), "utf8"));
-  expect(backup.projects).toEqual(legacy.projects);
+  expect(backup.projects).toEqual([]);
   expect(backup.draft).toEqual(edited.draft);
   await page
     .locator("input[type=file]")
@@ -365,12 +378,7 @@ test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia
     .setInputFiles(await download.path());
   await expect(page.getByText(/Copia añadida sin borrar/)).toBeVisible();
   const restored = await state(page);
-  expect(restored.projects.slice(0, legacy.projects.length)).toEqual(
-    legacy.projects,
-  );
-  expect(restored.projects).toHaveLength(
-    legacy.projects.length + backup.projects.length + 1,
-  );
+  expect(restored.projects).toEqual([]);
   expect(restored.routes.slice(0, backup.routes.length)).toEqual(backup.routes);
   expect(restored.segments.slice(0, backup.segments.length)).toEqual(
     backup.segments,
@@ -389,24 +397,20 @@ test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia
   expect(copies.map((e) => e.points)).toEqual(
     backup.draft.map((e) => e.points),
   );
-  expect(copies.every((e) => e.sourceRouteId === importedRoute.id)).toBe(true);
-  expect(new Set(copies.map((e) => e.editorRouteId)).size).toBe(1);
+  expect(
+    copies
+      .filter((e) => e.sourceRouteId)
+      .every((e) => e.sourceRouteId === importedRoute.id),
+  ).toBe(true);
+  expect(new Set(copies.map((e) => e.editorRouteId)).size).toBe(3);
   expect(copies[0].editorRouteId).not.toBe(backup.draft[0].editorRouteId);
-  const addedProjects = restored.projects.slice(legacy.projects.length);
-  for (const [i, project] of addedProjects.entries()) {
-    const source =
-      i < backup.projects.length ? backup.projects[i].elements : backup.draft;
-    expect(project.elements.map((e) => e.points)).toEqual(
-      source.map((e) => e.points),
-    );
-    expect(project.elements.map((e) => e.name)).toEqual(
-      source.map((e) => e.name),
-    );
-    for (const [j, element] of project.elements.entries()) {
-      expect(element.id).not.toBe(source[j].id);
-      if (source[j].sourceRouteId)
-        expect(element.sourceRouteId).toBe(importedRoute.id);
-    }
+  expect(copies.map((element) => element.name)).toEqual(
+    backup.draft.map((element) => element.name),
+  );
+  for (const [index, element] of copies.entries()) {
+    expect(element.id).not.toBe(backup.draft[index].id);
+    if (backup.draft[index].sourceRouteId)
+      expect(element.sourceRouteId).toBe(importedRoute.id);
   }
   for (const collection of [
     restored.routes,
@@ -416,7 +420,7 @@ test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia
   ]) {
     expect(new Set(collection.map((e) => e.id)).size).toBe(collection.length);
   }
-  // Las copias recuperadas se abren y se pueden editar; los snapshots no cambian.
+  // Las copias recuperadas se abren y se editan sin crear historial oculto.
   await expect(
     page
       .getByRole("tablist", { name: "Rutas cargadas en el editor" })
@@ -442,6 +446,50 @@ test("snapshots anteriores intactos al editar, limpiar, recargar y añadir copia
   expect(
     JSON.parse(await readFile(await (await roundtrip).path(), "utf8")),
   ).toEqual(final);
+  // También una copia de la versión antigua abre sus proyectos, no los almacena.
+  await page
+    .locator("input[type=file]")
+    .nth(1)
+    .setInputFiles({
+      name: "copia-antigua.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(legacy)),
+    });
+  await expect(page.getByText(/Copia añadida sin borrar/)).toBeVisible();
+  const importedLegacy = await state(page);
+  expect(importedLegacy.projects).toEqual([]);
+  expect(importedLegacy.routes.slice(0, final.routes.length)).toEqual(
+    final.routes,
+  );
+  expect(importedLegacy.segments.slice(0, final.segments.length)).toEqual(
+    final.segments,
+  );
+  expect(importedLegacy.routes).toHaveLength(
+    final.routes.length + legacy.routes.length,
+  );
+  expect(importedLegacy.segments).toHaveLength(
+    final.segments.length + legacy.segments.length,
+  );
+  expect(importedLegacy.draft.slice(0, final.draft.length)).toEqual(
+    final.draft,
+  );
+  const visibleLegacyCopies = importedLegacy.draft.slice(final.draft.length);
+  const sourceElements = [...legacy.draft, ...legacyElements];
+  expect(visibleLegacyCopies.map((element) => element.points)).toEqual(
+    sourceElements.map((element) => element.points),
+  );
+  for (const [index, element] of visibleLegacyCopies.entries())
+    expect(element.id).not.toBe(sourceElements[index].id);
+  expect(new Set(importedLegacy.draft.map((element) => element.id)).size).toBe(
+    importedLegacy.draft.length,
+  );
+  await expect(
+    page
+      .getByRole("tablist", { name: "Rutas cargadas en el editor" })
+      .getByRole("tab"),
+  ).toHaveCount(9);
+  await page.reload();
+  expect(await state(page)).toEqual(importedLegacy);
 });
 
 test("modelo: cruces geográficos, GPX inválido, namespaces, huecos y duplicados", async ({

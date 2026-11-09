@@ -1,4 +1,5 @@
-import { sameValue } from "./workspacePatch.js";
+import { sameValue, CURRENT_POLICY } from "./workspacePatch.js";
+import { currentWorkspace } from "./currentWorkspace.js";
 
 const DB = "tudagpx-local-v1";
 function open() {
@@ -69,6 +70,50 @@ export async function workspaceEntries(prefix) {
     };
   });
 }
+export async function migrateCurrentOnlyStorage() {
+  const db = await open();
+  return new Promise((resolve, reject) => {
+    let failure;
+    const tx = db.transaction("workspace", "readwrite");
+    const request = tx.objectStore("workspace").openCursor();
+    request.onsuccess = () => {
+      try {
+        const cursor = request.result;
+        if (!cursor) return;
+        const key = String(cursor.key);
+        const entry = cursor.value;
+        if (key.startsWith("cloud-before-incremental:")) cursor.delete();
+        else if (key.startsWith("cloud-sync-v2:")) {
+          if (!entry?.pending && entry?.policy !== CURRENT_POLICY)
+            cursor.delete();
+          else if (entry?.pending)
+            cursor.update({
+              ...entry,
+              data: currentWorkspace(entry.data),
+              pending: currentWorkspace(entry.pending),
+            });
+        } else if (key === "current" && entry?.schema === 1)
+          cursor.update(currentWorkspace(entry));
+        cursor.continue();
+      } catch (error) {
+        failure = error;
+        tx.abort();
+      }
+    };
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error);
+    };
+    tx.onabort = () => {
+      db.close();
+      reject(failure || tx.error || new Error("Actualización local cancelada"));
+    };
+  });
+}
 export async function acknowledgeWorkspacePending(key, confirmed) {
   const db = await open();
   return new Promise((resolve, reject) => {
@@ -78,9 +123,9 @@ export async function acknowledgeWorkspacePending(key, confirmed) {
     request.onsuccess = () => {
       const current = request.result;
       if (
-        current?.pending &&
+        current &&
         current.version <= confirmed.version &&
-        sameValue(current.pending, confirmed.data)
+        (!current.pending || sameValue(current.pending, confirmed.data))
       )
         store.put(confirmed, key);
     };

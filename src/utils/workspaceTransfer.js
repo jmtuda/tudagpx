@@ -2,7 +2,9 @@ import {
   createWorkspacePatch,
   emptyCloudWorkspace,
   sameValue,
+  CURRENT_POLICY,
 } from "./workspacePatch.js";
+import { currentWorkspace } from "./currentWorkspace.js";
 
 export const PART_SIZE = 128_000;
 export const MAX_PARTS = 1024;
@@ -72,7 +74,13 @@ export function createRemoteStore(fetcher = fetch, { cache } = {}) {
   const snapshot = (value) => JSON.parse(JSON.stringify(value));
   function persist() {
     if (!cache || !ownerId) return Promise.resolve();
-    const envelope = snapshot({ version, data: baseline, pending });
+    const envelope = snapshot({
+      policy: CURRENT_POLICY,
+      version,
+      data: baseline,
+      pending,
+      conflicted: blocked,
+    });
     cacheQueue = cacheQueue
       .catch(() => {})
       .then(() => cache.save(ownerId, envelope));
@@ -94,7 +102,7 @@ export function createRemoteStore(fetcher = fetch, { cache } = {}) {
     );
   }
   return {
-    async load() {
+    async load(attempt = 0) {
       const info = await request("?metadata=1");
       if (
         !Number.isSafeInteger(info.version) ||
@@ -103,34 +111,53 @@ export function createRemoteStore(fetcher = fetch, { cache } = {}) {
         info.parts > MAX_PARTS
       )
         throw new Error("Metadatos de biblioteca no válidos.");
+      if (info.policy !== CURRENT_POLICY)
+        throw new Error(
+          "El servidor debe actualizarse a la política de estado actual antes de sincronizar.",
+        );
       ownerId = typeof info.ownerId === "string" ? info.ownerId : null;
       const cached = cache && ownerId ? await cache.load(ownerId) : null;
       if (cached?.pending && Number.isSafeInteger(cached.version)) {
         // Never discard unsynced work or rebase it silently onto another device.
-        baseline = cached.data || emptyCloudWorkspace();
+        baseline = currentWorkspace(cached.data) || emptyCloudWorkspace();
         version = cached.version;
-        pending = cached.pending;
+        pending = currentWorkspace(cached.pending);
         stagedData = pending;
-        blocked = version !== info.version;
+        blocked =
+          version !== info.version ||
+          cached.policy !== CURRENT_POLICY ||
+          cached.conflicted === true;
         return snapshot(pending);
       }
       let data = null;
-      if (cached?.version === info.version && cached.data) {
+      if (
+        cached?.version === info.version &&
+        cached.policy === CURRENT_POLICY &&
+        cached.data
+      ) {
         data = cached.data;
       } else if (info.parts) {
-        const parts = await parallel(
-          Array.from({ length: info.parts }, (_, i) => i),
-          async (part) => {
-            const result = await request(
-              `?version=${info.version}&part=${part}`,
-            );
-            if (typeof result.chunk !== "string" || !result.chunk.length)
-              throw new Error(
-                "Descarga incompleta. No se ha sobrescrito ningún dato.",
+        let parts;
+        try {
+          parts = await parallel(
+            Array.from({ length: info.parts }, (_, i) => i),
+            async (part) => {
+              const result = await request(
+                `?version=${info.version}&part=${part}`,
               );
-            return result.chunk;
-          },
-        );
+              if (typeof result.chunk !== "string" || !result.chunk.length)
+                throw new Error(
+                  "Descarga incompleta. No se ha sobrescrito ningún dato.",
+                );
+              return result.chunk;
+            },
+          );
+        } catch (error) {
+          // A simultaneous save can replace the only retained revision mid-read.
+          if (error.status === 404 && attempt < 2)
+            return this.load(attempt + 1);
+          throw error;
+        }
         data = JSON.parse(parts.join(""));
       }
       version = info.version;
@@ -162,13 +189,30 @@ export function createRemoteStore(fetcher = fetch, { cache } = {}) {
         const text = JSON.stringify(patch);
         const parts = splitWorkspace(text);
         let body;
-        if (parts.length === 1) body = { version, patch };
+        if (parts.length === 1)
+          body = { version, patch, policy: CURRENT_POLICY };
         else {
           const upload = crypto.randomUUID();
           await parallel(parts, (chunk, part) =>
-            request("", { upload, part, total: parts.length, chunk }, "POST"),
+            request(
+              "",
+              {
+                upload,
+                part,
+                total: parts.length,
+                chunk,
+                policy: CURRENT_POLICY,
+              },
+              "POST",
+            ),
           );
-          body = { version, upload, total: parts.length, protocol: 2 };
+          body = {
+            version,
+            upload,
+            total: parts.length,
+            protocol: 2,
+            policy: CURRENT_POLICY,
+          };
         }
         let result;
         try {

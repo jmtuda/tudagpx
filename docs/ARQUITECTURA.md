@@ -1,12 +1,18 @@
 # Arquitectura de la primera versión local
 
-## Sincronización privada incremental (vigente)
+## Política vigente: solo estado actual
 
-La web mantiene una base confirmada y trabajo pendiente en IndexedDB, ligados al owner autenticado. Los pendientes se aíslan por pestaña; una confirmación de otra pestaña no los pisa. La primera actualización conserva además una copia aditiva cloud-before-incremental del estado local anterior. En una recarga se consulta metadata (versión/owner/partes); si la versión no cambia se reutiliza la caché, sin descargar la biblioteca. Un conflicto conserva el trabajo exportable y bloquea la sobreescritura, sin mezcla silenciosa.
+Por confirmación expresa del propietario, se conserva únicamente la biblioteca visible y el trabajo abierto del editor. Borrado de biblioteca físico con confirmación, sin deletedAt/papelera. Originales conservados siguen inmutables; el protocolo permite eliminaciones explícitas por id con patch.remove, pero no alterar geometrías de otros registros. Cada guardado remoto conserva solo el último estado, manteniendo versión monotónica y control de conflictos. No se crean proyectos/snapshots ocultos. Las copias JSON antiguas recuperan esos proyectos como trabajo visible adicional.
+
+Migración local limpia tombstones, backups internos cloud-before-incremental y cachés confirmadas de la política anterior; conserva pendientes recuperables y expone proyectos antiguos en el editor. Al confirmar una sincronización se actualizan las cachés confirmadas antiguas en lugar de guardar estados históricos. policy=current-only-v1 impide que clientes antiguos reintroduzcan historial/papelera. Las descargas por partes reintentan si una escritura concurrente sustituye la revisión leída. La nueva política sustituye las referencias históricas a append-only/borrado lógico que figuran más abajo.
+
+## Sincronización privada incremental
+
+La web mantiene una base confirmada y trabajo pendiente en IndexedDB, ligados al owner autenticado. Los pendientes se aíslan por pestaña; una confirmación de otra pestaña no los pisa. No se archivan copias internas anteriores. En una recarga se consulta metadata (versión/owner/partes); si la versión no cambia se reutiliza la caché, sin descargar la biblioteca. Un conflicto conserva el trabajo exportable y bloquea la sobreescritura, sin mezcla silenciosa.
 
 workspacePatch.js compara campos y envía solo cambios de registros por id y/o draft/draftName; no reenvía originales intactos ni snapshots previos. syncScheduler.js agrupa durante 3 s de pausa, con plazo máximo de 15 s, una petición en curso y solo el último estado pendiente. Guardado local inmediato independiente de la red; estado pendiente no equivale a Guardado en Neon. No se escribe al hidratar sin cambios.
 
-Migración aditiva 003_incremental_sync.sql: los PUT completos antiguos y patch v2 invocan tudagpx_save_workspace. Ensamblado multipart, validación, comparación de originales y commit quedan dentro de PostgreSQL. Bloqueo por owner y revisión optimista; retorna solo la versión confirmada. No se descargan payload anterior ni fragmentos al servidor al guardar. Las revisiones append-only anteriores y los bytes originales se conservan: se reduce tráfico, no se elimina almacenamiento histórico. La primera apertura en un dispositivo sin caché, o una revisión remota nueva, todavía necesita descargar el estado completo por partes; no hay descarga diferencial entre dispositivos en esta entrega.
+Las migraciones 003/004 mantienen ensamblado multipart, validación, comparación de originales y commit dentro de PostgreSQL. Bloqueo por owner y revisión optimista; retorna solo la versión confirmada, conservando una sola revisión. No se descargan payload anterior ni fragmentos al servidor al guardar. La primera apertura en un dispositivo sin caché, o una revisión remota nueva, todavía necesita descargar el estado completo por partes; no hay descarga diferencial entre dispositivos en esta entrega.
 
 Verificación: node --test scripts/test-sync-client.mjs server/incrementalSync.test.js; node scripts/test-incremental-cloud.mjs (fixture sintética pequeña real); scripts/inspect-cloud-size.mjs solo retorna agregados y verifica definiciones SQL exactas. No ejecutar el antiguo test grande contra producción para revisar este ahorro. Ninguna prueba nueva descarga la biblioteca propietaria.
 

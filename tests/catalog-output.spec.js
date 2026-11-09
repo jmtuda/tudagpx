@@ -20,6 +20,7 @@ async function openEditor(page) {
 async function confirm(page, button, accept, name) {
   page.once("dialog", async (dialog) => {
     expect(dialog.type()).toBe("confirm");
+    expect(dialog.message()).toContain("Borrar definitivamente");
     expect(dialog.message()).toContain(name);
     if (accept) await dialog.accept();
     else await dialog.dismiss();
@@ -74,9 +75,11 @@ for (const width of [1440, 390]) {
       name,
     );
     const deleted = await state(page);
-    expect(deleted.routes.at(-1).deletedAt).toBeTruthy();
-    expect(deleted.routes.at(-1).originalBase64).toBe(original.originalBase64);
-    expect(deleted.routes.at(-1).tracks).toEqual(original.tracks);
+    expect(deleted.routes.some((route) => route.id === original.id)).toBe(
+      false,
+    );
+    expect(deleted.routes).toEqual(before.routes.slice(0, -1));
+    expect(deleted.segments).toEqual(before.segments);
     expect(deleted.draft).toEqual(before.draft);
     await expect(page.getByRole("heading", { name, exact: true })).toHaveCount(
       0,
@@ -97,7 +100,10 @@ for (const width of [1440, 390]) {
     ).toHaveCount(0);
     // The same server policy used by Neon permits metadata changes, not overwrites.
     expect(() => validateChange(renamed, before)).not.toThrow();
-    expect(() => validateChange(deleted, renamed)).not.toThrow();
+    expect(() => validateChange(deleted, renamed)).toThrow();
+    expect(() =>
+      validateChange(deleted, renamed, { remove: { routes: [original.id] } }),
+    ).not.toThrow();
     for (const mutate of [
       (d) => {
         d.routes.at(-1).tracks[0][0].lat += 0.01;
@@ -105,9 +111,7 @@ for (const width of [1440, 390]) {
       (d) => {
         d.routes.at(-1).originalBase64 = "YQ==";
       },
-      (d) => {
-        d.routes.pop();
-      },
+
       (d) => {
         d.segments[0].points[0].lon += 0.01;
       },
@@ -155,10 +159,16 @@ for (const width of [1440, 390]) {
       "Segmento renombrado",
     );
     const deleted = await state(page);
-    expect(deleted.segments[0].points).toEqual(original.points);
-    expect(deleted.segments[0].deletedAt).toBeTruthy();
+    expect(deleted.segments.some((segment) => segment.id === original.id)).toBe(
+      false,
+    );
+    expect(deleted.segments).toEqual(before.segments.slice(1));
+    expect(deleted.routes).toEqual(before.routes);
     expect(deleted.draft).toEqual(before.draft);
-    expect(() => validateChange(deleted, before)).not.toThrow();
+    expect(() => validateChange(deleted, before)).toThrow();
+    expect(() =>
+      validateChange(deleted, before, { remove: { segments: [original.id] } }),
+    ).not.toThrow();
     await expect(
       page.getByRole("heading", { name: "Segmento renombrado", exact: true }),
     ).toHaveCount(0);

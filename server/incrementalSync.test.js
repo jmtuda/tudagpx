@@ -12,7 +12,9 @@ async function invoke(req, rows = [{ version: "8" }], failure) {
   let status = 200,
     body;
   await handleWorkspace(
-    req,
+    req.body
+      ? { ...req, body: { policy: "current-only-v1", ...req.body } }
+      : req,
     {
       status(value) {
         status = value;
@@ -91,6 +93,7 @@ test("metadata is owner-scoped, legacy fields preserved", async () => {
     version: 7,
     parts: 2,
     ownerId: "unit-owner",
+    policy: "current-only-v1",
   });
   assert.deepEqual(result.calls[0].values, [128000, "unit-owner"]);
 });
@@ -149,4 +152,50 @@ test("download parts remain pinned to revision and return only the part", async 
   assert.deepEqual(result.body, { chunk: "Unicode 🏔" });
   assert.match(result.calls[0].text, /substring\(payload::text/);
   assert.deepEqual(result.calls[0].values, [1, 128000, "unit-owner", 7]);
+});
+
+test("old clients cannot write or stage even invalid payloads before Neon", async () => {
+  for (const method of ["POST", "PUT"]) {
+    for (const policy of [undefined, null, "append-only", "current-only-v2"]) {
+      const result = await invoke({
+        method,
+        body: { policy, version: 7, patch: {} },
+      });
+      assert.equal(result.status, 409);
+      assert.match(result.body.error, /Actualiza/);
+      assert.equal(result.calls.length, 0);
+    }
+  }
+});
+
+test("explicit removals pass unchanged to the atomic database function", async () => {
+  const patch = { remove: { routes: ["r"], segments: ["s"] } };
+  const result = await invoke({ method: "PUT", body: { version: 7, patch } });
+  assert.equal(result.status, 200);
+  assert.equal(result.calls.length, 1);
+  assert.equal(result.calls[0].values[2], JSON.stringify(patch));
+});
+
+test("multipart staging and expiration stay in PostgreSQL", async () => {
+  const upload = "12345678-1234-1234-1234-123456789012";
+  const result = await invoke(
+    { method: "POST", body: { upload, part: 0, total: 1, chunk: "{}" } },
+    [{ part: 0 }],
+  );
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body, { ok: true });
+  assert.equal(result.calls.length, 1);
+  assert.match(
+    result.calls[0].text,
+    /SELECT part FROM tudagpx_stage_workspace_part/,
+  );
+  assert.deepEqual(result.calls[0].values, ["unit-owner", upload, 0, 1, "{}"]);
+  for (const body of [
+    { upload, part: 0, total: 1, chunk: 3 },
+    { upload: "bad", part: 0, total: 1, chunk: "{}" },
+  ]) {
+    const invalid = await invoke({ method: "POST", body });
+    assert.equal(invalid.status, 400);
+    assert.equal(invalid.calls.length, 0);
+  }
 });
