@@ -1,5 +1,11 @@
 # Progreso
 
+## Compactación puntual autorizada de Neon
+
+El propietario confirmó expresamente borrar las 201 revisiones automáticas anteriores, conservar solo la actual, limpiar cargas temporales antiguas y compactar. Ejecutado mediante scripts/compact-cloud-storage.mjs con contador esperado 202, transacción y bloqueo breve de tablas. Eliminadas 201 revisiones y 5.640 fragmentos de 216 cargas incompletas de más de 24 h. Conservada íntegra la revisión 202, sin renumerarla: hash del payload completo comprobado antes/después y tras VACUUM FULL. Biblioteca actual intacta: 8 rutas, 15 segmentos, 0 proyectos; JSON 13.202.196 B.
+
+Tamaño total de base medido: 517.767.168 B antes y 10.903.552 B después de compactar ambas tablas. Un 97,9 % menos. Solo queda una revisión y cero fragmentos pendientes al terminar. La inspección posterior confirmó funciones de sincronización exactas, conteos y contenido actual. Esta autorización es puntual, no una política de retención: no activar borrado automático ni repetir el script sin una nueva confirmación. Los nuevos guardados siguen creando revisiones. La cuota mensual de transferencia ya consumida no se recupera.
+
 ## Reducción de transferencia Neon
 
 Verificación final: lint/build, 103 pruebas Chrome y 18 pruebas Node correctas; integración pequeña contra Neon real y readback exacto de las tres funciones de migración. Pendientes aislados entre pestañas y recuperados también tras cerrar/reabrir una pestaña; confirmación de caché condicionada en transacción para no pisar ediciones nuevas.
