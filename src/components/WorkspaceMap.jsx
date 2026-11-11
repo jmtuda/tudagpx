@@ -19,9 +19,11 @@ import { TraceEndpoints } from "./TraceEndpoints";
 import ToolIcon from "./ToolIcon";
 import { viewerLibrary } from "../utils/viewerLibrary";
 import { editorRouteColors, editorRouteKey } from "../utils/editorRoutes";
+import { WaypointLayer } from "./WaypointLayer";
+import { libraryAnnotations } from "../utils/libraryAnnotations";
 const positions = (points) => points.map((p) => [p.lat, p.lon]);
 
-function Events({ onBounds, drawing, onDraw, focus }) {
+function Events({ onBounds, drawing, onDraw, focus, crosshair }) {
   const ignoreClickUntil = useRef(0);
   const map = useMapEvents({
     "editor:drag": () => {
@@ -67,7 +69,10 @@ function Events({ onBounds, drawing, onDraw, focus }) {
     return () => observer.disconnect();
   }, [map]);
   useEffect(() => {
-    if (focus?.points.length)
+    if (focus?.bounds) {
+      const b = focus.bounds;
+      map.fitBounds([[b.south, b.west], [b.north, b.east]], { animate: false });
+    } else if (focus?.points?.length)
       map.fitBounds(positions(focus.points), {
         animate: false,
         padding: [55, 55],
@@ -75,8 +80,8 @@ function Events({ onBounds, drawing, onDraw, focus }) {
       });
   }, [focus, map]);
   useEffect(() => {
-    map.getContainer().style.cursor = drawing ? "crosshair" : "";
-  }, [drawing, map]);
+    map.getContainer().style.cursor = drawing || crosshair ? "crosshair" : "";
+  }, [drawing, crosshair, map]);
   return null;
 }
 
@@ -143,6 +148,8 @@ export function WorkspaceMap({
   onInsert,
   onPointAction,
   onSplit,
+  onAddWaypoint,
+  onEditWaypoint,
   tools,
   issues,
 }) {
@@ -161,6 +168,9 @@ export function WorkspaceMap({
   );
   const popupRoute =
     viewing && items.find((route) => route.id === routePopup?.id);
+  const waypointRoutes = useMemo(() => items
+    .filter((route) => visibleRoutes.includes(route.id))
+    .map((route) => ({ id: route.id, waypoints: libraryAnnotations(route).waypoints })), [items, visibleRoutes]);
   const routeColors = editorRouteColors(data.draft);
   const profileRoutes = useMemo(
     () =>
@@ -169,7 +179,7 @@ export function WorkspaceMap({
         .map((route) => ({
           id: route.id,
           name: route.name,
-          color: colors[items.indexOf(route) % colors.length],
+          color: route.viewerColor || colors[items.indexOf(route) % colors.length],
           elements: route.tracks.map((points, index) => ({
             id: `${route.id}-${index}`,
             points,
@@ -224,7 +234,10 @@ export function WorkspaceMap({
           drawing={editing && mode === "edit" && !routingBusy}
           onDraw={onDraw}
           focus={focus}
+          crosshair={!viewing && editing && mode === "waypoint" && !routingBusy}
         />
+        {viewing ? waypointRoutes.map((route) => <WaypointLayer key={route.id} readOnly waypoints={route.waypoints} />)
+          : <WaypointLayer elements={data.draft} active={active} adding={editing && mode === "waypoint" && !routingBusy} onAdd={onAddWaypoint} onEdit={onEditWaypoint} readOnly={!editing || routingBusy} />}
         {items
           .filter(
             (r) =>
@@ -237,7 +250,7 @@ export function WorkspaceMap({
               key={r.id}
               route={r}
               selected={visibleRoutes.includes(r.id)}
-              color={colors[items.indexOf(r) % colors.length]}
+              color={r.viewerColor || colors[items.indexOf(r) % colors.length]}
               onClick={(event) => {
                 onToggleRoute(r.id);
                 setRoutePopup({ id: r.id, position: event.latlng });

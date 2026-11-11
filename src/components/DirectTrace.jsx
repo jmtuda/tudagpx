@@ -115,7 +115,7 @@ export function DirectTrace({
       <Polyline
         key={mode}
         positions={positions(visualPoints)}
-        bubblingMouseEvents={false}
+        bubblingMouseEvents={mode === "waypoint"}
         pathOptions={{
           color,
           weight: active ? 5 : 4,
@@ -135,6 +135,7 @@ export function DirectTrace({
               setHover(null);
           },
           click: (e) => {
+            if (mode === "waypoint") return;
             if (busy) return;
             if (!editing || !active) {
               onSelect(element.id, 0);
@@ -162,7 +163,7 @@ export function DirectTrace({
       >
         <Tooltip>
           {element.name}
-          {editing ? " · pulsa para editar" : ""}
+          {editing ? mode === "waypoint" ? " · pulsa para añadir un waypoint" : " · pulsa para editar" : ""}
         </Tooltip>
       </Polyline>
       {showDirection && !isCrop && !editableAnchors && (

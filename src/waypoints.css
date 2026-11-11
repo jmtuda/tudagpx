@@ -1,0 +1,72 @@
+.waypoint-marker {
+  color: #9151b8;
+  background: none;
+  border: 0;
+  filter: drop-shadow(0 1px 2px #0008);
+}
+.waypoint-marker span {
+  pointer-events: none;
+}
+.waypoint-marker:focus-visible {
+  outline: 3px solid #126fc2;
+  outline-offset: 3px;
+}
+.waypoint-popup {
+  min-width: 150px;
+  max-width: 280px;
+  overflow-wrap: anywhere;
+}
+.waypoint-popup p {
+  white-space: pre-wrap;
+}
+.waypoint-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid #b9c8c5;
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+.waypoint-dialog::backdrop {
+  background: #112b3266;
+}
+.waypoint-dialog form,
+.waypoint-field,
+.waypoint-dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.waypoint-dialog form {
+  gap: 16px;
+}
+.waypoint-dialog h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+.waypoint-dialog input,
+.waypoint-dialog textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px;
+  font: inherit;
+  border: 1px solid #97aaa6;
+  border-radius: 5px;
+}
+.waypoint-dialog textarea {
+  resize: vertical;
+}
+.waypoint-dialog-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.waypoint-dialog button {
+  min-height: 40px;
+}
+.waypoint-dialog [role="alert"] {
+  color: #9c2020;
+  margin: 0;
+}

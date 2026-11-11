@@ -1,3 +1,5 @@
+import { collectWaypoints, validateWaypoints } from "./waypoints.js";
+
 // Modelo local independiente del proveedor de almacenamiento y de Leaflet.
 export const uid = () => crypto.randomUUID();
 export const colors = [
@@ -87,10 +89,26 @@ export function parseGPX(text, filename = "Ruta importada") {
   const named = [...doc.getElementsByTagNameNS("*", "name")].find(
     (n) => n.parentNode.localName === "trk" || n.parentNode.localName === "rte",
   );
+  const root = doc.documentElement;
+  const firstTrace = [...root.children].find((node) =>
+    ["trk", "rte"].includes(node.localName),
+  );
+  const description =
+    (firstTrace && children(firstTrace, "desc")[0]?.textContent) ??
+    (children(root, "metadata")[0] &&
+      children(children(root, "metadata")[0], "desc")[0]?.textContent);
+  const waypoints = children(root, "wpt").map((node) => ({
+    ...read(node),
+    id: uid(),
+    name: children(node, "name")[0]?.textContent || "Waypoint",
+    description: children(node, "desc")[0]?.textContent || "",
+  }));
   return {
     id: uid(),
     name: named?.textContent.trim() || filename.replace(/\.gpx$/i, ""),
     tracks,
+    waypoints,
+    ...(description !== undefined ? { description } : {}),
     original: text,
     filename,
     createdAt: new Date().toISOString(),
@@ -117,7 +135,14 @@ export function exportGPX(elements, name) {
     )
   )
     throw new Error("Cada tramo debe tener al menos dos puntos válidos.");
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="TudaGPX" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>${escapeXML(name)}</name>${elements.map((e) => `<trkseg>${e.points.map((p) => `<trkpt lat="${p.lat}" lon="${p.lon}">${Number.isFinite(p.ele) ? `<ele>${p.ele}</ele>` : ""}</trkpt>`).join("")}</trkseg>`).join("")}</trk></gpx>`;
+  const waypoints = collectWaypoints(elements)
+    .map(
+      (p) =>
+        `<wpt lat="${p.lat}" lon="${p.lon}">${Number.isFinite(p.ele) ? `<ele>${p.ele}</ele>` : ""}<name>${escapeXML(p.name)}</name><desc>${escapeXML(p.description)}</desc></wpt>`,
+    )
+    .join("");
+  const description = elements[0].description;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="TudaGPX" xmlns="http://www.topografix.com/GPX/1/1">${waypoints}<trk><name>${escapeXML(name)}</name>${typeof description === "string" ? `<desc>${escapeXML(description)}</desc>` : ""}${elements.map((e) => `<trkseg>${e.points.map((p) => `<trkpt lat="${p.lat}" lon="${p.lon}">${Number.isFinite(p.ele) ? `<ele>${p.ele}</ele>` : ""}</trkpt>`).join("")}</trkseg>`).join("")}</trk></gpx>`;
 }
 export function review(elements) {
   const issues = [],
@@ -261,7 +286,16 @@ export function validateWorkspace(data) {
   )
     throw new Error("Copia de seguridad incompatible.");
   const ids = new Set();
+  const checkMetadata = (item) => {
+    validateWaypoints(item.waypoints);
+    if (
+      (item.completed !== undefined && typeof item.completed !== "boolean") ||
+      (item.description !== undefined && typeof item.description !== "string")
+    )
+      throw new Error("Metadatos de trazado inválidos.");
+  };
   const check = (item, tracks, allowEmpty = false) => {
+    checkMetadata(item);
     if (
       item.deletedAt !== undefined &&
       (typeof item.deletedAt !== "string" ||
@@ -325,6 +359,7 @@ export function validateWorkspace(data) {
         e.points.some((q) => !q || !validPoint(q))
       )
         throw new Error("Proyecto con puntos inválidos.");
+      checkMetadata(e);
     });
   });
   return data;

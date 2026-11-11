@@ -2,6 +2,8 @@ import { colors, stats } from "../utils/workspace";
 import { filterRoutes } from "../utils/routeFilters";
 import { RouteFilters } from "./RouteFilters";
 import ToolIcon from "./ToolIcon";
+import { LibrarySort } from "./LibrarySort";
+import { orderLibrary } from "../utils/libraryOrder";
 
 export function ViewerLibrary({
   items,
@@ -18,11 +20,14 @@ export function ViewerLibrary({
   onDownload,
   onBackup,
   onRestore,
+  onOpenDetails,
+  order = "added-asc",
+  onOrder,
 }) {
   const category = items.filter(
     (item) => item.kind === (tab === "routes" ? "route" : "segment"),
   );
-  const filtered = filterRoutes(category, filters, bounds);
+  const filtered = orderLibrary(filterRoutes(category, filters, bounds), order);
   return (
     <aside
       id="library-panel"
@@ -54,6 +59,7 @@ export function ViewerLibrary({
             </button>
           ))}
         </nav>
+        <LibrarySort key={tab} category={tab === "routes" ? "rutas" : "segmentos"} value={order} onChange={onOrder} />
       </div>
       <div className="panel-content">
         {filtered.map((item) => {
@@ -63,6 +69,9 @@ export function ViewerLibrary({
             <article
               key={item.id}
               data-kind={item.kind}
+              onClick={(event) => {
+                if (!event.target.closest("button,input,select,textarea,a,label")) onOpenDetails(item);
+              }}
               className={`library-card compact-route-card viewer-route-card${selected ? " selected" : ""}`}
               style={{
                 "--route-color": colors[items.indexOf(item) % colors.length],
@@ -75,7 +84,7 @@ export function ViewerLibrary({
                   checked={selected}
                   onChange={() => onToggle(item.id)}
                 />
-                <h3>{item.name}</h3>
+                <h3><a className="card-detail-link" href={`#recorrido/${encodeURIComponent(item.id)}`} onClick={(event) => { event.preventDefault(); onOpenDetails(item); }}>{item.name}</a></h3>
                 {selected && (
                   <span className="color-mark" title="Color en el mapa" />
                 )}
@@ -87,6 +96,8 @@ export function ViewerLibrary({
                 </span>
                 {metrics.missing > 0 && <small> · elevación parcial</small>}
               </span>
+              <span className={`completion-badge ${item.completed ? "is-completed" : ""}`}>{item.completed ? "✓ Realizada" : "Pendiente"}</span>
+              {item.description && <p className="card-description">{item.description}</p>}
               {selected && (
                 <div className="catalog-actions viewer-catalog-actions">
                   <button

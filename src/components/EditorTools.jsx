@@ -42,7 +42,7 @@ export function EditorTools({
   useEffect(() => {
     if (!editing) return;
     const handler = (e) => {
-      if (e.target.closest('input,textarea,select,[contenteditable="true"]'))
+      if (e.target.closest('dialog,input,textarea,select,[contenteditable="true"]'))
         return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
         e.preventDefault();
@@ -97,6 +97,16 @@ export function EditorTools({
             <ToolIcon name={icon} />
           </button>
         ))}
+        <button
+          aria-label="Añadir waypoint"
+          title="Añadir waypoint"
+          className={mode === "waypoint" ? "chosen" : ""}
+          aria-pressed={mode === "waypoint"}
+          disabled={!element?.points.length || routingBusy}
+          onClick={() => onMode(mode === "waypoint" ? "view" : "waypoint")}
+        >
+          <ToolIcon name="waypoint" />
+        </button>
         <button
           aria-label="Unir trazados"
           title="Unir en orden de selección: clic inicial y Ctrl/⌘ + clic para añadir. Los huecos siguen el camino más corto."
@@ -237,6 +247,11 @@ export function EditorTools({
             />
             Seguir caminos
           </label>
+        </section>
+      )}
+      {mode === "waypoint" && (
+        <section className="editor-options" role="status">
+          Pulsa el mapa para añadir un waypoint con descripción.
         </section>
       )}
       {mode === "crop" && element?.points.length > 1 && range && onRange && (

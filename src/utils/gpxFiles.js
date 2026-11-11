@@ -38,7 +38,7 @@ export async function readGPXFile(file) {
       reject(new Error("No se ha podido conservar el archivo original."));
     reader.readAsDataURL(file);
   });
-  return { ...route, originalBase64 };
+  return { ...route, completed: false, description: route.description || "", originalBase64 };
 }
 export function originalContent(route) {
   return route.originalBase64

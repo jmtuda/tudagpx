@@ -44,6 +44,22 @@ Para crear un segmento de una parte del recorrido, abre «Recortar trazado» en 
 
 El lápiz permite desactivar la edición y ocultar su cuadro, manteniendo las herramientas. La biblioteca solo está en «Ver rutas», fija y sin controles para ocultarla. Deshacer: Ctrl/⌘ Z; rehacer: Ctrl/⌘ Mayús Z. Detalles: docs/EDITOR_VISUAL.md.
 
+## Ficha individual, descripción y ordenación
+
+Pulsa el nombre o el cuerpo de una ficha de ruta o segmento para abrir su pantalla individual: mapa y perfil únicamente de ese recorrido, descripción, estado y waypoints. «Volver a la biblioteca» recupera los filtros y selecciones de la sesión. También funcionan Atrás/Adelante y los enlaces privados `#recorrido/id`. La casilla de la lista sigue sirviendo solo para superponer recorridos y los botones mantienen sus acciones.
+
+En la ficha, «Editar datos» permite marcar «Realizada» y escribir una descripción con varias líneas. Confirma con «Guardar datos» o descarta con «Cancelar cambios». Las entradas antiguas empiezan pendientes si no tenían estado; las nuevas rutas/segmentos también empiezan pendientes. Son metadatos: no se alteran los bytes ni los puntos del original. Una descripción del GPX importado se puede leer y copiar al editor; cambiar la ficha no reescribe el GPX original descargable.
+
+El pequeño icono de ordenación junto a Rutas/Segmentos abre cuatro opciones: nombre A–Z, nombre Z–A, inclusión con antiguas primero o con recientes primero. Se recuerda una preferencia por categoría en ese navegador. La inclusión es el orden de llegada a la biblioteca, no la fecha grabada en el GPX. Ordenar no modifica los datos guardados, los colores ni la selección del mapa.
+
+## Waypoints con descripción
+
+En «Editar», activa un archivo y pulsa el icono «Añadir waypoint». Pulsa el lugar del mapa —también puede estar sobre la línea—, escribe una descripción y guarda; el nombre es opcional. No añade vértices al trazado ni llama a BRouter. Pulsa el marcador para ver su descripción y editarlo; borrarlo pide confirmación. Estas operaciones admiten deshacer/rehacer y se conservan en el trabajo abierto al recargar.
+
+Los waypoints pertenecen al archivo completo, incluso si tiene varios tramos, y se guardan una sola vez en el GPX como puntos de interés independientes. Guardar ruta o segmento conserva sus anotaciones con una identidad nueva; la biblioteca y el GPX original de procedencia no cambian. En el visor y la ficha se pueden consultar, pero su edición requiere enviar una copia al editor. También se leen los waypoints que ya venían en GPX antiguos conservados.
+
+Recortar conserva las anotaciones del archivo, aunque alguna quede fuera del trazado recortado. Dividir conserva una copia independiente de ellas en la nueva parte; unir reúne las anotaciones de los archivos elegidos. Puedes eliminar expresamente las que no necesites. Las copias JSON incluyen descripción, estado y waypoints.
+
 ## Proteger el trabajo
 
 Al pie de la biblioteca, abre «Copias de seguridad». «Descargar copia completa» guarda biblioteca actual, originales conservados y trabajo abierto en un JSON descargado por ti, sin añadir un archivo oculto en la aplicación. Hazlo periódicamente y antes de borrar datos del navegador. «Añadir copia de seguridad» incorpora los elementos no borrados y abre el trabajo recuperado en el editor, con identidades nuevas. Los snapshots de copias antiguas también se abren en el editor, no se guardan ocultos.

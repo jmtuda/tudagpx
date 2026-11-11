@@ -19,7 +19,7 @@ const url = execFileSync(
 ).trim();
 const sql = neon(url);
 const definitions = new Map();
-for (const file of ["003_incremental_sync.sql", "004_current_only.sql"]) {
+for (const file of ["003_incremental_sync.sql", "004_current_only.sql", "005_metadata_waypoints.sql"]) {
   const migration = readFileSync(
     new URL(`../migrations/${file}`, import.meta.url),
     "utf8",
@@ -29,7 +29,7 @@ for (const file of ["003_incremental_sync.sql", "004_current_only.sql"]) {
   ))
     definitions.set(name, body);
 }
-assert.equal(definitions.size, 6);
+assert.equal(definitions.size, 7);
 for (const [name, body] of definitions) {
   const [verified] =
     await sql`SELECT count(*)::int AS matches FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname = ${name} AND p.prosrc = ${body}`;

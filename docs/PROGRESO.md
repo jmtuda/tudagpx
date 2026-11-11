@@ -1,5 +1,15 @@
 # Progreso
 
+## Ficha individual, metadatos, ordenación y waypoints
+
+- Rutas y segmentos con Realizada/Pendiente y descripción multilínea. Ficha individual al pulsar cuerpo/nombre, con mapa/perfil únicamente del recorrido, descripción y lista de waypoints. Hash privado y navegación Atrás/Adelante, regreso con filtros/selecciones conservados; checkbox/acciones siguen independientes. Editar datos/Guardar datos solo cambia metadatos.
+- Ordenación discreta junto a Rutas/Segmentos: A–Z, Z–A, inclusión antigua/reciente, con preferencias independientes por categoría/navegador. Colores y arrays persistidos intactos. Menú recolocado sobre el selector si falta espacio abajo; las cuatro opciones son utilizables con filtros abiertos en móvil.
+- Botón Añadir waypoint en editor, nombre opcional y descripción obligatoria, marcadores con consulta/edición y borrado confirmado, deshacer/rehacer y recuperación al recargar. Pulsar la línea en ese modo no añade trackpoints ni consulta BRouter. Popup reservado por debajo de la barra y diálogo con etiquetas explícitas para texto preexistente.
+- Waypoints GPX raíz importados/exportados con escape XML y tramos exactos. Agrupación de archivo multitramos, canonicalización, nuevas identidades de copias y remapeo de backup. Guardar ruta/segmento conserva anotaciones; recorte/división/unión no las borran silenciosamente. Legacy puede recuperar descripción/waypoints del original para mostrar/copiar sin mutarlo. Nuevas rutas/segmentos pendientes.
+- SQL005 aplicada solo como definiciones, con fingerprints antes/después que conservan los datos propietarios. Validación y protección de waypoints originales junto a geometría/bytes, un único head, versión optimista y eliminación explícita. Sincronización mantiene cambios de campos únicamente. Prueba real pequeña: delta metadata de 285 B enviados; 192 B desde Neon, 13 B al cliente, una consulta; sin descargar payload propietario. Limpieza sintética comprobada sin heads ni partes residuales y readback exacto de siete funciones vigentes.
+
+Verificado: npm run lint, VITE_CLOUD_ENABLED=true npm run build, 136 pruebas Chrome y 34 Node, git diff --check. Cobertura de ambos tipos y escritorio/móvil, originales exactos, Unicode/HTML literal, cancelaciones, guardado/recarga/backup, las cuatro ordenaciones por categoría, navegación, GPX multitramos, waypoint sobre línea, undo/redo, borrado, recorte/división/unión y restauración aditiva. Cartografías y BRouter reales, capturas revisadas. README/arquitectura/contexto actualizados.
+
 ## Color sólido de rutas y segmentos activos en solapamientos
 
 Las referencias inactivas se sitúan explícitamente detrás y las seleccionadas delante mediante Leaflet bringToBack/bringToFront. Opacidad activa 1 para conservar el color exacto sobre ortofoto o referencias coincidentes. Retirado el sort por selección del árbol React: no controlaba el orden SVG y podía recrear nodos; se mantienen identidades/colores y popup al alternar. Identificador data-route-id para comprobar líneas sin depender de su orden de pintado. No cambia geometría, biblioteca ni persistencia.

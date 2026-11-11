@@ -74,14 +74,21 @@ export function validateChange(data, previous, { remove = {} } = {}) {
       !next ||
       next.original !== original.original ||
       next.originalBase64 !== original.originalBase64 ||
-      !isDeepStrictEqual(next.tracks, original.tracks)
+      !isDeepStrictEqual(next.tracks, original.tracks) ||
+      !isDeepStrictEqual(next.waypoints ?? [], original.waypoints ?? [])
     )
       throw new Error("No se permite sustituir ni eliminar originales.");
   }
   for (const original of previous?.segments || []) {
     const next = data.segments.find((segment) => segment.id === original.id);
     if (!next && remove.segments?.includes(original.id)) continue;
-    if (!next || !isDeepStrictEqual(next.points, original.points))
+    if (
+      !next ||
+      !isDeepStrictEqual(next.points, original.points) ||
+      next.original !== original.original ||
+      next.originalBase64 !== original.originalBase64 ||
+      !isDeepStrictEqual(next.waypoints ?? [], original.waypoints ?? [])
+    )
       throw new Error(
         "Los segmentos originales no se pueden sobrescribir. Edita y guarda una copia.",
       );

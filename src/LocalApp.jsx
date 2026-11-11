@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { WorkspaceMap } from "./components/WorkspaceMap";
 import {
   uid,
@@ -7,6 +7,7 @@ import {
   review,
   exportGPX,
   validateWorkspace,
+  colors,
 } from "./utils/workspace";
 import {
   loadWorkspace,
@@ -31,6 +32,11 @@ import {
   sameEndpoint,
 } from "./utils/mergeRoutes";
 import { ViewerLibrary } from "./components/ViewerLibrary";
+import { RouteDetails } from "./components/RouteDetails";
+import { readLibraryOrders } from "./utils/libraryOrder";
+import { libraryAnnotations } from "./utils/libraryAnnotations";
+import { copyWaypoints, collectWaypoints, getGroupWaypoints, upsertGroupWaypoint, removeGroupWaypoint } from "./utils/waypoints.js";
+import { WaypointDialog } from "./components/WaypointDialog";
 import { viewerLibrary } from "./utils/viewerLibrary";
 import { SegmentNameDialog } from "./components/SegmentNameDialog";
 import { emptyRouteFilters } from "./utils/routeFilters";
@@ -39,18 +45,30 @@ import "./editor.css";
 import "./workspaceNavigation.css";
 import "./editorFiles.css";
 import "./dockInterface.css";
+import "./routeDetails.css";
 const clone = (value) => structuredClone(value);
 const toggle = (items, id) =>
   items.includes(id) ? items.filter((x) => x !== id) : [...items, id];
+function readDetailId() {
+  try {
+    return location.hash.startsWith("#recorrido/")
+      ? decodeURIComponent(location.hash.slice("#recorrido/".length)) : null;
+  } catch { return null; }
+}
 
 export default function LocalApp({ onLogout }) {
   const [workspace, setWorkspace] = useState("view");
   const [routeFilters, setRouteFilters] = useState({ ...emptyRouteFilters });
+  const [detailId, setDetailId] = useState(readDetailId);
+  const [libraryOrders, setLibraryOrders] = useState(readLibraryOrders);
+  const overviewBounds = useRef(null);
   function switchWorkspace(value) {
     cancelRouting();
     setDrawing(false);
     setIssues(null);
     setWorkspace(value);
+    setWaypointRequest(null);
+    if (detailId) closeDetails(false);
   }
   const [routing, setRouting] = useState(
     () => localStorage.getItem("tudagpx-routing-mode-v3") !== "free",
@@ -76,10 +94,28 @@ export default function LocalApp({ onLogout }) {
   const [data, setData] = useState(null),
     [fatal, setFatal] = useState(""),
     [saved, setSaved] = useState("Cargando…");
+  const detailSource = data && [...data.routes, ...data.segments].find((item) => item.id === detailId);
+  const detailAnnotations = useMemo(() => libraryAnnotations(detailSource), [detailSource]);
   const [tab, setTab] = useState("routes");
   const [visibleRoutes, setVisibleRoutes] = useState([]);
   const [bounds, setBounds] = useState(null),
     [focus, setFocus] = useState(null);
+  useEffect(() => {
+    const navigate = () => {
+      const id = readDetailId();
+      cancelRouting();
+      setDrawing(false);
+      setIssues(null);
+      setWaypointRequest(null);
+      setDetailId(id);
+      setWorkspace("view");
+      const item = data && viewerLibrary(data).find((entry) => entry.id === id);
+      if (item) focusPoints(item.tracks.flat());
+      else if (!id && overviewBounds.current) setFocus({ bounds: overviewBounds.current, token: uid() });
+    };
+    window.addEventListener("popstate", navigate);
+    return () => window.removeEventListener("popstate", navigate);
+  }, [data]);
   const [active, setActive] = useState(null),
     [pointIndex, setPointIndex] = useState(0),
     [drawing, setDrawing] = useState(false);
@@ -100,6 +136,7 @@ export default function LocalApp({ onLogout }) {
   }, [notification]);
   const [segmentRequest, setSegmentRequest] = useState(null);
   const [routeRequest, setRouteRequest] = useState(null);
+  const [waypointRequest, setWaypointRequest] = useState(null);
   const [outputRequest, setOutputRequest] = useState(null);
   const [importing, setImporting] = useState(false);
   const fileInput = useRef(),
@@ -112,11 +149,16 @@ export default function LocalApp({ onLogout }) {
       .then(() => (cloudEnabled ? loadCloudWorkspace() : loadWorkspace()))
       .then((value) => {
         if (alive) {
-          setData(
-            value
+          const loaded = value
               ? currentWorkspace(validateWorkspace(value))
-              : initialWorkspace(),
-          );
+              : initialWorkspace();
+          setData(loaded);
+          const item = viewerLibrary(loaded).find((entry) => entry.id === readDetailId());
+          if (item) focusPoints(item.tracks.flat());
+          else if (readDetailId()) {
+            setDetailId(null);
+            history.replaceState(null, "", location.pathname + location.search);
+          }
           setSaved("Guardado local");
         }
       })
@@ -194,6 +236,7 @@ export default function LocalApp({ onLogout }) {
       [collection]: d[collection].filter((entry) => entry.id !== item.id),
     }));
     setVisibleRoutes((ids) => ids.filter((id) => id !== item.id));
+    if (detailId === item.id) closeDetails();
     setNotice(
       "Elemento eliminado definitivamente de la biblioteca. Las copias abiertas se conservan.",
     );
@@ -204,6 +247,8 @@ export default function LocalApp({ onLogout }) {
     try {
       const xml = exportGPX(elements, name);
       const parsed = parseGPX(xml);
+      if (parsed.waypoints.length !== collectWaypoints(elements).length)
+        throw new Error("El GPX generado no conserva todos los waypoints.");
       if (
         parsed.tracks.length !== elements.length ||
         parsed.tracks.some(
@@ -238,6 +283,7 @@ export default function LocalApp({ onLogout }) {
   }
   function undo() {
     if (!past.length) return;
+    setWaypointRequest(null);
     setFuture((f) => [clone(data.draft), ...f]);
     update((d) => ({ ...d, draft: past.at(-1) }));
     setPast((p) => p.slice(0, -1));
@@ -247,6 +293,7 @@ export default function LocalApp({ onLogout }) {
   }
   function redo() {
     if (!future.length) return;
+    setWaypointRequest(null);
     setPast((p) => [...p, clone(data.draft)]);
     update((d) => ({ ...d, draft: future[0] }));
     setFuture((f) => f.slice(1));
@@ -256,7 +303,38 @@ export default function LocalApp({ onLogout }) {
   }
 
   function focusPoints(points) {
-    setFocus({ id: uid(), points });
+    setFocus({ points, token: uid() });
+  }
+  function openDetails(item) {
+    if (!detailId) overviewBounds.current = bounds;
+    setDetailId(item.id);
+    history.pushState({ tudagpxDetail: true }, "", `#recorrido/${encodeURIComponent(item.id)}`);
+    focusPoints(item.tracks.flat());
+  }
+  function closeDetails(restoreView = true) {
+    setDetailId(null);
+    if (restoreView && history.state?.tudagpxDetail) history.back();
+    else history.replaceState(null, "", location.pathname + location.search);
+    if (restoreView && overviewBounds.current) setFocus({ bounds: overviewBounds.current, token: uid() });
+  }
+  function changeLibraryOrder(order) {
+    const next = { ...libraryOrders, [tab]: order };
+    setLibraryOrders(next);
+    try { localStorage.setItem("tudagpx-library-order-v1", JSON.stringify(next)); } catch { /* Sorting remains usable if browser storage is full. */ }
+  }
+  function saveItemMetadata(item, metadata) {
+    const key = item.kind === "segment" ? "segments" : "routes";
+    update((current) => ({ ...current, [key]: current[key].map((entry) => entry.id === item.id
+      ? { ...entry, completed: metadata.completed, description: metadata.description } : entry) }));
+    setNotice("Datos guardados. El GPX original no se ha modificado.");
+  }
+  function downloadLibraryItem(item) {
+    if (item.kind === "route") {
+      download(originalContent(item), item.filename);
+      return;
+    }
+    const elements = [{ ...item, points: item.points }];
+    requestOutput("export", elements, item.name, () => download(exportGPX(elements, item.name), `${item.name}.gpx`));
   }
   async function importFiles(event) {
     const files = [...event.target.files];
@@ -329,6 +407,7 @@ export default function LocalApp({ onLogout }) {
   }
   function setTool(mode) {
     cancelRouting();
+    setWaypointRequest(null);
     setEditorMode(mode);
     setDrawing(false);
     setCrop(null);
@@ -383,6 +462,8 @@ export default function LocalApp({ onLogout }) {
         editorRouteName: name,
         name,
         points,
+        description: [...new Set(elements.map((element) => element.description).filter(Boolean))].join("\n\n"),
+        waypoints: copyWaypoints(keys.flatMap((key) => getGroupWaypoints(data.draft, elements.find((element) => editorRouteKey(element) === key).id))),
       };
       const remaining = data.draft.filter(
         (e) => !keys.includes(editorRouteKey(e)),
@@ -410,10 +491,13 @@ export default function LocalApp({ onLogout }) {
   }
   function editorCopies(route, linked = true) {
     const editorRouteId = uid();
+    const annotations = libraryAnnotations(route);
     return route.tracks.map((points, i) => ({
       id: uid(),
       name: route.name + (route.tracks.length > 1 ? ` · tramo ${i + 1}` : ""),
       points: clone(points),
+      description: annotations.description,
+      ...(i === 0 ? { waypoints: copyWaypoints(annotations.waypoints) } : {}),
       ...(linked
         ? route.kind === "segment"
           ? { sourceId: route.id }
@@ -430,6 +514,24 @@ export default function LocalApp({ onLogout }) {
     setTool("edit");
     focusPoints(copies.flatMap((e) => e.points));
     setNotice("Editas una copia. El GPX original permanece intacto.");
+  }
+  function requestWaypoint(point, waypoint) {
+    if (routingBusy || !data.draft.some((element) => element.id === active)) return;
+    setDrawing(false);
+    setWaypointRequest({ point, waypoint, elementId: active });
+  }
+  function saveWaypoint(waypoint) {
+    if (!data.draft.some((element) => element.id === waypointRequest.elementId))
+      throw new Error("El trazado ya no está abierto. Cancela y vuelve a seleccionarlo.");
+    edit((draft) => upsertGroupWaypoint(draft, waypointRequest.elementId, waypoint));
+    setWaypointRequest(null);
+    setNotice("Waypoint guardado en la copia del editor. Puedes deshacer.");
+  }
+  function deleteWaypoint(waypoint) {
+    if (!window.confirm(`¿Borrar el waypoint «${waypoint.name || "Waypoint"}» de esta copia?`)) return;
+    edit((draft) => removeGroupWaypoint(draft, waypointRequest.elementId, waypoint.id));
+    setWaypointRequest(null);
+    setNotice("Waypoint eliminado de la copia del editor. Puedes deshacer.");
   }
   function closeEditorRoute(id) {
     const remaining = data.draft.filter(
@@ -562,6 +664,7 @@ export default function LocalApp({ onLogout }) {
         editorRouteId: uid(),
         editorRouteName: secondName,
         points: parts[1],
+        waypoints: copyWaypoints(getGroupWaypoints(data.draft, id)),
       },
       ...data.draft.slice(position + 1),
     ]);
@@ -635,6 +738,9 @@ export default function LocalApp({ onLogout }) {
       points: clone(points),
       sourceId: element?.sourceId,
       sourceRouteId: element?.sourceRouteId,
+      completed: false,
+      description: element?.description || "",
+      waypoints: copyWaypoints(getGroupWaypoints(data.draft, active)),
       createdAt: new Date().toISOString(),
     };
     requestOutput("segment", [segment], name, () =>
@@ -682,11 +788,20 @@ export default function LocalApp({ onLogout }) {
         [...source.routes, ...source.segments].map((e) => [e.id, uid()]),
       );
       const editorIds = new Map();
+      const waypointIds = new Map();
       const copy = (e) => {
         if (e.editorRouteId && !editorIds.has(e.editorRouteId))
           editorIds.set(e.editorRouteId, uid());
+        const group = editorRouteKey(e);
+        if (!waypointIds.has(group)) waypointIds.set(group, new Map());
+        const ids = waypointIds.get(group);
+        const waypoints = e.waypoints?.map((waypoint) => {
+          if (!ids.has(waypoint.id)) ids.set(waypoint.id, uid());
+          return { ...waypoint, id: ids.get(waypoint.id) };
+        });
         return {
           ...clone(e),
+          ...(waypoints ? { waypoints } : {}),
           id: uid(),
           sourceId: idMap.get(e.sourceId) || e.sourceId,
           sourceRouteId: idMap.get(e.sourceRouteId) || e.sourceRouteId,
@@ -737,13 +852,13 @@ export default function LocalApp({ onLogout }) {
     );
   if (!data) return <main className="startup">Abriendo TudaGPX…</main>;
   const activeElement = data.draft.find((e) => e.id === active);
-  const catalog = {
-    ...data,
-    routes: data.routes.filter((r) => !r.deletedAt),
-    segments: data.segments.filter((s) => !s.deletedAt),
-  };
-
-  const libraryItems = viewerLibrary(catalog);
+  const libraryItems = viewerLibrary(data);
+  const detailBase = libraryItems.find((item) => item.id === detailId);
+  const detailItem = detailBase && { ...detailBase, ...detailAnnotations };
+  const detailMapItem = detailItem && { ...detailItem, viewerColor: colors[libraryItems.indexOf(detailBase) % colors.length] };
+  const mapData = workspace === "view" && detailItem
+    ? { ...data, routes: detailItem.kind === "route" ? [detailMapItem] : [], segments: detailItem.kind === "segment" ? [detailMapItem] : [] }
+    : data;
   const cropRange =
     crop?.id === active
       ? crop
@@ -849,7 +964,16 @@ export default function LocalApp({ onLogout }) {
         aria-labelledby={`workspace-tab-${workspace}`}
       >
         {workspace === "view" && (
-          <ViewerLibrary
+          detailItem ? <RouteDetails
+            key={detailItem.id}
+            item={detailItem}
+            onBack={() => closeDetails()}
+            onSave={(metadata) => saveItemMetadata(detailItem, metadata)}
+            onSend={editRoute}
+            onRename={(item) => renameItem(item.kind === "segment" ? "segments" : "routes", item)}
+            onDelete={(item) => deleteItem(item.kind === "segment" ? "segments" : "routes", item)}
+            onDownload={downloadLibraryItem}
+          /> : <ViewerLibrary
             items={libraryItems}
             tab={tab}
             onTab={setTab}
@@ -865,23 +989,7 @@ export default function LocalApp({ onLogout }) {
             onDelete={(item) =>
               deleteItem(item.kind === "segment" ? "segments" : "routes", item)
             }
-            onDownload={(item) =>
-              item.kind === "segment"
-                ? requestOutput(
-                    "export",
-                    [{ points: item.points, name: item.name }],
-                    item.name,
-                    () =>
-                      download(
-                        exportGPX(
-                          [{ points: item.points, name: item.name }],
-                          item.name,
-                        ),
-                        `${item.name}.gpx`,
-                      ),
-                  )
-                : download(originalContent(item), item.filename)
-            }
+            onDownload={downloadLibraryItem}
             onBackup={() =>
               download(
                 JSON.stringify(data, null, 2),
@@ -890,25 +998,26 @@ export default function LocalApp({ onLogout }) {
               )
             }
             onRestore={() => backupInput.current.click()}
+            onOpenDetails={openDetails}
+            order={libraryOrders[tab]}
+            onOrder={changeLibraryOrder}
           />
         )}
         <main className="map-area">
           <WorkspaceMap
-            data={catalog}
+            data={mapData}
             onSendRoute={editRoute}
             viewing={workspace === "view"}
-            visibleRoutes={visibleRoutes}
-            onToggleRoute={(id) =>
-              setVisibleRoutes((routes) => toggle(routes, id))
-            }
+            visibleRoutes={workspace === "view" && detailItem ? [detailItem.id] : visibleRoutes}
+            onToggleRoute={(id) => { if (!detailItem) setVisibleRoutes((routes) => toggle(routes, id)); }}
             onDropFiles={(files) =>
               importRouteFiles(files, workspace === "edit")
             }
             importing={importing}
             onCenterSelection={() =>
               focusPoints(
-                libraryItems
-                  .filter((item) => visibleRoutes.includes(item.id))
+                (detailItem ? [detailItem] : libraryItems)
+                  .filter((item) => detailItem || visibleRoutes.includes(item.id))
                   .flatMap((item) => item.tracks.flat()),
               )
             }
@@ -949,6 +1058,8 @@ export default function LocalApp({ onLogout }) {
 
             routingBusy={routingBusy}
             mode={editorMode}
+            onAddWaypoint={(point) => requestWaypoint(point)}
+            onEditWaypoint={(waypoint) => requestWaypoint(waypoint, waypoint)}
             crop={cropRange}
             onInsert={insertPoint}
             onPointAction={pointAction}
@@ -1048,6 +1159,7 @@ export default function LocalApp({ onLogout }) {
           </button>
         </div>
       )}
+      {waypointRequest && <WaypointDialog request={waypointRequest} onSave={saveWaypoint} onCancel={() => setWaypointRequest(null)} onDelete={deleteWaypoint} />}
       {routeRequest && (
         <SegmentNameDialog
           kind="route"
