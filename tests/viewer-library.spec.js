@@ -194,8 +194,9 @@ for (const kind of ["route", "segment"]) {
     page,
   }) => {
     const before = await seed(page);
-    const index = kind === "route" ? 0 : 1;
-    const path = page.locator("path.viewer-route-reference").nth(index);
+    const path = page.locator(
+      `path.viewer-route-reference[data-route-id="test-${kind}"]`,
+    );
     const point = await path.evaluate((path) => {
       const p = path.getPointAtLength(path.getTotalLength() / 2);
       const screen = new DOMPoint(p.x, p.y).matrixTransform(

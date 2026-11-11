@@ -84,10 +84,15 @@ function ViewerRoute({ route, selected, color, onClick }) {
   const line = useRef(null);
   useEffect(() => {
     const path = line.current?.getElement();
+    path?.setAttribute("data-route-id", route.id);
     path?.classList.toggle("viewer-route", selected);
     path?.classList.toggle("viewer-route-selected", selected);
     path?.classList.toggle("viewer-route-reference", !selected);
-  }, [selected]);
+    // React's list order does not reorder Leaflet's existing SVG paths.
+    // Keep inactive references below selected traces after every toggle/mount.
+    if (selected) line.current?.bringToFront();
+    else line.current?.bringToBack();
+  }, [selected, route.id]);
   return (
     <Polyline
       ref={line}
@@ -101,7 +106,7 @@ function ViewerRoute({ route, selected, color, onClick }) {
       pathOptions={{
         color: selected ? color : "#c1cbd0",
         weight: selected ? 6 : 4,
-        opacity: selected ? 0.95 : 0.5,
+        opacity: selected ? 1 : 0.5,
       }}
       eventHandlers={{ click: onClick }}
     >
@@ -226,11 +231,6 @@ export function WorkspaceMap({
               viewing &&
               (visibleRoutes.includes(r.id) ||
                 r.tracks.some((points) => inBounds(points, bounds))),
-          )
-          .sort(
-            (a, b) =>
-              Number(visibleRoutes.includes(a.id)) -
-              Number(visibleRoutes.includes(b.id)),
           )
           .map((r) => (
             <ViewerRoute

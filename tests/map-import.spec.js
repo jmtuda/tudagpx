@@ -155,7 +155,7 @@ test("rutas de la vista atenuadas, selección en el mapa y editor independiente"
   await expect(page.locator("path.viewer-route-selected")).toHaveCount(1);
   await expect(page.locator("path.viewer-route-selected")).toHaveAttribute(
     "stroke-opacity",
-    "0.95",
+    "1",
   );
   await expect(page.locator(".trace-start")).toHaveText("▶");
   await expect(page.locator(".trace-end")).toHaveText("■");

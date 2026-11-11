@@ -1,5 +1,11 @@
 # Progreso
 
+## Color sólido de rutas y segmentos activos en solapamientos
+
+Las referencias inactivas se sitúan explícitamente detrás y las seleccionadas delante mediante Leaflet bringToBack/bringToFront. Opacidad activa 1 para conservar el color exacto sobre ortofoto o referencias coincidentes. Retirado el sort por selección del árbol React: no controlaba el orden SVG y podía recrear nodos; se mantienen identidades/colores y popup al alternar. Identificador data-route-id para comprobar líneas sin depender de su orden de pintado. No cambia geometría, biblioteca ni persistencia.
+
+Verificado con lint/build y 110 pruebas Chrome. Cuatro regresiones rutas/segmentos en escritorio/móvil comparan píxeles SVG de tramo compartido y no compartido con el color esperado, orden de capas, tres ciclos de selección/deselección de referencia, identidad del path, popup y datos intactos. Capturas revisadas.
+
 ## Estado actual únicamente y borrado definitivo (política vigente)
 
 El propietario confirmó eliminar definitivamente 4 rutas y 6 segmentos marcados como borrados y aplicar en adelante una política sin papelera ni historial automático oculto. Migración 004 instalada con readback exacto de funciones: cada guardado mantiene un único head con versión monotónica, borrado explícito por id, inmutabilidad de los originales supervivientes y rechazo de clientes antiguos sin policy=current-only-v1. Los fragmentos completados se eliminan y los abandonados caducan por última actividad de su grupo.
